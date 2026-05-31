@@ -27,12 +27,15 @@ def prepare_refs():
     src = os.path.join(THESIS, "references.md")
     with open(src, encoding="utf-8") as f:
         lines = f.readlines()
-    # оставляем только записи источников (строки, начинающиеся с цифры)
-    entries = [ln for ln in lines if re.match(r"^\d+\s", ln)]
+    # берём всё начиная с первой записи (строка, начинающаяся с «N »),
+    # СОХРАНЯЯ многострочные записи (URL, дата) и пустые строки-разделители
+    start = next((i for i, ln in enumerate(lines)
+                  if re.match(r"^\d+\s", ln)), 0)
+    body = "".join(lines[start:])
     fd, path = tempfile.mkstemp(suffix=".md")
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write("# СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ\n\n")
-        f.writelines(entries)
+        f.write(body)
     return path
 
 
