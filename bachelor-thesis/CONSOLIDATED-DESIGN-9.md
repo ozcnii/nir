@@ -264,3 +264,9 @@ flowchart LR
 [INITIAL-DATA-PROPOSAL.md](INITIAL-DATA-PROPOSAL.md):3источника/3вида/89регионов по проверенному snapshot, внутренние ID не равны IDs площадок, подписи редактируются без смены смысла. Удаление по5.4 сохранено; выбранное явное восстановление прежнего PK не перезаписывает другие строки. Принято владельцем 18 ноября 2026; schema/код/данные БД не менялись.
 
 Актуальный статус: начальные данные, постоянные ID и восстановление также приняты; они исключены из остатка9.6.
+
+## Порты, пользователь и Chromium — новое предложение
+
+[CONTAINER-RUNTIME-PROPOSAL.md](CONTAINER-RUNTIME-PROPOSAL.md): loopback8000, db:5432 без host-публикации, appUID/GID10001, bundled fullChromium headless с явно включённымsandbox и seccomp, init и штатныйtmp без настройкиshm. НЕ ПРИНЯТО; остальной механизм аренды/shutdown, журнал/restart и сводный комплект не закрыты. Первичные источники — [CONTAINER-RUNTIME-PRIMARY-SOURCES](evidence/CONTAINER-RUNTIME-PRIMARY-SOURCES.md); runtime не проверялся.
+
+[Новый чистый критик runtime](reviews/CONTAINER-RUNTIME-FRESH-CRITIC.md):9/10 после точечного устранения неоднозначности seccomp (первично8,5/10), открытых замечаний в проверенном объёме нет. Новые настройки НЕ ПРИНЯТЫ, сборка/runtime не проверены.
