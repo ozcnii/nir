@@ -237,7 +237,7 @@ flowchart LR
 - 1–8 закрыты как проектирование. Приложение, рабочие конфигурации, совместная установка, реализация ролей/ресурсов и Compose, фактические тесты/разметка/измерения/оформленные отчёты/сдача не выполнены.
 - Доказательства общих требований и НИР сверены. Точный публичный ГИА2023 снова оказался титулом на одной странице; персональный план/полные кафедральные критерии, актуальный порядок нормоконтроля и точный комплект подачи не установлены. Это открытые требования к формальному комплекту, а не повод менять принятую тему/согласовывать сбор. Полное соответствие всем требованиям вуза не заявляется.
 
-**Уже принято в пункте 9:** Docker Compose app/db, runner внутри app и постоянный volume db; base app/digest и версии Desktop/Engine/Compose; роли migrator/app и порядок первого запуска; обязательное резервирование исключено.
+**Уже принято в пункте 9:** Docker Compose app/db, runner внутри app и постоянный volume db; base app/digest и версии Desktop/Engine/Compose; роли migrator/app и порядок первого запуска; начальные данные/ID, порты/OS-пользователь/Chromium и остановка/ресурсы; обязательное резервирование исключено.
 
 **Что осталось согласовать в пункте 9:**
 
@@ -273,3 +273,7 @@ flowchart LR
 ## Остановка и освобождение ресурсов — принято
 
 [PROCESS-LIFECYCLE-PROPOSAL.md](PROCESS-LIFECYCLE-PROPOSAL.md): foregroundlauncher с локальным Unixsocket, stopточногоrun и pidfdсигналы, штатныйcleanup до40секунд/контейнерныйgrace60секунд, отказ считатьkillrunner очисткойdetachedChromium, conservativeunknown и согласованная очисткаapp. Hostаренды каждойзадачи включаютapp/db; последнийпользователь останавливаеттолькоуправляемыересурсы с сохранениемvolume. Синхронизацияstart/delete уточняет5.4 темжеPGkey. Принято владельцем 18 ноября 2026, реализации нет. Новый чистый критик — [9/10](reviews/PROCESS-LIFECYCLE-FRESH-CRITIC.md); первичныефакты — [источники](evidence/PROCESS-LIFECYCLE-PRIMARY-SOURCES.md). Журнал/restart/размещение служебного состояния и финальный комплект остаются отдельными вопросами.
+
+## Журнал, служебное состояние и restart — предложение
+
+[JOURNAL-STATE-RESTART-PROPOSAL.md](JOURNAL-STATE-RESTART-PROPOSAL.md): дополнительный persistentapp_data дляper-runstate/JSONL, volatilecontrolsocket вtmpfs, один launcherwriter с неблокирующим ограниченным буфером/ACK и независимымcontrol. Ротация около15MiB/run, последние10finished плюсзащищённыеcurrent/unknown/corrupt; не строгаяквотаvolume. Ручнойrestart:no, fencingстарогоappиownerflock доrecovery; прежнийактивныйrun — error/app_restarted, неавтовозобновление. НЕ ПРИНЯТО; новые таблицы/код/config/volumes не создавались. Первичныеисточники — [JOURNAL-STATE-PRIMARY-SOURCES](evidence/JOURNAL-STATE-PRIMARY-SOURCES.md); новыйчистыйкритик [9/10](reviews/JOURNAL-STATE-RESTART-FRESH-CRITIC.md) послеисправленияP2 (первично8/10), runtimeнепроверен.
