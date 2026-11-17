@@ -1,3 +1,7 @@
+## Журнал, состояние и restart приняты
+
+18 ноября 2026 владелец принял JOURNAL-STATE-RESTART-PROPOSAL.md целиком: app_data, перезаписываемыйатомарноsnapshot, JSONL/rotation/retention, singlewriterсотдельнымнеблокирующимcontrol, ACK/buffer, tmpfscontrolsocket, Dockerlogging, ручнойrestart:no иhostfencing. Это принятиепроектирования, ане работающий журнал/volume/код. Следующийвопрос — итоговаясверка9/комплектдокументов, пока неприняты. Код/config/SQL/сервисы не создавались, чужойnavyki.txtне тронут.
+
 ## Журнал, служебное состояние и restart предложены, НЕ приняты
 
 18 ноября 2026 подготовлен JOURNAL-STATE-RESTART-PROPOSAL.md: persistentapp_data с per-runstate/JSONL, tmpfscontrolsocket, отдельныйsinglewriterlauncher/ограниченныйвнутреннийбуфер256/ACK5секунд, controlбезожиданияI/O, ротацияоколо15MiB/run и10завершённых плюсзащищённыеunknown/corrupt; restart:no иfencedrecovery безавтовозобновления. Новыеvolumes/config/программа/служебныефайлы не создавались. Новый чистый критик fresh_journal_restart_critic: первоначально8/10/P2 — зависшийwriterмогблокироватьstop/deadline. Исправленоразделениемcontrol/read/write, неблокирующимboundedбуфером иконечнымACK; тотжеагентточечноподтвердилP2закрыто, оценка9/10. Это одиннезависимыйобзор плюсfollow-up, не двачистыхкритика. Отзыв reviews/JOURNAL-STATE-RESTART-FRESH-CRITIC.md; primary evidence/JOURNAL-STATE-PRIMARY-SOURCES.md. Новоепредложениенепринято; остановка/аренды уже приняты коммитом05eeec4 и опубликованы. Чужойnavyki.txtне тронут.

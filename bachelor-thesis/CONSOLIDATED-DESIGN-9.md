@@ -1,6 +1,6 @@
 # 9 — сводный проект и итоговая сверка
 
-**ПУНКТ 9 ПРИНЯТ ЧАСТИЧНО.** 18 ноября 2026. Прямо приняты Docker Compose с app/db, контейнерный профиль, роли migrator/app с порядком первого запуска, начальные данные/ID/восстановление, порты/OS-пользователь/запуск Chromium, остановка и освобождение ресурсов и исключение обязательного резервирования. Остальная сводка и отдельно отмеченные решения 9 пока НЕ ПРИНЯТЫ. Пункты 1–8, включая 8.5, приняты и закрыты как проектирование. Ниже сводка уже принятых решений и отдельно новые предложения оформления/эксплуатации. Код, рабочие конфигурации, установка и испытания ещё не выполнены. Пункт 9 не закрывается этим документом автоматически.
+**ПУНКТ 9 ПРИНЯТ ЧАСТИЧНО.** 18 ноября 2026. Прямо приняты Docker Compose с app/db, контейнерный профиль, роли migrator/app с порядком первого запуска, начальные данные/ID/восстановление, порты/OS-пользователь/запуск Chromium, остановка и освобождение ресурсов, журнал/состояние/restart и исключение обязательного резервирования. Остальная сводка и отдельно отмеченные решения 9 пока НЕ ПРИНЯТЫ. Пункты 1–8, включая 8.5, приняты и закрыты как проектирование. Ниже сводка уже принятых решений и отдельно новые предложения оформления/эксплуатации. Код, рабочие конфигурации, установка и испытания ещё не выполнены. Пункт 9 не закрывается этим документом автоматически.
 
 ## 9.1. Действующий проект: единый указатель решений
 
@@ -241,8 +241,7 @@ flowchart LR
 
 **Что осталось согласовать в пункте 9:**
 
-1. Журнал и служебное состояние run: где хранятся, как читаются/ограничиваются и как проверяется состояние после restart, без новых таблиц.
-2. Полный сводный проект и окончательный реестр схем/документов с отделением норм вуза от проектных решений.
+1. Полный сводный проект и окончательный реестр схем/документов с отделением норм вуза от проектных решений.
 
 Роли/права/P6/F25 и порядок миграций повторно согласовывать не нужно. Начальные данные §4 приняты отдельно 18 ноября 2026. Детальные файлы/графический комплект пока не созданы; пункт 9 не принят целиком, принятие проектирования не разрешает писать код.
 
@@ -266,7 +265,7 @@ flowchart LR
 
 ## Порты, пользователь и Chromium — принято
 
-[CONTAINER-RUNTIME-PROPOSAL.md](CONTAINER-RUNTIME-PROPOSAL.md): loopback8000, db:5432 без host-публикации, appUID/GID10001, bundled fullChromium headless с явно включённымsandbox и seccomp, init и штатныйtmp без настройкиshm. Принято владельцем с автоматическим свободным host-портом при конфликте8000; механизм аренды/shutdown также принят отдельно; журнал/restart и сводный комплект не закрыты. Первичные источники — [CONTAINER-RUNTIME-PRIMARY-SOURCES](evidence/CONTAINER-RUNTIME-PRIMARY-SOURCES.md); runtime не проверялся.
+[CONTAINER-RUNTIME-PROPOSAL.md](CONTAINER-RUNTIME-PROPOSAL.md): loopback8000, db:5432 без host-публикации, appUID/GID10001, bundled fullChromium headless с явно включённымsandbox и seccomp, init и штатныйtmp без настройкиshm. Принято владельцем с автоматическим свободным host-портом при конфликте8000; механизм аренды/shutdown также принят отдельно; журнал/restart также приняты отдельно; сводный комплект пока не принят. Первичные источники — [CONTAINER-RUNTIME-PRIMARY-SOURCES](evidence/CONTAINER-RUNTIME-PRIMARY-SOURCES.md); runtime не проверялся.
 
 [Новый чистый критик runtime](reviews/CONTAINER-RUNTIME-FRESH-CRITIC.md):9/10 после точечного устранения неоднозначности seccomp (первично8,5/10), открытых замечаний в проверенном объёме нет. Настройки затем приняты владельцем, с уточнением автоматического host-порта; сборка/runtime не проверены.
 
@@ -274,6 +273,6 @@ flowchart LR
 
 [PROCESS-LIFECYCLE-PROPOSAL.md](PROCESS-LIFECYCLE-PROPOSAL.md): foregroundlauncher с локальным Unixsocket, stopточногоrun и pidfdсигналы, штатныйcleanup до40секунд/контейнерныйgrace60секунд, отказ считатьkillrunner очисткойdetachedChromium, conservativeunknown и согласованная очисткаapp. Hostаренды каждойзадачи включаютapp/db; последнийпользователь останавливаеттолькоуправляемыересурсы с сохранениемvolume. Синхронизацияstart/delete уточняет5.4 темжеPGkey. Принято владельцем 18 ноября 2026, реализации нет. Новый чистый критик — [9/10](reviews/PROCESS-LIFECYCLE-FRESH-CRITIC.md); первичныефакты — [источники](evidence/PROCESS-LIFECYCLE-PRIMARY-SOURCES.md). Журнал/restart/размещение служебного состояния и финальный комплект остаются отдельными вопросами.
 
-## Журнал, служебное состояние и restart — предложение
+## Журнал, служебное состояние и restart — принято
 
-[JOURNAL-STATE-RESTART-PROPOSAL.md](JOURNAL-STATE-RESTART-PROPOSAL.md): дополнительный persistentapp_data дляper-runstate/JSONL, volatilecontrolsocket вtmpfs, один launcherwriter с неблокирующим ограниченным буфером/ACK и независимымcontrol. Ротация около15MiB/run, последние10finished плюсзащищённыеcurrent/unknown/corrupt; не строгаяквотаvolume. Ручнойrestart:no, fencingстарогоappиownerflock доrecovery; прежнийактивныйrun — error/app_restarted, неавтовозобновление. НЕ ПРИНЯТО; новые таблицы/код/config/volumes не создавались. Первичныеисточники — [JOURNAL-STATE-PRIMARY-SOURCES](evidence/JOURNAL-STATE-PRIMARY-SOURCES.md); новыйчистыйкритик [9/10](reviews/JOURNAL-STATE-RESTART-FRESH-CRITIC.md) послеисправленияP2 (первично8/10), runtimeнепроверен.
+[JOURNAL-STATE-RESTART-PROPOSAL.md](JOURNAL-STATE-RESTART-PROPOSAL.md): дополнительный persistentapp_data дляper-runstate/JSONL, volatilecontrolsocket вtmpfs, один launcherwriter с неблокирующим ограниченным буфером/ACK и независимымcontrol. Ротация около15MiB/run, последние10finished плюсзащищённыеcurrent/unknown/corrupt; не строгаяквотаvolume. Ручнойrestart:no, fencingстарогоappиownerflock доrecovery; прежнийактивныйrun — error/app_restarted, неавтовозобновление. Принято владельцем; новые таблицы/код/config/volumes не создавались. Первичныеисточники — [JOURNAL-STATE-PRIMARY-SOURCES](evidence/JOURNAL-STATE-PRIMARY-SOURCES.md); новыйчистыйкритик [9/10](reviews/JOURNAL-STATE-RESTART-FRESH-CRITIC.md) послеисправленияP2 (первично8/10), runtimeнепроверен.
