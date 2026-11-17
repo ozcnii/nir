@@ -1,0 +1,61 @@
+{
+  "url": "https://24.domclick.ru/search?location_id=321b0daa-da95-4ce5-81b3-a7ab62d89d19&adt=1",
+  "title": "Снять на короткий срок квартиру, дом, комнату в Самарской области - 789 предложений по аренде доступно.",
+  "inputs": [
+    {
+      "placeholder": "Город или населённый пункт",
+      "value": "Самарская область"
+    },
+    {
+      "placeholder": "Заезд – Выезд",
+      "value": ""
+    },
+    {
+      "placeholder": "Гости",
+      "value": "1 гость"
+    }
+  ],
+  "state": {
+    "searchData": {
+      "sorting": "recommended",
+      "page": 1,
+      "adt": 1,
+      "locationId": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+      "distrTest": false
+    },
+    "total": 789,
+    "fetch": "success",
+    "ids": 36
+  },
+  "cards": [
+    "https://24.domclick.ru/card/eb807dc5-d00e-4731-9197-94e997c275f0",
+    "https://24.domclick.ru/card/fd29e316-122d-4164-9634-882875c907e7",
+    "https://24.domclick.ru/card/b77b4f0f-2f5e-44d9-bd49-fa8aa362f770"
+  ],
+  "next": [
+    {
+      "text": "6",
+      "href": "https://24.domclick.ru/search?page=6"
+    },
+    {
+      "text": "7",
+      "href": "https://24.domclick.ru/search?page=7"
+    },
+    {
+      "text": "8",
+      "href": "https://24.domclick.ru/search?page=8"
+    },
+    {
+      "text": "9",
+      "href": "https://24.domclick.ru/search?page=9"
+    },
+    {
+      "text": "40",
+      "href": "https://24.domclick.ru/search?page=40"
+    },
+    {
+      "text": "",
+      "href": "https://24.domclick.ru/search?page=2"
+    }
+  ]
+}

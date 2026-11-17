@@ -1,0 +1,46 @@
+{
+  "task": "Read-only verification of Avito through Pi + Playwright MCP",
+  "target_url": "https://www.avito.ru/samara/kvartiry/prodam",
+  "tool_identity": {
+    "requested": "Configured Playwright MCP, separate isolated browser",
+    "available_in_this_session": false,
+    "available_tools_seen": ["read", "write"]
+  },
+  "observation_time": null,
+  "observation_time_note": "No browser observation was made; an actual observation timestamp is therefore unavailable.",
+  "access_result": "not_attempted_playwright_mcp_unavailable",
+  "page": {
+    "actual_url": null,
+    "title": null,
+    "text": null,
+    "screenshot_reference": null,
+    "snapshot_reference": null
+  },
+  "selected_fields": [],
+  "field_audit": {
+    "stable_offer_identifier": "unverified",
+    "actual_listing_url": "unverified",
+    "deal_type_and_price_period": "unverified",
+    "currency_and_offer_price_qualification": "unverified",
+    "property_kind": "unverified",
+    "region_and_address_components": "unverified",
+    "coordinates": "unverified",
+    "offered_area": "unverified",
+    "rooms_offered_vs_whole_flat_rooms": "unverified",
+    "floor_and_building_floors": "unverified",
+    "land_area_and_unit": "unverified",
+    "seller_description_length": "unverified",
+    "photo_urls_and_count": "unverified",
+    "published_or_removed_marker": "unverified",
+    "listing_next_page_navigation": "unverified",
+    "inline_script_data_and_formats": "unverified",
+    "room_house_monthly_daily_examples": "unverified"
+  },
+  "source_paths": [],
+  "unverified_areas": [
+    "All Avito page and listing fields: the requested browser was not opened.",
+    "Page access outcome, title, returned text, cards, pagination, inline state and listing examples.",
+    "Screenshot and snapshot evidence; none was produced."
+  ],
+  "blocker": "The configured Playwright MCP is not available among the callable tools in this session. No alternate browser, HTTP client, or other access method was used."
+}

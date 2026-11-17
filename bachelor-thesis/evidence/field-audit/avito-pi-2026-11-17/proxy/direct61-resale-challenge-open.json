@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1\n- Page Title: Доступ ограничен: проблема с IP\n- HTTP status: 429\n- Console: 1 errors, 0 warnings\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T08-20-15-284Z.yml)"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 5
+}

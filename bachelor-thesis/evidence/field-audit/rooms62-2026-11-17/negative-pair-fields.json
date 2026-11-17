@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\"cases\":[{\"url\":\"https://samara.cian.ru/sale/flat/333736406/\",\"id\":333736406,\"roomArea\":\"17.3\",\"totalArea\":\"17.3\",\"roomsOffered\":1,\"roomsInFlat\":1,\"floor\":2,\"floors\":6,\"address\":\"Самарская, Самара, Промышленный, Физкультурная, 125\",\"descriptionLength\":283},{\"url\":\"https://samara.cian.ru/sale/flat/333016751/\",\"id\":333016751,\"roomArea\":\"12.0\",\"totalArea\":\"12.0\",\"roomsOffered\":1,\"roomsInFlat\":1,\"floor\":2,\"floors\":5,\"address\":\"Самарская, Самара, Промышленный, Физкультурная, 125\",\"descriptionLength\":121}],\"rawDescriptionsEqual\":false,\"ruleResult\":\"No attach: room areas differ; known building floor counts also differ. No floor/area guesses.\"}"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 21
+}

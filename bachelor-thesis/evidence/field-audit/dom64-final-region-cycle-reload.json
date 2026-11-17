@@ -1,0 +1,86 @@
+{
+  "links": [
+    {
+      "text": "",
+      "href": "/search?page=21"
+    },
+    {
+      "text": "19",
+      "href": "/search?page=19"
+    },
+    {
+      "text": "20",
+      "href": "/search?page=20"
+    },
+    {
+      "text": "21",
+      "href": "/search?page=21"
+    },
+    {
+      "text": "22",
+      "href": "/search?page=22"
+    },
+    {
+      "text": "23",
+      "href": "/search?page=23"
+    },
+    {
+      "text": "24",
+      "href": "/search?page=24"
+    },
+    {
+      "text": "25",
+      "href": "/search?page=25"
+    },
+    {
+      "text": "40",
+      "href": "/search?page=40"
+    },
+    {
+      "text": "",
+      "href": "/search?page=23"
+    }
+  ],
+  "cycle": {
+    "url": "https://24.domclick.ru/search?page=22",
+    "records": [
+      {
+        "query": {
+          "locationGuid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+          "adults": "1",
+          "limit": "36",
+          "offset": "792"
+        },
+        "total": 789,
+        "count": 0
+      },
+      {
+        "query": {
+          "locationGuid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+          "adults": "1",
+          "limit": "36",
+          "offset": "756"
+        },
+        "total": 789,
+        "count": 33
+      }
+    ]
+  },
+  "reload": {
+    "url": "https://24.domclick.ru/search?page=22",
+    "title": "Снять на короткий срок квартиру, дом, комнату .",
+    "geo": [
+      ""
+    ],
+    "state": {
+      "searchData": {
+        "sorting": "recommended",
+        "page": 22,
+        "adt": 1,
+        "distrTest": false
+      },
+      "total": 0,
+      "status": "loading"
+    }
+  }
+}

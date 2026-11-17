@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\n  \"url\": \"https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1\",\n  \"title\": \"Купить квартиру во вторичке в Самаре 🏢 | Цены на вторичное жилье в Самаре | Авито\",\n  \"heading\": \"Купить квартиру во вторичке в Самаре\",\n  \"links\": [\n    {\n      \"title\": \"Ещё\\n24 фото\",\n      \"url\": \"https://www.avito.ru/samara/kvartiry/1-k._kvartira_57_m_1718_et._8199518030?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJIWWU1dWltSDJIc3pTb1RYIjt9IJbhOD8AAAA\"\n    },\n    {\n      \"title\": \"1-к. квартира, 57 м², 17/18 эт.\",\n      \"url\": \"https://www.avito.ru/samara/kvartiry/1-k._kvartira_57_m_1718_et._8199518030?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJIWWU1dWltSDJIc3pTb1RYIjt9IJbhOD8AAAA\"\n    },\n    {\n      \"title\": \"Ещё\\n5 фото\",\n      \"url\": \"https://www.avito.ru/samara/kvartiry/1-k._kvartira_485_m_212_et._8557769206?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJIWWU1dWltSDJIc3pTb1RYIjt9IJbhOD8AAAA\"\n    },\n    {\n      \"title\": \"1-к. квартира, 48,5 м², 2/12 эт.\",\n      \"url\": \"https://www.avito.ru/samara/kvartiry/1-k._kvartira_485_m_212_et._8557769206?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJIWWU1dWltSDJIc3pTb1RYIjt9IJbhOD8AAAA\"\n    }\n  ]\n}\n### Page\n- Page URL: https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1\n- Page Title: Купить квартиру во вторичке в Самаре 🏢 | Цены на вторичное жилье в Самаре | Авито\n- Console: 17 errors, 1 warnings\n### Events\n- New console entries: browser-output/console-2026-11-17T08-19-39-726Z.log#L6-L31"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 8
+}

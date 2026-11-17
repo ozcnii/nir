@@ -1,0 +1,472 @@
+{
+  "capturedAt": "2026-11-17T18:21:26.629Z",
+  "method": "Own Chromium via SOCKS5; fresh goto per probe; existing category input click and closest form requestSubmit; dates untouched",
+  "probes": [
+    {
+      "geography": "city",
+      "category": "house",
+      "startUrl": "https://24.domclick.ru/samara",
+      "navigationStatus": 200,
+      "before": {
+        "url": "https://24.domclick.ru/samara",
+        "inputs": [
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "flat",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "house",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "room",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Город или населённый пункт",
+            "value": "Самара",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Заезд – Выезд",
+            "value": "",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Гости",
+            "value": "1 гость",
+            "checked": false
+          }
+        ]
+      },
+      "responseUrl": "https://24.domclick.ru/api/offers/ad/v1?locationGuid=6369cbfc-1f06-4574-adba-82f4dc42c0f7&adults=1&limit=36&offset=0&categories=house&cleanUrlType=LOCALITY",
+      "httpStatus": 200,
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "0",
+        "categories": "house",
+        "cleanUrlType": "LOCALITY"
+      },
+      "bodyTopLevelKeys": [
+        "offers",
+        "total",
+        "minPrice",
+        "maxPrice",
+        "metro"
+      ],
+      "response": {
+        "total": 0,
+        "count": 0,
+        "ids": [],
+        "nestedKeys": [
+          "offers",
+          "total",
+          "minPrice",
+          "maxPrice",
+          "metro"
+        ]
+      },
+      "after": {
+        "url": "https://24.domclick.ru/samara?categories=house",
+        "inputs": [
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "flat",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "house",
+            "checked": true
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "room",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Город или населённый пункт",
+            "value": "Самара",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Заезд – Выезд",
+            "value": "",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Гости",
+            "value": "1 гость",
+            "checked": false
+          }
+        ]
+      }
+    },
+    {
+      "geography": "city",
+      "category": "room",
+      "startUrl": "https://24.domclick.ru/samara",
+      "navigationStatus": 200,
+      "before": {
+        "url": "https://24.domclick.ru/samara",
+        "inputs": [
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "flat",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "house",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "room",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Город или населённый пункт",
+            "value": "Самара",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Заезд – Выезд",
+            "value": "",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Гости",
+            "value": "1 гость",
+            "checked": false
+          }
+        ]
+      },
+      "responseUrl": "https://24.domclick.ru/api/offers/ad/v1?locationGuid=6369cbfc-1f06-4574-adba-82f4dc42c0f7&adults=1&limit=36&offset=0&categories=room&cleanUrlType=LOCALITY",
+      "httpStatus": 200,
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "0",
+        "categories": "room",
+        "cleanUrlType": "LOCALITY"
+      },
+      "bodyTopLevelKeys": [
+        "offers",
+        "total",
+        "minPrice",
+        "maxPrice",
+        "metro"
+      ],
+      "response": {
+        "total": 0,
+        "count": 0,
+        "ids": [],
+        "nestedKeys": [
+          "offers",
+          "total",
+          "minPrice",
+          "maxPrice",
+          "metro"
+        ]
+      },
+      "after": {
+        "url": "https://24.domclick.ru/samara?categories=room",
+        "inputs": [
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "flat",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "house",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "room",
+            "checked": true
+          },
+          {
+            "name": "",
+            "placeholder": "Город или населённый пункт",
+            "value": "Самара",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Заезд – Выезд",
+            "value": "",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Гости",
+            "value": "1 гость",
+            "checked": false
+          }
+        ]
+      }
+    },
+    {
+      "geography": "region",
+      "category": "house",
+      "startUrl": "https://24.domclick.ru/search?location_id=321b0daa-da95-4ce5-81b3-a7ab62d89d19&adt=1",
+      "navigationStatus": 200,
+      "before": {
+        "url": "https://24.domclick.ru/search?location_id=321b0daa-da95-4ce5-81b3-a7ab62d89d19&adt=1",
+        "inputs": [
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "flat",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "house",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "room",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Город или населённый пункт",
+            "value": "Самарская область",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Заезд – Выезд",
+            "value": "",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Гости",
+            "value": "1 гость",
+            "checked": false
+          }
+        ]
+      },
+      "responseUrl": "https://24.domclick.ru/api/offers/ad/v1?locationGuid=321b0daa-da95-4ce5-81b3-a7ab62d89d19&adults=1&limit=36&offset=0&categories=house",
+      "httpStatus": 200,
+      "query": {
+        "locationGuid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+        "adults": "1",
+        "limit": "36",
+        "offset": "0",
+        "categories": "house"
+      },
+      "bodyTopLevelKeys": [
+        "offers",
+        "total",
+        "minPrice",
+        "maxPrice",
+        "metro"
+      ],
+      "response": {
+        "total": 0,
+        "count": 0,
+        "ids": [],
+        "nestedKeys": [
+          "offers",
+          "total",
+          "minPrice",
+          "maxPrice",
+          "metro"
+        ]
+      },
+      "after": {
+        "url": "https://24.domclick.ru/search?location_id=321b0daa-da95-4ce5-81b3-a7ab62d89d19&adt=1&categories=house",
+        "inputs": [
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "flat",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "house",
+            "checked": true
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "room",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Город или населённый пункт",
+            "value": "Самарская область",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Заезд – Выезд",
+            "value": "",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Гости",
+            "value": "1 гость",
+            "checked": false
+          }
+        ]
+      }
+    },
+    {
+      "geography": "region",
+      "category": "room",
+      "startUrl": "https://24.domclick.ru/search?location_id=321b0daa-da95-4ce5-81b3-a7ab62d89d19&adt=1",
+      "navigationStatus": 200,
+      "before": {
+        "url": "https://24.domclick.ru/search?location_id=321b0daa-da95-4ce5-81b3-a7ab62d89d19&adt=1",
+        "inputs": [
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "flat",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "house",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "room",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Город или населённый пункт",
+            "value": "Самарская область",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Заезд – Выезд",
+            "value": "",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Гости",
+            "value": "1 гость",
+            "checked": false
+          }
+        ]
+      },
+      "responseUrl": "https://24.domclick.ru/api/offers/ad/v1?locationGuid=321b0daa-da95-4ce5-81b3-a7ab62d89d19&adults=1&limit=36&offset=0&categories=room",
+      "httpStatus": 200,
+      "query": {
+        "locationGuid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+        "adults": "1",
+        "limit": "36",
+        "offset": "0",
+        "categories": "room"
+      },
+      "bodyTopLevelKeys": [
+        "offers",
+        "total",
+        "minPrice",
+        "maxPrice",
+        "metro"
+      ],
+      "response": {
+        "total": 0,
+        "count": 0,
+        "ids": [],
+        "nestedKeys": [
+          "offers",
+          "total",
+          "minPrice",
+          "maxPrice",
+          "metro"
+        ]
+      },
+      "after": {
+        "url": "https://24.domclick.ru/search?location_id=321b0daa-da95-4ce5-81b3-a7ab62d89d19&adt=1&categories=room",
+        "inputs": [
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "flat",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "house",
+            "checked": false
+          },
+          {
+            "name": "filters.categories",
+            "placeholder": "",
+            "value": "room",
+            "checked": true
+          },
+          {
+            "name": "",
+            "placeholder": "Город или населённый пункт",
+            "value": "Самарская область",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Заезд – Выезд",
+            "value": "",
+            "checked": false
+          },
+          {
+            "name": "",
+            "placeholder": "Гости",
+            "value": "1 гость",
+            "checked": false
+          }
+        ]
+      }
+    }
+  ]
+}

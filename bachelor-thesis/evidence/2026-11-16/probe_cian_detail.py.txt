@@ -1,0 +1,40 @@
+from pathlib import Path
+from urllib.request import Request,urlopen
+from urllib.parse import urlsplit,urlunsplit
+from html.parser import HTMLParser
+import json,hashlib,time
+ROOT=Path(__file__).resolve().parent
+class Scan(HTMLParser):
+ def __init__(self):super().__init__();self.ins=False;self.parts=[];self.attrs={};self.scripts=[];self.text=[];self.images=[];self.title=[];self.intitle=False
+ def handle_starttag(self,t,a):
+  a=dict(a)
+  if t=='script':self.ins=True;self.parts=[];self.attrs=a
+  if t=='img' and a.get('src'):self.images.append(a)
+  if t=='title':self.intitle=True
+ def handle_endtag(self,t):
+  if t=='script' and self.ins:self.scripts.append((self.attrs,''.join(self.parts)));self.ins=False
+  if t=='title':self.intitle=False
+ def handle_data(self,x):
+  if self.ins:self.parts.append(x)
+  else:self.text.append(x)
+  if self.intitle:self.title.append(x)
+link=json.loads((ROOT/'cian-observed-links.json').read_text())[0]
+u=urlsplit(link);url=urlunsplit((u.scheme,u.netloc,u.path,'',''))
+start=time.monotonic();r=urlopen(Request(url),timeout=25);b=r.read();(ROOT/'cian-card.html').write_bytes(b)
+x=Scan();x.feed(b.decode('utf-8'))
+ld=[]
+for a,t in x.scripts:
+ if a.get('type')=='application/ld+json':
+  try:ld.append(json.loads(t))
+  except:pass
+rec={'url':url,'status':r.status,'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'title':''.join(x.title),'elapsed_seconds':round(time.monotonic()-start,2),'json_ld':ld,'image_sources':[a['src'] for a in x.images if 'images.cdn-cian.ru' in a['src']][:8]}
+(ROOT/'cian-card-observation.json').write_text(json.dumps(rec,ensure_ascii=False,indent=2)+'\n')
+(ROOT/'cian-card-visible-text.txt').write_text('\n'.join(t.strip() for t in x.text if t.strip()))
+print(json.dumps({k:v for k,v in rec.items() if k not in ['json_ld']},ensure_ascii=False))
+print('JSON-LD:',[(v.get('@type'),list(v.keys())) for v in ld if isinstance(v,dict)])
+for name,imgurl in [('cian-photo','https://images.cdn-cian.ru/images/2981595376-4.jpg'),('domclick-photo','https://img.dmclk.ru/c960x640q80/vitrina/b1/c1/b1c135b4184ff8fa75b3e688b81370873bd4508c.webp')]:
+ try:
+  rr=urlopen(imgurl,timeout=20);bb=rr.read();ext='.webp' if name=='domclick-photo' else '.jpg';(ROOT/(name+ext)).write_bytes(bb)
+  proof={'url':imgurl,'status':rr.status,'content_type':rr.headers.get('content-type'),'bytes':len(bb),'sha256':hashlib.sha256(bb).hexdigest(),'file':name+ext}
+  (ROOT/(name+'.json')).write_text(json.dumps(proof,ensure_ascii=False,indent=2)+'\n');print(name,proof)
+ except Exception as e:print(name,type(e).__name__,str(e))

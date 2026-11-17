@@ -1,0 +1,37 @@
+from pathlib import Path
+from urllib.request import Request,urlopen
+from urllib.error import HTTPError
+from html.parser import HTMLParser
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from zoneinfo import ZoneInfo
+import json,hashlib,time,re
+ROOT=Path(__file__).resolve().parent
+# Avito is excluded: browser policy rejected access; do not work around that rejection.
+TARGETS=[('cian','https://samara.cian.ru/kupit-kvartiru/'),('domclick','https://domclick.ru/')]
+class Scan(HTMLParser):
+ def __init__(self):super().__init__();self.links=[];self.img=[];self.intitle=False;self.title=[]
+ def handle_starttag(self,tag,attrs):
+  a=dict(attrs)
+  if tag=='a' and a.get('href'):self.links.append(a['href'])
+  if tag=='img':self.img.append(a.get('src') or a.get('data-src'))
+  if tag=='title':self.intitle=True
+ def handle_endtag(self,tag):
+  if tag=='title':self.intitle=False
+ def handle_data(self,x):
+  if self.intitle:self.title.append(x)
+def probe(kv):
+ name,url=kv;start=time.monotonic();rec={'source':name,'requested_url':url,'checked_at':datetime.now(ZoneInfo('Europe/Samara')).isoformat(),'auth':'none','method':'single urllib GET, default Python user-agent'}
+ try:
+  try:r=urlopen(Request(url),timeout=25)
+  except HTTPError as e:r=e
+  data=r.read();rec.update(status=r.status,final_url=r.url,content_type=r.headers.get('content-type'),bytes=len(data),sha256=hashlib.sha256(data).hexdigest())
+  (ROOT/f'{name}-http.html').write_bytes(data)
+  s=data.decode('utf-8',errors='replace');scan=Scan();scan.feed(s)
+  rec.update(title=''.join(scan.title),links_count=len(scan.links),images_count=len(scan.img),sample_links=scan.links[:12],sample_images=scan.img[:3],challenge_markers=[x for x in ['captcha','Доступ ограничен','Проверка браузера','Access denied','Forbidden','Checking your browser'] if x.lower() in s.lower()])
+ except Exception as e:rec['error']=type(e).__name__+': '+str(e)
+ rec['elapsed_seconds']=round(time.monotonic()-start,2)
+ return rec
+results=list(ThreadPoolExecutor(max_workers=3).map(probe,TARGETS))
+(ROOT/'http-probes.json').write_text(json.dumps(results,ensure_ascii=False,indent=2)+'\n')
+for r in results:print(json.dumps(r,ensure_ascii=False))

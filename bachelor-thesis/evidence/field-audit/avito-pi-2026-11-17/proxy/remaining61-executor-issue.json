@@ -1,0 +1,8 @@
+{
+  "symptom": "Last 2000 toolcall deltas consisted entirely of whitespace; no new tool completed after saved daily case.",
+  "action": "SIGINT sent only to matching task Pi PID; completed results retained.",
+  "pids": [
+    75801
+  ],
+  "ownership_proof": "lsof cwd and stdout/stderr matched exact remaining61 task directory/logs"
+}

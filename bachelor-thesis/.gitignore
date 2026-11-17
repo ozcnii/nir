@@ -1,0 +1,17 @@
+# Private advisor recordings/transcripts and raw browser/agent diagnostics stay local.
+/audio/
+/transcripts/
+**/.pi/
+**/browser-output/
+**/routes64-browser-output/
+**/*.jsonl
+**/*.log
+**/*.html
+**/*.yml
+**/*.yaml
+**/*.gz
+/evidence/**/*.png
+/evidence/**/*.webp
+/evidence/**/mcp-tools.json
+.DS_Store
+~$*

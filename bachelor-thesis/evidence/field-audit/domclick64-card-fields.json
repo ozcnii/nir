@@ -1,0 +1,79 @@
+{
+  "url": "https://24.domclick.ru/card/1999c326-4f66-410d-8ea7-0d01a6e8af4e",
+  "searchData": {
+    "id": "1999c326-4f66-410d-8ea7-0d01a6e8af4e",
+    "dateStart": null,
+    "dateEnd": null,
+    "adt": 1,
+    "chd": null,
+    "pets": null,
+    "deposit": null
+  },
+  "fetchStatus": "success",
+  "data": {
+    "uid": "0f993e54-dbfc-4633-bf0a-4224738136b3",
+    "status": "published",
+    "category": "flat",
+    "geoInfo": {
+      "aid": 47089363,
+      "guid": "24e7cab4-0ca9-4ca6-9508-8ddd357cdcec",
+      "address": "Самарская область, Волжский район, Южный город-1 м-н, пос. Придорожный, Николаевский проспект, 31",
+      "addressWithoutApartment": "Николаевский проспект, 31",
+      "subways": [
+        {
+          "lineColor": "#E90101",
+          "name": "Спортивная",
+          "timeOnFoot": 136,
+          "timeOnPublicTransport": 46
+        },
+        {
+          "lineColor": "#E90101",
+          "name": "Гагаринская",
+          "timeOnFoot": 136,
+          "timeOnPublicTransport": 49
+        },
+        {
+          "lineColor": "#E90101",
+          "name": "Советская",
+          "timeOnFoot": 145,
+          "timeOnPublicTransport": 50
+        },
+        {
+          "lineColor": "#E90101",
+          "name": "Московская",
+          "timeOnFoot": 149,
+          "timeOnPublicTransport": 55
+        },
+        {
+          "lineColor": "#E90101",
+          "name": "Победа",
+          "timeOnFoot": 154,
+          "timeOnPublicTransport": 54
+        },
+        {
+          "lineColor": "#E90101",
+          "name": "Алабинская",
+          "timeOnFoot": 169,
+          "timeOnPublicTransport": 67
+        }
+      ],
+      "lat": 53.112009,
+      "lon": 50.145113,
+      "cityName": "пос. Придорожный",
+      "cityGuid": "cdb048cb-5ea8-4de8-a504-1895e78399d4",
+      "cityId": 35418998
+    },
+    "area": 36,
+    "areaUnit": "м²",
+    "rooms": 1,
+    "basePrice": 0,
+    "floor": 6,
+    "floorsMax": 9
+  },
+  "photo_example": [
+    {
+      "url": "/homestay/60/a6/60a62c62f1ea470a894f49b660d12acc.jpg"
+    }
+  ],
+  "photo_count": 19
+}

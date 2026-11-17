@@ -1,0 +1,16 @@
+[
+  {
+    "name": "usage-cian-api.html",
+    "url": "https://www.cian.ru/legal-documents/usloviya_ispolzovaniya_servisa_api_855",
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "bytes": 207978
+  },
+  {
+    "name": "usage-domclick-agreement.pdf",
+    "url": "https://public-fs.dmclk.ru/0195f69036357e008723abd0cdec9be2/v18/%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D0%BA%D0%BE%D0%B5_%D1%81%D0%BE%D0%B3%D0%BB%D0%B0%D1%88%D0%B5%D0%BD%D0%B8%D0%B5_26.10.2026.pdf",
+    "status": 200,
+    "type": "application/pdf;charset=UTF-8",
+    "bytes": 590368
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\n  url: 'https://www.avito.ru/pokrov/kvartiry?f=ASgCAgECAkWSAwoiTVRBMU9RPT0i5gcKIk5USTFOQT09Ig',\n  title: 'Квартиры в Покрове 🏢: продажа, покупка и аренда | Авито',\n  heading: 'Квартиры в Покрове: продажа, покупка, аренда',\n  item: null,\n  closedItemStatus: undefined,\n  statusText: []\n}\n### Page\n- Page URL: https://www.avito.ru/pokrov/kvartiry?f=ASgCAgECAkWSAwoiTVRBMU9RPT0i5gcKIk5USTFOQT09Ig\n- Page Title: Квартиры в Покрове 🏢: продажа, покупка и аренда | Авито\n- Console: 50 errors, 4 warnings\n### Events\n- New console entries: browser-output/console-2026-11-17T08-34-46-793Z.log#L23-L66"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 5
+}

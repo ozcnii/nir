@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\"url\":\"https://www.avito.ru/krasnodar/kvartiry/1-k._kvartira_316_m_49_et._8417769121\",\"title\":\"Ошибка 404. Страница не найдена\",\"heading\":\"Объявление не посмотреть\",\"statusText\":[\"Объявление закрыто.\"],\"item\":null}\n### Open tabs\n- 0: (current) [Ошибка 404. Страница не найдена](https://www.avito.ru/krasnodar/kvartiry/1-k._kvartira_316_m_49_et._8417769121)\n- 1: [Комната 18 м² в 1-к., 4/5 эт. на продажу в Сызрани | Купить комнату в Сызрани | Авито (8438166951)](https://www.avito.ru/syzran/komnaty/komnata_18_m_v_1-k._45_et._8438166951?context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6IngiO3M6MTY6Ild5RU1zc0g5ZUFrd01hYU0iO33YO-ksJgAAAA)\n### Page\n- Page URL: https://www.avito.ru/krasnodar/kvartiry/1-k._kvartira_316_m_49_et._8417769121\n- Page Title: Ошибка 404. Страница не найдена\n- Console: 50 errors, 3 warnings\n### Events\n- New console entries: browser-output/console-2026-11-17T08-48-41-789Z.log#L53"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 11
+}

@@ -1,0 +1,12 @@
+{
+  "date": "2026-11-17",
+  "scope": "Point6.1, Avito listing/card/embedded-state investigation requested by user; no application implementation.",
+  "chosen_project_method": "Playwright page loading and extraction of embedded structured state; actual Avito applicability remains unverified.",
+  "evidence_checked": "SOURCE-ACCESS.md, Avito row: historical browser tool refusal on 2026-11-16 before page observation (site-safety policy), not a site HTTP response.",
+  "fresh_browser_navigation_performed": false,
+  "new_http_or_api_probe_performed": false,
+  "actual_avito_payload": null,
+  "confirmed_site_fields": null,
+  "mapping_to_contract_status": "Unverified; no fabricated ID format, state path, fields, photos or pagination.",
+  "status": "Unresolved tool access restriction; point6.1 remains open."
+}

@@ -1,0 +1,693 @@
+[
+  {
+    "case": "sale-townhouse",
+    "url": "https://samara.domclick.ru/card/sale__townhouse__1695973117",
+    "productCard": {
+      "id": 1695973117,
+      "status": 2,
+      "offerType": "townhouse",
+      "dealType": "sale",
+      "address": {
+        "position": {
+          "lat": 53.212072,
+          "lon": 50.232434
+        },
+        "displayName": "Россия, Самара, Безымянка м-н, Сарапульский переулок, 38",
+        "displayNameShort": "Самара, Безымянка м-н, Сарапульский переулок, 38",
+        "locality": "Самара",
+        "localityGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "guid": "0e49f03d-c723-49a9-9064-27828b10e3aa",
+        "name": "Сарапульский переулок, 38",
+        "parents": [
+          {
+            "id": 4644159,
+            "kind": "street",
+            "guid": "1c99d26d-669c-41d3-8076-16ab5fb9f2ba",
+            "name": "Сарапульский переулок",
+            "display_name": "Россия, Самара, Безымянка м-н, Сарапульский переулок",
+            "parent_id": 300009375
+          },
+          {
+            "id": 300009375,
+            "kind": "district",
+            "guid": "c0987899-994f-4853-a804-db6e4c560423",
+            "name": "Безымянка м-н",
+            "display_name": "Россия, Самара, Советский, Безымянка м-н",
+            "parent_id": 48320138
+          },
+          {
+            "id": 48320138,
+            "kind": "district",
+            "guid": "2bf8b2b0-91f7-4579-9fbe-4bf5a726a564",
+            "name": "Советский",
+            "display_name": "Россия, Самара, Советский",
+            "parent_id": 5007
+          },
+          {
+            "id": 5007,
+            "kind": "locality",
+            "guid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+            "name": "Самара",
+            "display_name": "Россия, Самара",
+            "parent_id": 300000169
+          },
+          {
+            "id": 300000169,
+            "kind": "area",
+            "guid": "23586bde-c572-4655-88ed-50484a567086",
+            "name": "Самара городской округ",
+            "display_name": "Россия, Самарская область, Самара городской округ",
+            "parent_id": 4987
+          },
+          {
+            "id": 4987,
+            "kind": "province",
+            "guid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+            "name": "Самарская область",
+            "display_name": "Россия, Самарская область",
+            "subkind": "region",
+            "parent_id": 832
+          },
+          {
+            "id": 832,
+            "kind": "province",
+            "guid": "77b1f937-052f-401a-b60b-21daab91369b",
+            "name": "Приволжский федеральный округ",
+            "display_name": "Россия, Приволжский федеральный округ",
+            "parent_id": 1
+          },
+          {
+            "id": 1,
+            "kind": "country",
+            "guid": "eebc9cf5-35d0-4191-afe8-fe1c215f06c0",
+            "name": "Россия",
+            "display_name": "Россия"
+          }
+        ],
+        "subways": [
+          {
+            "displayName": "Победа",
+            "distance": 0.85,
+            "timeOnFoot": 10,
+            "meta": {
+              "lineColor": "E90101",
+              "lineName": "Первая линия"
+            },
+            "guid": "14a978df-0d8a-4648-8a63-10e67dc9e37e"
+          },
+          {
+            "displayName": "Безымянка",
+            "distance": 1.54,
+            "timeOnFoot": 18,
+            "meta": {
+              "lineColor": "E90101",
+              "lineName": "Первая линия"
+            },
+            "guid": "558ac228-6b69-472b-b4bd-e1c44b95d1d4"
+          },
+          {
+            "displayName": "Советская",
+            "distance": 1.81,
+            "timeOnFoot": 22,
+            "meta": {
+              "lineColor": "E90101",
+              "lineName": "Первая линия"
+            },
+            "guid": "ec00e4b5-8fa7-4106-a4ec-fd29f22a81e0"
+          }
+        ],
+        "timezoneOffset": 4,
+        "timezone": "Europe/Samara",
+        "districts": []
+      },
+      "house": {
+        "info": {
+          "buildYear": 1953,
+          "floors": 2,
+          "wallType": "Кирпичный"
+        }
+      },
+      "land": {
+        "area": 4,
+        "areaUnit": "сотка",
+        "lotType": "ИЖС"
+      },
+      "objectInfo": {
+        "additional": [],
+        "additionalWithKey": [],
+        "area": 394.1,
+        "description": "Продается здание общежития площадью 394,1 кв.м. Два этажа, 22 комнаты, 5 санузлов, душ, 2 кухни. Все коммуникации: свет, газ, вода, канализация (договора заключены).\nСтатус Общежитие - возможна регистрация.\n\nРанее в здании было 8 квартир: 4 квартиры с 3 раздельными комнатами, кухней и санузлом площадью 54 м2 и 4 квартиры с 2 совмещенными комнатами кухней и санузлом площадью 43 м2.\n\nПродажа всего здания целиком возможна по указанной цене. Также возможна продажа 1/2 или 1/4 здания, можно и по квартирно, либо по комнатам, но цена будет соответствовать рыночной.\n\nЕсть потенциальные арендаторы на все здание по 600 рублей/м2 240 000 в месяц + коммунальные услуги.",
+        "floor": null,
+        "hasElectricity": true,
+        "hasGas": true,
+        "hasHeating": true,
+        "hasSewerage": true,
+        "hasWater": true,
+        "layoutType": null,
+        "livingArea": 0,
+        "restroom": "В доме",
+        "roomArea": null,
+        "rooms": 5,
+        "renovation": "",
+        "sauna": false
+      },
+      "priceInfo": {
+        "currency": "RUB",
+        "minMarketPrice": null,
+        "maxMarketPrice": null,
+        "price": 18500000,
+        "priceHistory": [
+          {
+            "date": "2026-06-28T11:37:59.641304+03:00",
+            "price": 18500000,
+            "diff": 13000000,
+            "state": "more"
+          },
+          {
+            "date": "2026-01-20T06:54:06.432197+03:00",
+            "price": 5500000,
+            "diff": -9500000,
+            "state": "less"
+          },
+          {
+            "date": "2026-01-01T21:06:43.737316+03:00",
+            "price": 15000000,
+            "diff": -1000000,
+            "state": "less"
+          },
+          {
+            "date": "2025-12-04T07:19:27.451926+03:00",
+            "price": 16000000,
+            "diff": 11100000,
+            "state": "more"
+          },
+          {
+            "date": "2025-10-28T10:49:08.592976+03:00",
+            "price": 4900000,
+            "diff": -10000000,
+            "state": "less"
+          },
+          {
+            "date": "2025-09-05T11:26:59.088410+03:00",
+            "price": 14900000,
+            "diff": 13410000,
+            "state": "more"
+          },
+          {
+            "date": "2025-09-05T11:07:10.459636+03:00",
+            "price": 1490000,
+            "diff": -16510000,
+            "state": "less"
+          },
+          {
+            "date": "2025-02-28T12:22:20.081360+03:00",
+            "price": 18000000,
+            "diff": 4000000,
+            "state": "more"
+          },
+          {
+            "date": "2024-11-09T14:10:15.884741+03:00",
+            "price": 14000000,
+            "diff": 4001000,
+            "state": "more"
+          },
+          {
+            "date": "2023-07-17T21:24:10.675148+03:00",
+            "price": 9999000,
+            "diff": -4501000,
+            "state": "less"
+          },
+          {
+            "date": "2023-03-06T17:48:20.529734+03:00",
+            "price": 14500000,
+            "state": "equal"
+          }
+        ],
+        "squarePrice": 46942,
+        "soldPrice": null
+      }
+    }
+  },
+  {
+    "case": "sale-house_part",
+    "url": "https://samara.domclick.ru/card/sale__house_part__1525510020",
+    "productCard": {
+      "id": 1525510020,
+      "status": 2,
+      "offerType": "house_part",
+      "dealType": "sale",
+      "address": {
+        "position": {
+          "lat": 53.523063,
+          "lon": 49.41729
+        },
+        "displayName": "Россия, Самарская область, Тольятти, 5а квартал м-н, Рабочий проезд",
+        "displayNameShort": "Самарская область, Тольятти, 5а квартал м-н, Рабочий проезд",
+        "locality": "Тольятти",
+        "localityGuid": "28cceb40-fd9c-4d28-a90a-0b2df7dbaa5b",
+        "guid": "35df0f6f-01fb-43f6-b9d0-e3007e85a86b",
+        "name": "Рабочий проезд",
+        "parents": [
+          {
+            "id": 23205979,
+            "kind": "district",
+            "guid": "a76e3497-32cc-438c-ae28-ee5d54ad8752",
+            "name": "5а квартал м-н",
+            "display_name": "Россия, Самарская область, Тольятти, Центральный, 5а квартал м-н",
+            "parent_id": 48321302
+          },
+          {
+            "id": 48321302,
+            "kind": "district",
+            "guid": "0561eb16-28fb-47c1-b990-f376d9fb425c",
+            "name": "Центральный",
+            "display_name": "Россия, Самарская область, Тольятти, Центральный",
+            "parent_id": 41093
+          },
+          {
+            "id": 41093,
+            "kind": "locality",
+            "guid": "28cceb40-fd9c-4d28-a90a-0b2df7dbaa5b",
+            "name": "Тольятти",
+            "display_name": "Россия, Самарская область, Тольятти",
+            "parent_id": 41089
+          },
+          {
+            "id": 41089,
+            "kind": "area",
+            "guid": "4806ad4e-959c-4683-8e9d-b9f59d4ee4f3",
+            "name": "Тольятти городской округ",
+            "display_name": "Россия, Самарская область, Тольятти городской округ",
+            "parent_id": 4987
+          },
+          {
+            "id": 4987,
+            "kind": "province",
+            "guid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+            "name": "Самарская область",
+            "display_name": "Россия, Самарская область",
+            "subkind": "region",
+            "parent_id": 832
+          },
+          {
+            "id": 832,
+            "kind": "province",
+            "guid": "77b1f937-052f-401a-b60b-21daab91369b",
+            "name": "Приволжский федеральный округ",
+            "display_name": "Россия, Приволжский федеральный округ",
+            "parent_id": 1
+          },
+          {
+            "id": 1,
+            "kind": "country",
+            "guid": "eebc9cf5-35d0-4191-afe8-fe1c215f06c0",
+            "name": "Россия",
+            "display_name": "Россия"
+          }
+        ],
+        "subways": [],
+        "timezoneOffset": 4,
+        "timezone": "Europe/Samara",
+        "districts": []
+      },
+      "house": {
+        "info": {
+          "buildYear": null,
+          "floors": 1,
+          "wallType": null
+        }
+      },
+      "land": {
+        "area": 2.7,
+        "areaUnit": "сотка",
+        "lotType": "ИЖС"
+      },
+      "objectInfo": {
+        "additional": [],
+        "additionalWithKey": [],
+        "area": 69,
+        "description": "Продам драм в центре ",
+        "floor": null,
+        "hasElectricity": null,
+        "hasGas": null,
+        "hasHeating": null,
+        "hasSewerage": null,
+        "hasWater": null,
+        "layoutType": null,
+        "livingArea": 0,
+        "restroom": "",
+        "roomArea": null,
+        "rooms": null,
+        "renovation": "",
+        "sauna": false
+      },
+      "priceInfo": {
+        "currency": "RUB",
+        "minMarketPrice": null,
+        "maxMarketPrice": null,
+        "price": 2750000,
+        "priceHistory": [
+          {
+            "date": "2022-03-04T15:06:33.121964+03:00",
+            "price": 2750000,
+            "state": "equal"
+          }
+        ],
+        "squarePrice": 39855,
+        "soldPrice": null
+      }
+    }
+  },
+  {
+    "case": "rent-house_part",
+    "url": "https://samara.domclick.ru/card/rent__house_part__2081525526",
+    "productCard": {
+      "id": 2081525526,
+      "status": 2,
+      "offerType": "house_part",
+      "dealType": "rent",
+      "address": {
+        "position": {
+          "lat": 53.47297599999723,
+          "lon": 49.331477999999976
+        },
+        "displayName": "Россия, Самарская область, Тольятти, коттеджный посёлок КП Чайка, 23а",
+        "displayNameShort": "Самарская область, Тольятти, коттеджный посёлок КП Чайка, 23а",
+        "locality": "коттеджный посёлок КП Чайка",
+        "localityGuid": "88c4506a-3a48-4e85-8426-20950609ca9f",
+        "guid": "656e9182-9b8f-4130-9753-beaef4a43463",
+        "name": "23а",
+        "parents": [
+          {
+            "id": 304601688,
+            "kind": "locality",
+            "guid": "88c4506a-3a48-4e85-8426-20950609ca9f",
+            "name": "коттеджный посёлок КП Чайка",
+            "display_name": "Россия, Самарская область, Тольятти, коттеджный посёлок КП Чайка",
+            "parent_id": 41093
+          },
+          {
+            "id": 48321302,
+            "kind": "district",
+            "guid": "0561eb16-28fb-47c1-b990-f376d9fb425c",
+            "name": "Центральный",
+            "display_name": "Россия, Самарская область, Тольятти, Центральный",
+            "parent_id": 41093
+          },
+          {
+            "id": 41093,
+            "kind": "locality",
+            "guid": "28cceb40-fd9c-4d28-a90a-0b2df7dbaa5b",
+            "name": "Тольятти",
+            "display_name": "Россия, Самарская область, Тольятти",
+            "parent_id": 41089
+          },
+          {
+            "id": 41089,
+            "kind": "area",
+            "guid": "4806ad4e-959c-4683-8e9d-b9f59d4ee4f3",
+            "name": "Тольятти городской округ",
+            "display_name": "Россия, Самарская область, Тольятти городской округ",
+            "parent_id": 4987
+          },
+          {
+            "id": 4987,
+            "kind": "province",
+            "guid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+            "name": "Самарская область",
+            "display_name": "Россия, Самарская область",
+            "subkind": "region",
+            "parent_id": 832
+          },
+          {
+            "id": 832,
+            "kind": "province",
+            "guid": "77b1f937-052f-401a-b60b-21daab91369b",
+            "name": "Приволжский федеральный округ",
+            "display_name": "Россия, Приволжский федеральный округ",
+            "parent_id": 1
+          },
+          {
+            "id": 1,
+            "kind": "country",
+            "guid": "eebc9cf5-35d0-4191-afe8-fe1c215f06c0",
+            "name": "Россия",
+            "display_name": "Россия"
+          }
+        ],
+        "subways": [],
+        "timezoneOffset": 4
+      },
+      "house": {
+        "info": {
+          "buildYear": null,
+          "ceilingHeight": null,
+          "floors": 3,
+          "hasGarbageDisposer": null,
+          "infrastructure": [],
+          "liftsFreight": null,
+          "liftsPassenger": null,
+          "parking": [],
+          "security": [],
+          "wallType": "Деревянный",
+          "yard": []
+        },
+        "feedback": {},
+        "photos": []
+      },
+      "land": {
+        "area": 1,
+        "areaUnit": "сотка",
+        "lotType": "ИЖС"
+      },
+      "objectInfo": {
+        "additional": [],
+        "bathroom": {},
+        "layoutType": null,
+        "restroom": null,
+        "roomArea": null,
+        "readyHousing": null,
+        "housingType": null,
+        "area": 250,
+        "decoration": null,
+        "hasGas": true,
+        "hasHeating": null,
+        "hasElectricity": true,
+        "hasSewerage": null,
+        "hasWater": null,
+        "description": "Плюс счетчики. Закрытая территория, о Чайка в лесной зоне недалеко от отеля Лада-резорт. Охрана, сосновый бор, свой берег Волги, детские площадки, прогулочные аллеи.\n Половина большого бревенчатого дома, интерьер в экостиле. ; 4 спальни, 2 санузла, гостиная и кухня, кабинет, гардероб, 2 балкона. Окна на 3 стороны. 2 своих парковочных места. Детская площадка на территории поселка. от 3 мес.. Доукомплектация мебелью по договоренности. при аренде более 6 месяцев предоставляется скидка по договоренности, с 15 ноября.",
+        "redevelopment": null,
+        "livingArea": 150,
+        "kitchenArea": 15,
+        "roomsArea": [],
+        "liftsPassenger": null,
+        "liftsFreight": null,
+        "rooms": null,
+        "floor": null,
+        "loggias": null,
+        "balconies": 0,
+        "isApartment": null,
+        "separatedBathrooms": null,
+        "connectedBathrooms": null,
+        "flatNumber": null,
+        "windowView": [],
+        "renovation": null,
+        "accessControl": null,
+        "buildingClass": null,
+        "buildingName": null,
+        "buildingType": null,
+        "commercialAmenities": [],
+        "electricCapacity": null,
+        "entranceType": null,
+        "garageSecurity": null,
+        "garageStatus": null,
+        "garageName": null,
+        "infrastructure": [],
+        "parking": null
+      },
+      "priceInfo": {
+        "commission": null,
+        "commissionTypeField": null,
+        "communalPayments": null,
+        "currency": "RUB",
+        "deposit": 0,
+        "discounts": null,
+        "mortgagePrice": 684,
+        "prepaymentMonths": null,
+        "price": 95000,
+        "priceHistory": [
+          {
+            "date": "2026-10-19T13:14:54.702126+00:00",
+            "price": 95000,
+            "state": "equal"
+          }
+        ],
+        "squarePrice": 380,
+        "squarePriceForYear": 4560,
+        "taxationForm": null
+      }
+    }
+  },
+  {
+    "case": "rent-townhouse",
+    "url": "https://samara.domclick.ru/card/rent__townhouse__1885120006",
+    "productCard": {
+      "id": 1885120006,
+      "status": 2,
+      "offerType": "townhouse",
+      "dealType": "rent",
+      "address": {
+        "position": {
+          "lat": 52.957629,
+          "lon": 49.684045
+        },
+        "displayName": "Россия, Самарская область, Чапаевск, Херсонская улица, 7/2",
+        "displayNameShort": "Самарская область, Чапаевск, Херсонская улица, 7/2",
+        "locality": "Чапаевск",
+        "localityGuid": "3f1092c0-ee8c-459f-8915-2d836b8eff1e",
+        "guid": "2608938d-4089-4de6-a437-1df260efb76c",
+        "name": "Херсонская улица, 7/2",
+        "parents": [
+          {
+            "id": 236416,
+            "kind": "street",
+            "guid": "946008fa-fcef-4b80-928b-a43beed76c4d",
+            "name": "Херсонская улица",
+            "display_name": "Россия, Самарская область, Чапаевск, Херсонская улица",
+            "parent_id": 18662
+          },
+          {
+            "id": 18662,
+            "kind": "locality",
+            "guid": "3f1092c0-ee8c-459f-8915-2d836b8eff1e",
+            "name": "Чапаевск",
+            "display_name": "Россия, Самарская область, Чапаевск",
+            "parent_id": 18659
+          },
+          {
+            "id": 18659,
+            "kind": "area",
+            "guid": "1ff034ab-5f7c-4c43-abb8-c4e10552d569",
+            "name": "Чапаевск городской округ",
+            "display_name": "Россия, Самарская область, Чапаевск городской округ",
+            "parent_id": 4987
+          },
+          {
+            "id": 4987,
+            "kind": "province",
+            "guid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+            "name": "Самарская область",
+            "display_name": "Россия, Самарская область",
+            "subkind": "region",
+            "parent_id": 832
+          },
+          {
+            "id": 832,
+            "kind": "province",
+            "guid": "77b1f937-052f-401a-b60b-21daab91369b",
+            "name": "Приволжский федеральный округ",
+            "display_name": "Россия, Приволжский федеральный округ",
+            "parent_id": 1
+          },
+          {
+            "id": 1,
+            "kind": "country",
+            "guid": "eebc9cf5-35d0-4191-afe8-fe1c215f06c0",
+            "name": "Россия",
+            "display_name": "Россия"
+          }
+        ],
+        "subways": [],
+        "timezoneOffset": 4
+      },
+      "house": {
+        "info": {
+          "buildYear": null,
+          "ceilingHeight": null,
+          "floors": 2,
+          "hasGarbageDisposer": null,
+          "infrastructure": [],
+          "liftsFreight": null,
+          "liftsPassenger": null,
+          "parking": [],
+          "security": [],
+          "wallType": null,
+          "yard": []
+        },
+        "feedback": {},
+        "photos": []
+      },
+      "land": {
+        "area": 100,
+        "areaUnit": "сотка",
+        "lotType": "ИЖС"
+      },
+      "objectInfo": {
+        "additional": [],
+        "bathroom": {},
+        "layoutType": null,
+        "restroom": null,
+        "roomArea": null,
+        "readyHousing": null,
+        "housingType": null,
+        "area": 140,
+        "decoration": null,
+        "hasGas": true,
+        "hasHeating": null,
+        "hasElectricity": true,
+        "hasSewerage": null,
+        "hasWater": null,
+        "description": "Сдается дом, рядом в шаговой доступности магазин, все необходимое есть, два санузла, на первом этаже ванная, на втором душевая кабина, спальных мест 8, два телевизора, стиральная машинка, микроволновка, холодильник и т.д.\nВ приоритете сдача под вахту ",
+        "redevelopment": null,
+        "livingArea": 0,
+        "kitchenArea": 0,
+        "roomsArea": [],
+        "liftsPassenger": null,
+        "liftsFreight": null,
+        "rooms": null,
+        "floor": null,
+        "loggias": null,
+        "balconies": 0,
+        "isApartment": null,
+        "separatedBathrooms": null,
+        "connectedBathrooms": null,
+        "flatNumber": null,
+        "windowView": [],
+        "renovation": null,
+        "accessControl": null,
+        "buildingClass": null,
+        "buildingName": null,
+        "buildingType": null,
+        "commercialAmenities": [],
+        "electricCapacity": null,
+        "entranceType": null,
+        "garageSecurity": null,
+        "garageStatus": null,
+        "garageName": null,
+        "infrastructure": [],
+        "parking": null
+      },
+      "priceInfo": {
+        "commission": 0,
+        "commissionTypeField": "Без комиссии",
+        "communalPayments": "Включены",
+        "currency": "RUB",
+        "deposit": 10000,
+        "discounts": null,
+        "mortgagePrice": null,
+        "prepaymentMonths": 1,
+        "price": 50000,
+        "priceHistory": [
+          {
+            "date": "2023-10-04T10:33:16.755542+00:00",
+            "price": 50000,
+            "state": "equal"
+          }
+        ],
+        "squarePrice": 357,
+        "squarePriceForYear": 4285.68,
+        "taxationForm": null
+      }
+    }
+  }
+]

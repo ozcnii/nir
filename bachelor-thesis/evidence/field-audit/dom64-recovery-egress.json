@@ -1,0 +1,17 @@
+[
+  {
+    "method": "physical-interface",
+    "exitCode": 0,
+    "egressFingerprint": "c0d9ae45dda7b59345e4eb2727148aea60e99e470a893a51ca2d2150f3a887b3"
+  },
+  {
+    "method": "existing-socks10808",
+    "exitCode": 0,
+    "egressFingerprint": "c0d9ae45dda7b59345e4eb2727148aea60e99e470a893a51ca2d2150f3a887b3"
+  },
+  {
+    "method": "existing-ssh-socks1080",
+    "exitCode": 0,
+    "egressFingerprint": "950206dd7e490019dd38f36adc8586e24d626754598db90ec3397abeb11eab40"
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.avito.ru/samara/kvartiry/2-k._kvartira_64_m_2727_et._4977842672?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJVdkdkTUl5SXo4VURQTjBTIjt9_hKLtz8AAAA\n- Page Title: 2-к. квартира, 64 м², 27/27 эт. в аренду Самаре | Снять квартиру | Авито (4977842672)\n- Console: 16 errors, 0 warnings\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T08-22-42-821Z.yml)\n### Events\n- New console entries: browser-output/console-2026-11-17T08-22-37-187Z.log#L1-L18"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 14
+}

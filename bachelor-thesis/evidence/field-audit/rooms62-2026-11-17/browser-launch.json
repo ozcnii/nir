@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-17",
+  "pid": 11907,
+  "command": "npx",
+  "args": [
+    "--offline",
+    "@playwright/mcp@0.0.85",
+    "--isolated",
+    "--codegen",
+    "none",
+    "--proxy-server",
+    "socks5://127.0.0.1:10808",
+    "--timeout-navigation",
+    "30000",
+    "--output-dir",
+    "/Users/qq/Documents/ssau/bachelor-thesis/evidence/field-audit/rooms62-2026-11-17/browser-output"
+  ],
+  "note": "Task-owned isolated visible browser; same SOCKS5, global config unchanged"
+}

@@ -1,0 +1,87 @@
+{
+  "method": "curl exact script URLs recorded in dom64-recovery-group-structure.json through SOCKS5 127.0.0.1:10808; all six selected script fetches HTTP200; no browser",
+  "offsetUnits": "UTF-16 code units (all fragment offsets before non-BMP content verified using encoding calculation)",
+  "files": [
+    {
+      "url": "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/main_b496dbbdffa89bfc01f5.js",
+      "httpStatus": 200,
+      "path": "/tmp/dc64-primary-main_b496dbbdffa89bfc01f5.js",
+      "sha256": "743e59afca1d64ddb82a6f9ecc38dcf364066a4eaa982447c9888378f01c374d",
+      "bytes": 110607,
+      "fragments": [
+        {
+          "purpose": "server flat id mapping",
+          "start": 29579,
+          "end": 30073,
+          "text": "function Oe(e){return e.map(e=>({flatId:e.flat_id,complexId:e.complex_id,buildingId:e.building_id,layoutId:e.layout_id,price:e.price,squarePrice:e.square_price,rooms:e.rooms,area:e.area,floorNumber:e.floor_number,renovationType:e.renovation_type,flatNumber:e.flat_number,isStartSale:e.is_start_sale}))}function fe(e){return{videoType:e.video_type,videoUrl:e.video_url,previewImg:e.preview_img}}function Te(e){return{provider:e.provider,modelUrl:e.model_url,previewUrl:e.preview_url,name:e.name}"
+        },
+        {
+          "purpose": "payload source",
+          "start": 33975,
+          "end": 34293,
+          "text": "mpany_id,premisesId:t.premises_id,address:Q(t.address),complex:_e(t.complex),similarFlats:me(t.similar_flats),flatsWithSameLayout:Oe(t.flats_with_same_layout),media:Ae(t.media),calcData:Ee(t.calc_data),priceInfo:Ce(t.price_info),objectInfo:a,flatInfo:{numberOfRooms:a.rooms,flatNumber:a.flatNumber,area:a.area,isApartm"
+        }
+      ]
+    },
+    {
+      "url": "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/794_be6747fec06012f9aa05.js",
+      "httpStatus": 200,
+      "path": "/tmp/dc64-primary-794_be6747fec06012f9aa05.js",
+      "sha256": "b39007c3f41d093f9666a7173196ac53deb0c47d7996af7e184f7315b6d9f674",
+      "bytes": 464297,
+      "fragments": [
+        {
+          "purpose": "complete modal row component",
+          "start": 35486,
+          "end": 37080,
+          "text": "const C=({flat:e,isApartments:t,isMobile:n})=>{const s=`${e.floorNumber} этаж`,r=`${t?\"Ап.\":\"Кв.\"} №${e.flatNumber}`,i=`${(0,N.$)(e.price,0)} ₽`,o=`${(0,N.$)(e.squarePrice,0)} ₽/м²`;return(0,x.jsxs)(\"div\",{className:n?I.A.layoutFlatsModalCell:I.A.layoutFlatsModalRow,\"data-testid\":\"layout-flats-modal-item\",children:[n?(0,x.jsxs)(\"div\",{className:I.A.layoutFlatsModalCellInfo,children:[(0,x.jsxs)(\"div\",{className:I.A.layoutFlatsModalCellPrice,children:[(0,x.jsx)(\"span\",{className:I.A.layoutFlatsModalCellPriceValue,children:i}),(0,x.jsx)(\"span\",{className:I.A.layoutFlatsModalCellSquarePrice,children:o})]}),(0,x.jsxs)(\"div\",{className:I.A.layoutFlatsModalCellDetails,children:[s,\" · \",r]})]}):(0,x.jsxs)(x.Fragment,{children:[(0,x.jsx)(\"span\",{className:I.A.layoutFlatsModalRowPrice,children:i}),(0,x.jsx)(\"span\",{className:I.A.layoutFlatsModalRowCell,children:o}),(0,x.jsx)(\"span\",{className:I.A.layoutFlatsModalRowFloor,children:s}),(0,x.jsx)(\"span\",{className:I.A.layoutFlatsModalRowFlatNumber,children:r})]}),(0,x.jsx)(y.Z,{offerId:e.flatId,buttonType:A.f.HEART_ICON})]})};var b=n(56977);const T=({flats:e,isApartments:t,isMobile:n})=>{const[s,r]=(0,g.useState)(\"asc\"),i=(0,g.useMemo)(()=>{const t=[...e];return t.sort((e,t)=>\"asc\"===s?e.price-t.price:t.price-e.price),t},[e,s]),o=(0,g.useCallback)(()=>{r(e=>\"asc\"===e?\"desc\":\"asc\")},[]),a=\"asc\"===s?\"Дешевле\":\"Дороже\";return 0===i.length?(0,x.jsx)(\"div\",{className:I.A.flatsWithSameLayoutModalEmpty,children:\"Нет доступных квартир\"}):(0,x.jsxs)(\"section\",{className:I.A.layoutFlatsModalSection,children:[(0,x.jsxs)(\"div\",{className:I.A."
+        },
+        {
+          "purpose": "modal list mapping",
+          "start": 37414,
+          "end": 37743,
+          "text": "a-testid\":\"layout-flats-modal-sort\"})]}),(0,x.jsx)(\"div\",{className:I.A.layoutFlatsModalSectionList,children:i.map(e=>(0,x.jsx)(C,{flat:e,isApartments:t,isMobile:n},e.flatId))})]})},M=({title:e,subtitle:t})=>(0,x.jsxs)(\"div\",{className:I.A.layoutFlatsModalHeader,children:[(0,x.jsx)(\"h2\",{className:I.A.layoutFlatsModalTitle,chil"
+        },
+        {
+          "purpose": "current query suffix helper",
+          "start": 4415,
+          "end": 4607,
+          "text": "14039(e,t,n){\"use strict\";n.d(t,{A:()=>r});var s=n(39342);function r(){const[e]=(0,s.ok)();return String(e)?`?${e}`:\"\"}},86981(e,t,n){\"use strict\";n.d(t,{P:()=>s});let s=function(e){return e.N"
+        },
+        {
+          "purpose": "selector excludes current flat",
+          "start": 411047,
+          "end": 411429,
+          "text": "36995(e,t,n){\"use strict\";const s=(0,n(25508).Mz)([e=>e.shell.flatDetails.data],e=>{var t;return(null!==(t=null==e?void 0:e.flatsWithSameLayout)&&void 0!==t?t:[]).filter(t=>t.flatId!==(null==e?void 0:e.id))});n.d(t,[\"A\",0,s])},29822(e,t,n){\"use strict\";n.d(t,{A:()=>i});var s=n(25508);var r=n(77303);const i=(0,s.Mz)([r.V],function(e){return\"positive\"===(null==e?void 0:e.relationsh"
+        }
+      ]
+    },
+    {
+      "url": "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/NewFlatPage_fd847683b30f634e7fd6.js",
+      "httpStatus": 200,
+      "path": "/tmp/dc64-primary-NewFlatPage_fd847683b30f634e7fd6.js",
+      "sha256": "9db835fae5c6a7effa5a94b9bf6dcd4c62c4cccf42fa8d3dda1df092166c6671",
+      "bytes": 128305,
+      "fragments": [
+        {
+          "purpose": "query helper import",
+          "start": 44403,
+          "end": 44534,
+          "text": "e.stationName))}):null};var Ni=i(23716),yi=i(14039),Ci=i(79331),Ai=i(36981),Mi=i(76604),Ti=i(1396),Li=i(31625);let Si=function(e){r"
+        },
+        {
+          "purpose": "card builder and href",
+          "start": 72295,
+          "end": 73912,
+          "text": "const Es=(0,jt.A)(e=>{const{layout:t,isMobile:i,intersectionProps:{setIntersectionRefDefer:s,setIntersectionParamsDefer:o}}=e,{flatId:n,rooms:l,complexId:r,layoutId:d}=t,m={complexBuildingId:r,flatLayoutId:d,objectRooms:l,offerId:n},h=(0,yi.A)();(0,p.useEffect)(()=>{o(()=>(e=>{const{complexBuildingId:t,flatLayoutId:i,objectRooms:s,offerId:o}=e,n={element_id:c.$I.LAYOUT_OFFER_TILE,element_type:c.Wk.TILE,event_type:c.mu.SHOW,event_sense:{event_element:c.mj.FLAT_CARD,block_in_section:c.rP.SAME_LAYOUT_BLOCK,complex_building_id:t,flat_layout_id:i,object_rooms:s,offer_id:o}};(0,ft.QH)(n)})(m))},[o]);const v=`/card/sale__new_flat__${n}${h}`;return(0,u.jsx)(\"a\",{ref:s,className:ys.layoutOfferItemContainer,onClick:()=>{(e=>{const{complexBuildingId:t,flatLayoutId:i,objectRooms:s,offerId:o}=e,n={element_id:c.$I.LAYOUT_OFFER_TILE,element_type:c.Wk.TILE,event_type:c.mu.CLICK,event_sense:{event_element:c.mj.FLAT_CARD,block_in_section:c.rP.SAME_LAYOUT_BLOCK,complex_building_id:t,flat_layout_id:i,object_rooms:s,offer_id:o}};(0,ft.QH)(n)})(m)},href:v,target:\"_blank\",rel:\"noopener\",children:(0,u.jsxs)(\"div\",{className:ys.layoutOfferItemCard,children:[(0,u.jsx)(\"div\",{className:ys.layoutOffersInfoBlock,children:(0,u.jsx)(Ss,{layout:t,isMobile:i})}),(0,u.jsx)(Os.z,{section:c.rP.SAME_LAYOUT_BLOCK,children:(0,u.jsx)(a.Z,{sendOuterMetrics:e=>{((e,t)=>{const{complexBuildingId:i,flatLayoutId:s,objectRooms:o,offerId:n}=e,a={element_id:c.$I.FAVORITE_BUTTON,element_type:c.Wk.BUTTON,event_type:c.mu.CLICK,event_sense:{event_element:c.mj.FAVORITE_BUTTON,block_in_section:c.rP.SAME_LAYOUT_BLOCK,complex_building_id:i,flat_l"
+        },
+        {
+          "purpose": "to_flats query consumer",
+          "start": 74554,
+          "end": 74914,
+          "text": "tersectionParamsDefer:a}}=e,[l,r]=(0,p.useState)(!1),[m]=(0,js.ok)();(0,p.useEffect)(()=>{\"true\"===Mi.parse(m.toString(),{ignoreQueryPrefix:!0}).to_flats&&d.K.scrollToAnchor(ci.S.FLATS_OF_LAYOUT)},[]),(0,p.useEffect)(()=>{const e=i.length;a(()=>(e=>{const t={element_id:c.$I.LAYOUT_OFFERS_LIST_BLOCK,element_type:c.Wk.BLOCK,event_type:c.mu.SHOW,event_sense:{ev"
+        }
+      ]
+    }
+  ]
+}

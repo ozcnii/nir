@@ -1,0 +1,8 @@
+{
+  "snapshot": "PROPERTY-PRICE-CLEAN-SNAPSHOT.md",
+  "sha256": "c9ed1fe6e2d86e06ab8fba83bc6e2141db37b753ae3fee209bad95d8850c56c7",
+  "review_type": "current-state design and contract; no implementation",
+  "reviewer": "fresh_property_price_critic",
+  "context": "fork_turns=none; current snapshot, original NIR and source observations only; no target score",
+  "date": "2026-11-16"
+}

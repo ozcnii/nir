@@ -1,0 +1,24 @@
+[
+  {
+    "name": "domclick-sale-list",
+    "url": "https://samara.domclick.ru/pokupka/kvartiry",
+    "checked_at": "2026-11-16T11:16:55.863513+04:00",
+    "purpose": "Targeted verification of previously observed public regional URL; no credentials, cookies, CAPTCHA solving or bypass",
+    "status": 401,
+    "bytes": 279,
+    "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5",
+    "final_url": "https://samara.domclick.ru/pokupka/kvartiry",
+    "title": null
+  },
+  {
+    "name": "domclick-sale-card",
+    "url": "https://samara.domclick.ru/card/sale__flat__2080269220",
+    "checked_at": "2026-11-16T11:16:55.863252+04:00",
+    "purpose": "Targeted verification of previously observed public regional URL; no credentials, cookies, CAPTCHA solving or bypass",
+    "status": 401,
+    "bytes": 279,
+    "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5",
+    "final_url": "https://samara.domclick.ru/card/sale__flat__2080269220",
+    "title": null
+  }
+]

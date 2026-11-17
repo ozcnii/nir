@@ -1,0 +1,4 @@
+{
+  "url": "https://cabinet.ssau.ru/login",
+  "result": "Login form with empty login/password fields observed in IAB; no existing authenticated session, no credentials supplied, no login performed. Individual assignment/plan therefore not observed."
+}

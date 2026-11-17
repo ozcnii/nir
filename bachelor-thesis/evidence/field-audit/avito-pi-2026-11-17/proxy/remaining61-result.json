@@ -1,0 +1,14 @@
+{
+  "investigation": "Avito 6.1 read-only continuation",
+  "observed_on": "2026-11-17",
+  "proxy": "existing SOCKS5 socks5://127.0.0.1:10808; no settings changed",
+  "subchecks": {
+    "daily_rent": {
+      "listing_url": "https://www.avito.ru/samara/kvartiry/sdam/posutochno/-ASgBAgICAkSSA8gQ8AeSUg?cd=1",
+      "listing_observation": "Category rendered after closing IP restriction overlay via its visible Continue button. First card displayed: 1-к квартира, 42 м², 2 beds; from 4,980 ₽ за 1 сутки; Samara, пр-т Карла Маркса, 171; 21 photos. Card link id 4595685717: https://www.avito.ru/samara/kvartiry/1-k._kvartira_42_m_2_krovati_4595685717?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiIxTGx2VmpoZUcwbTVweDFIIjt9J4VEUz8AAAA",
+      "item_detail": "HTTP 429 IP restriction. Visible puzzle challenge solved through screenshot-derived pointer drag; UI said Проверка пройдена, перенаправление..., but destination remained restricted. No buyerItem/paramsDto values obtained; no stay-total or monthly-period inference.",
+      "evidence": ["browser-output/page-2026-11-17T08-05-48-907Z.png", "browser-output/page-2026-11-17T08-06-38-477Z.png", "browser-output/page-2026-11-17T08-07-03-428Z.png", "proxy-launch-proof.json"]
+    }
+  },
+  "remaining": ["monthly rent", "resale", "pagination", "removed ads"]
+}

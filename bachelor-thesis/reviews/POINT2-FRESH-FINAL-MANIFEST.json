@@ -1,0 +1,7 @@
+{
+  "snapshot": "POINT2-FRESH-FINAL-SNAPSHOT.md",
+  "sha256": "6042eaa772e630ade1bc3c9cdd765adfa63239f2ff1f3c1a5dbb50f7b3d53e45",
+  "scope": "POINT2-REVIEW-SCOPE.md",
+  "date": "2026-11-17",
+  "context": "new agent fork_turns=none; no prior scores, reviews or chat; no target score"
+}

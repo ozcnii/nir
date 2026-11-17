@@ -1,0 +1,56 @@
+{
+  "capture_method": "Read-only browser DOM observation in CUA; facts transcribed from tool output, not raw response HTML",
+  "checked_at": "2026-11-16T10:53:39.459558+04:00",
+  "auth": "none",
+  "browser": "IAB with normal JavaScript, no CAPTCHA interaction or protection bypass",
+  "sale_listing_url": "https://samara.domclick.ru/pokupka/kvartiry",
+  "sale_card": {
+    "id": "sale__flat__2080269220",
+    "url": "https://samara.domclick.ru/card/sale__flat__2080269220",
+    "rooms": 3,
+    "area_advertised_sqm": 110,
+    "floor": 12,
+    "floors_total": 20,
+    "address": "Самара, улица Буянова, 120",
+    "price_rub": 24999000,
+    "area_in_source_registry_section_sqm": 103.5,
+    "source_price_history": [
+      {
+        "date": "2026-10-17",
+        "price_rub": 24999000
+      },
+      {
+        "date": "2026-10-12",
+        "price_rub": 25999000
+      }
+    ],
+    "note": "Registry-section area is a claim of the source, not independently verified ground truth. Source-supplied history is not repeated observations by our application."
+  },
+  "photo": {
+    "url": "https://img.dmclk.ru/s1200x800q80/vitrina/b1/c1/b1c135b4184ff8fa75b3e688b81370873bd4508c.webp",
+    "browser_natural_width": 1200,
+    "browser_natural_height": 675
+  },
+  "rent_listing": {
+    "url": "https://samara.domclick.ru/search?deal_type=rent&from=topline2020",
+    "example_url": "https://samara.domclick.ru/card/rent__flat__2081993306",
+    "rooms": 2,
+    "area_sqm": 55,
+    "floor": 4,
+    "floors_total": 6,
+    "price_rub_per_month": 70000
+  },
+  "daily_listing": {
+    "portal": "https://24.domclick.ru/",
+    "search_city": "Самара",
+    "checkin": "2026-11-17",
+    "checkout": "2026-11-18",
+    "guests": 1,
+    "displayed_results": 1494,
+    "example_url": "https://domclick.sutochno.ru/detail/2252883?guests_adults=1&occupied=2026-11-17%3B2026-11-18",
+    "example_price_rub_per_day": 1800,
+    "provider": "external partner Sutochno.ru; partner detail not opened",
+    "note": "Results also include nearby settlements. Date-dependent rate, not fixed sale price."
+  },
+  "coverage_limit": "Sale card/detail/photos and rent/daily listings sampled; not a validated complete collector or every category."
+}

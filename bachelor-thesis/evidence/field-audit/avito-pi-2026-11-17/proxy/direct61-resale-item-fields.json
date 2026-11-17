@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\"url\":\"https://www.avito.ru/samara/kvartiry/1-k._kvartira_57_m_1718_et._8199518030?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJIWWU1dWltSDJIc3pTb1RYIjt9IJbhOD8AAAA\",\"title\":\"1-к. квартира, 57 м², 17/18 эт. на продажу в Самаре | Купить квартиру | Авито (8199518030)\",\"heading\":\"1-к. квартира, 57 м², 17/18 эт.\",\"item\":{\"id\":8199518030,\"url\":\"/samara/kvartiry/1-k._kvartira_57_m_1718_et._8199518030\",\"address\":\"Самарская обл., Самара, Солнечная ул., 53\",\"coords\":{\"lat\":53.25960159,\"lng\":50.20936584,\"zoom\":16},\"price\":9500000,\"formattedPrice\":{\"currencySign\":\"₽\",\"discount\":null,\"formatedString\":\"9 500 000&nbsp;₽\",\"isHasValue\":true,\"isWasLowered\":false,\"normalizedPricePostFix\":\"\",\"oldString\":\"\",\"postfix\":\"\",\"rubPricePostfix\":\"₽\",\"string\":\"9 500 000\",\"value\":9500000},\"isActive\":true,\"photosCount\":29},\"params\":[{\"attributeId\":549,\"description\":\"1\",\"title\":\"Количество комнат\"},{\"attributeId\":578,\"description\":\"57 м²\",\"title\":\"Общая площадь\"},{\"attributeId\":2710,\"description\":\"6 м²\",\"title\":\"Площадь кухни\"},{\"attributeId\":2714,\"description\":\"35 м²\",\"title\":\"Жилая площадь\"},{\"attributeId\":496,\"description\":\"17 из 18\",\"title\":\"Этаж\"},{\"attributeId\":118593,\"description\":\"лоджия\",\"title\":\"Балкон или лоджия\"},{\"attributeId\":110836,\"description\":\"гардеробная\",\"title\":\"Дополнительно\"},{\"attributeId\":118594,\"description\":\"совмещенный\",\"title\":\"Санузел\"},{\"attributeId\":110687,\"description\":\"на улицу\",\"title\":\"Окна\"},{\"attributeId\":110710,\"description\":\"евро\",\"title\":\"Ремонт\"},{\"attributeId\":118596,\"description\":\"кухня, хранение одежды, спальные места\",\"title\":\"Мебель\"},{\"attributeId\":1355,\"description\":\"холодильник, стиральная машина\",\"title\":\"Техника\"},{\"attributeId\":110709,\"description\":\"свободная\",\"title\":\"Способ продажи\"},{\"attributeId\":118608,\"description\":\"возможна ипотека\",\"title\":\"Условия продажи\"}],\"classification\":[{},{\"type\":\"Вторичка\",\"status\":\"Квартира\",\"offer_type\":\"Продам\",\"rooms\":\"1\",\"area\":\"57 м²\",\"floor\":17,\"floors_count\":18}]}"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 13
+}

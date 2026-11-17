@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\nNo open tabs. Navigate to a URL to create one."
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 22
+}

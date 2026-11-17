@@ -1,0 +1,28 @@
+{
+  "source": "cian",
+  "source_id": 330631159,
+  "url": "https://samara.cian.ru/sale/flat/330631159/",
+  "name": "Продается 1-комн. квартира, 47,21 м²",
+  "price": 7246735,
+  "currency": "RUB",
+  "area_sqm": 47.21,
+  "floor": 2,
+  "floors_total": 18,
+  "completion_year": 2027,
+  "image_urls": [
+    "https://images.cdn-cian.ru/images/2981595376-1.jpg",
+    "https://images.cdn-cian.ru/images/2895448231-1.jpg",
+    "https://images.cdn-cian.ru/images/2895448242-1.jpg",
+    "https://images.cdn-cian.ru/images/2895448261-1.jpg",
+    "https://images.cdn-cian.ru/images/2895448274-1.jpg",
+    "https://images.cdn-cian.ru/images/2895448285-1.jpg",
+    "https://images.cdn-cian.ru/images/2895448301-1.jpg",
+    "https://images.cdn-cian.ru/images/2895448318-1.jpg",
+    "https://images.cdn-cian.ru/images/2895448330-1.jpg"
+  ],
+  "field_evidence": {
+    "id_price_currency": "HTML JSON-LD Product/Offer",
+    "area_floor_completion": "stored card text, labels Общая площадь/Этаж/Год сдачи"
+  },
+  "record_type": "feasibility sample, not application dataset"
+}

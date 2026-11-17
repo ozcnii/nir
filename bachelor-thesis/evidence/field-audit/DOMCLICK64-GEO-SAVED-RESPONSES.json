@@ -1,0 +1,147 @@
+{
+  "purpose": "Saved response extraction only. No new network or browser calls. Original raw files remain in /tmp; only selected non-session fields persisted here.",
+  "observedDate": "2026-11-17",
+  "method": "curl --socks5-hostname 127.0.0.1:10808; public read-only GET",
+  "statusLimit": "HTTP statuses were printed by original curl -w and preserved in tool conversation, not as raw header files. Bodies and their hashes below are from the still-existing saved files.",
+  "responses": [
+    {
+      "url": "https://24.domclick.ru/api/autocomplete/cities/v2?name=%D0%A1%D0%B0%D1%80%D0%B0%D1%82%D0%BE%D0%B2&limit=6",
+      "httpStatus": 200,
+      "statusProvenance": "Original curl -w stdout observed in this agent tool output; status/header sidecar was not saved. Not a new HTTP verification.",
+      "reportedSizeDownload": 267,
+      "savedRawPath": "/tmp/dc24geo-saratov-autocomplete.json",
+      "savedBytes": 267,
+      "sha256": "f021b39e601d9f3bf9d8f6c5081f03e73d47b93711eab6f96ce4c8ddc87695e0",
+      "body": [
+        {
+          "name": "Саратов",
+          "guid": "55686eb9-6fb1-4cea-88a7-0cbcd95d1b6d",
+          "regionName": "Саратовская область"
+        },
+        {
+          "name": "ст-ца Саратовская",
+          "guid": "828fc409-5ed2-4918-9659-7d59b6e1bcda",
+          "regionName": "Краснодарский край"
+        }
+      ]
+    },
+    {
+      "url": "https://24.domclick.ru/api/geo/geoObject/v1?guid=55686eb9-6fb1-4cea-88a7-0cbcd95d1b6d",
+      "httpStatus": 200,
+      "statusProvenance": "Original curl -w stdout observed in this agent tool output; status/header sidecar was not saved. Not a new HTTP verification.",
+      "reportedSizeDownload": 442,
+      "savedRawPath": "/tmp/dc24geo-saratov-city-object.json",
+      "savedBytes": 442,
+      "sha256": "13586b778f36a91c4fe3fe22d57c4193081d1bd9bd74e4371e33f26d21ccdd6d",
+      "body": {
+        "aId": 2539,
+        "guid": "55686eb9-6fb1-4cea-88a7-0cbcd95d1b6d",
+        "shortName": "Саратов",
+        "nameLocIn": "в Саратове",
+        "displayName": "Россия, Саратов",
+        "regionGuid": "9e840116-0390-4f05-a846-d4520716d1ce",
+        "regionName": "Саратовская область",
+        "localityGuid": "55686eb9-6fb1-4cea-88a7-0cbcd95d1b6d",
+        "localityName": "Саратов",
+        "bbox": [
+          [
+            51.392374,
+            45.805338
+          ],
+          [
+            51.688619,
+            46.209013
+          ]
+        ],
+        "lat": 51.533296,
+        "lon": 46.034329
+      }
+    },
+    {
+      "url": "https://24.domclick.ru/api/geo/geoObject/v1?guid=9e840116-0390-4f05-a846-d4520716d1ce",
+      "httpStatus": 200,
+      "statusProvenance": "Original curl -w stdout observed in this agent tool output; status/header sidecar was not saved. Not a new HTTP verification.",
+      "reportedSizeDownload": 532,
+      "savedRawPath": "/tmp/dc24geo-saratov-region-object.json",
+      "savedBytes": 532,
+      "sha256": "5f14ec261ca87112d1ff1b3dd7a92778d107629db75be0e8e7d3ebe54014f144",
+      "body": {
+        "aId": 2530,
+        "guid": "9e840116-0390-4f05-a846-d4520716d1ce",
+        "shortName": "Саратовская область",
+        "nameLocIn": "в Саратовской области",
+        "displayName": "Россия, Саратовская область",
+        "regionGuid": "9e840116-0390-4f05-a846-d4520716d1ce",
+        "regionName": "Саратовская область",
+        "localityGuid": "9e840116-0390-4f05-a846-d4520716d1ce",
+        "localityName": "Саратовская область",
+        "bbox": [
+          [
+            49.801225,
+            42.504174
+          ],
+          [
+            52.818886,
+            50.832518
+          ]
+        ],
+        "lat": 51.578529,
+        "lon": 46.797223
+      }
+    },
+    {
+      "url": "https://24.domclick.ru/search?location_id=9e840116-0390-4f05-a846-d4520716d1ce&adt=1",
+      "httpStatus": 200,
+      "statusProvenance": "Original curl -w stdout observed in this agent tool output; status/header sidecar was not saved. Not a new HTTP verification.",
+      "reportedSizeDownload": 493317,
+      "savedRawPath": "/tmp/dc24geo-saratov-region-search.html",
+      "savedBytes": 493317,
+      "sha256": "5c613bfdab0e9888385215774fa0537bb63cb029be874b0182d22d2fb0b4f60b",
+      "selection": {
+        "title": "Снять на короткий срок квартиру, дом, комнату в Саратовской области - 258 предложений по аренде доступно.",
+        "serp": {
+          "searchData": {
+            "sorting": "recommended",
+            "page": 1,
+            "adt": 1,
+            "locationId": "9e840116-0390-4f05-a846-d4520716d1ce",
+            "distrTest": false
+          },
+          "fetchStatus": "success",
+          "invalidParams": false,
+          "total": 258,
+          "locationName": "Саратовская область",
+          "idsCount": 36
+        },
+        "firstTwo": [
+          {
+            "id": "56e06025-20e8-40e8-8cfc-5c0e0abda7cf",
+            "category": "flat",
+            "source": "CAS",
+            "geoInfo": {
+              "aid": 16066,
+              "guid": "c6dffd36-dbe2-4ec4-913b-c68133c180bc",
+              "displayName": "Саратов, Блинова улица, 1",
+              "cityName": "Саратов",
+              "lat": 51.601201,
+              "lon": 45.973271
+            }
+          },
+          {
+            "id": "bc65241f-c938-4abd-b1cb-0a000b9061a0",
+            "category": "flat",
+            "source": "CAS",
+            "geoInfo": {
+              "aid": 95171,
+              "guid": "87109dd4-60f2-4f38-8ae1-059cd1c7b0f9",
+              "displayName": "Саратов, Дегтярная улица, 28",
+              "cityName": "Саратов",
+              "lat": 51.518282,
+              "lon": 45.990198
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "observed_on": "2026-11-17",
+  "method": {
+    "browser": "existing isolated Playwright MCP",
+    "proxy": "socks5://127.0.0.1:10808 (process configuration independently documented in proxy-launch-proof.json)",
+    "external_ip_recheck": false,
+    "scope": "runtime observations only"
+  },
+  "categories": [
+    {
+      "name": "rooms_sale",
+      "requested_url": "https://www.avito.ru/samara/komnaty/prodam-ASgBAgICAUSQA7wQ?cd=1",
+      "page_status": "rendered",
+      "http_status": "not exposed by browser tool",
+      "page_title": "Купить комнату в Самаре | Цены на комнаты в Самаре | Авито",
+      "heading": "Продажа комнат в Самаре",
+      "one_observed_listing": {
+        "page_status": "rendered; hydration data present",
+        "http_status": "not exposed by browser tool",
+        "id": 7697142163,
+        "externalId": null,
+        "url": "https://www.avito.ru/samara/komnaty/dolya_komnata_125_m_v_2-k._13_et._7697142163",
+        "display_title": "Доля: Комната 12,5 м² в 2-к., 1/3 эт.",
+        "category": "Комнаты (slug: komnaty)",
+        "deal": "Продажа; param label: Продажа доли",
+        "period": "not applicable",
+        "area": {
+          "offered_room": {
+            "value_m2": 12.5,
+            "label": "Площадь комнаты"
+          },
+          "whole_flat": "unknown; no whole-flat area label/value in paramsDto.items"
+        },
+        "rooms": {
+          "offered_room_count": "unknown; title identifies a room but no numeric offered-room count was exposed",
+          "whole_flat_room_count": 2,
+          "whole_flat_label": "Комнат в квартире"
+        },
+        "floor": {
+          "floor": 1,
+          "floors_total": 3,
+          "display_value": "1 из 3"
+        },
+        "address": "Самарская обл., Самара, пр-т Кирова, 42",
+        "main_price": {
+          "value": 752777,
+          "currency": "RUB",
+          "display": "752 777 ₽",
+          "qualifier": "exact; no ‘от’ qualifier observed"
+        },
+        "photos_count": 3,
+        "property_coordinates": {
+          "lat": 53.216745,
+          "lng": 50.264899
+        },
+        "rent_price_components": "not applicable",
+        "source_paths": [
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.id",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.externalId",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.url",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.title",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.category.slug",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.address",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.price",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.formattedPrice.string",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.imageUrls.length",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.geo.coords.lat",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.item.geo.coords.lng",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.paramsDto.items[0] (Площадь комнаты: 12.5 м²)",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.paramsDto.items[1] (Комнат в квартире: 2)",
+          "window.__staticRouterHydrationData.loaderData[\"catalog-or-main-or-item\"].buyerItem.paramsDto.items[2] (Этаж: 1 из 3)",
+          "rendered search heading and item page title (deal/category display)"
+        ]
+      }
+    },
+    {
+      "name": "flats_monthly_rent",
+      "requested_url": "https://www.avito.ru/samara/kvartiry/sdam/na_dlitelnyy_srok-ASgBAgICAkSSA8gQ8AeQUg?cd=1",
+      "page_status": "restricted",
+      "http_status": 429,
+      "page_title": "Доступ ограничен: проблема с IP",
+      "visible_status": "Страница не загрузилась из-за проблем с IP",
+      "challenge": "One slider challenge was attempted; UI reported ‘Проверка пройдена, перенаправление...’, but the page remained HTTP 429 after waiting 8 seconds.",
+      "listing_inspection": "not reached",
+      "monthly_price": "unknown",
+      "deposit": "unknown",
+      "commission": "unknown",
+      "stay_total": "unknown",
+      "mortgage": "unknown"
+    },
+    {
+      "name": "flats_daily_rent",
+      "requested_url": "https://www.avito.ru/samara/kvartiry/sdam/posutochno/-ASgBAgICAkSSA8gQ8AeSUg?cd=1",
+      "page_status": "not attempted after repeated IP restriction",
+      "listing_inspection": "not reached",
+      "daily_price": "unknown",
+      "deposit": "unknown",
+      "commission": "unknown",
+      "stay_total": "unknown",
+      "mortgage": "unknown"
+    },
+    {
+      "name": "resale_flats",
+      "requested_url": "https://www.avito.ru/samara/kvartiry/prodam-ASgBAgICAUSSA8YQ",
+      "page_status": "not attempted after repeated IP restriction",
+      "listing_inspection": "not reached"
+    }
+  ],
+  "pagination_check": {
+    "previously_observed_actual_next_page_link": "https://www.avito.ru/samara/kvartiry/prodam-ASgBAgICAUSSA8YQ?context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6Ilg1SEl0bWdhNDZnbml1aTQiO3303v47JgAAAA&p=2",
+    "followed": false,
+    "result": "not verified; stopped after the repeated IP restriction"
+  },
+  "limitations": [
+    "No room-versus-whole-flat area/count values beyond the observed paramsDto labels were inferred.",
+    "Daily rent, resale, and pagination were not opened after the monthly category remained restricted.",
+    "No seller/contact data, full descriptions, image URLs, or media were collected."
+  ]
+}

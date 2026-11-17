@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.avito.ru/moskva/kvartiry/2-k._apartamenty_118_m_4597_et._7497852601\n- Page Title: Доступ ограничен: проблема с IP\n- HTTP status: 429\n- Console: 1 errors, 0 warnings\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T08-38-34-269Z.yml)"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 8
+}

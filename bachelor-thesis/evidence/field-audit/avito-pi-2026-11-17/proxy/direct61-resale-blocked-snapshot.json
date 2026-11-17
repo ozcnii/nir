@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1\n- Page Title: Доступ ограничен: проблема с IP\n- HTTP status: 429\n- Console: 1 errors, 0 warnings\n### Snapshot\n```yaml\n- generic [ref=e3]:\n  - banner [ref=e4]\n  - generic [ref=e18]:\n    - heading \"Страница не загрузилась из-за проблем с IP\" [level=1] [ref=e19]\n    - generic [ref=e20]:\n      - paragraph [ref=e22]: IP — это адрес вашего устройства в интернете. Иногда IP выглядит необычно, поэтому нужно пройти простую проверку.\n      - button \"Пройти проверку\" [ref=e24] [cursor=pointer]\n    - heading \"Что делать, если проблема повторяется\" [level=2] [ref=e25]\n    - list [ref=e26]:\n      - listitem [ref=e27]: — Отключить VPN\n      - listitem [ref=e28]: — Отключить AdBlock или другие блокировщики рекламы, если они есть\n      - listitem [ref=e29]: — Перезагрузить роутер\n    - paragraph [ref=e30]:\n      - text: Если и это не сработает,\n      - link \"напишите в поддержку\" [ref=e31] [cursor=pointer]:\n        - /url: https://support.avito.ru/request/720?eventData[contextId]=117\n      - text: . В обращении укажите город, интернет-провайдера и IP-адрес — узнать его можно\n      - link \"на сайте\" [ref=e32] [cursor=pointer]:\n        - /url: https://www.avito.ru/info/show_technical\n      - text: . Постараемся помочь.\n    - heading \"Что не так с IP-адресом\" [level=2] [ref=e33]\n    - paragraph [ref=e34]: С него идёт очень много запросов — как если бы вы разом открывали десятки вкладок или слишком часто обновляли страницу.\n    - paragraph [ref=e35]: Обычно такое бывает, когда одним IP пользуется робот или сразу несколько человек. Ещё дело может быть в VPN, расширениях браузера и вирусах.\n```"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 4
+}

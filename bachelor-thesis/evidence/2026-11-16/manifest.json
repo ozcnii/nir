@@ -1,0 +1,156 @@
+[
+  {
+    "file": "EXECUTION-NOTE.txt",
+    "bytes": 879,
+    "sha256": "8f9a8ad29562931e5a71c245e827f203ab387abce304a920714159fef0f9237c"
+  },
+  {
+    "file": "cabinet-observation.json",
+    "bytes": 252,
+    "sha256": "94e17531680e84709553569e1cb00a031e4174b998ff2defbd9fc4273094e590"
+  },
+  {
+    "file": "cian-card-observation.json",
+    "bytes": 4904,
+    "sha256": "92a14472b6623a0613d42d25274c19f3e2a64cea30f68bc39e0b30d3806b8a86"
+  },
+  {
+    "file": "cian-card-text-extract.txt",
+    "bytes": 16163,
+    "sha256": "a97383a85965b96d31341a504822f98c3e551d3d751543ded677eabe7c901176"
+  },
+  {
+    "file": "cian-card.html",
+    "bytes": 537841,
+    "sha256": "19a3dc13d5b4eacefa48b223e660f90fcc6fe0e89690a54bbd0867a779e304e5"
+  },
+  {
+    "file": "cian-http.html.gz",
+    "bytes": 379342,
+    "sha256": "d96771784ad82b939e2e1c01a2276b649190a80deeb1dde3b69593254af4633b",
+    "original_file": "cian-http.html",
+    "original_bytes": 2402864,
+    "original_sha256": "9e03c271787b88ea3dad5c82b0842a522c2c31647d36fa418c6b2f2f0cb049a7",
+    "compression": "gzip"
+  },
+  {
+    "file": "cian-observed-links.json",
+    "bytes": 5686,
+    "sha256": "d03fbb5b9e19983851763388f2f463ce1413080a16aaa025ea155201fbeb4bdd"
+  },
+  {
+    "file": "cian-photo.json",
+    "bytes": 291,
+    "sha256": "79f31901d1f562e21b5dc4dd8dd020128dacc62379c0d902408a15a42fb509b4"
+  },
+  {
+    "file": "cian-photo.webp",
+    "bytes": 34748,
+    "sha256": "ab1b4a7f9663668013ba43ac064acb3bd51e32bf74985034661958315259a91e"
+  },
+  {
+    "file": "cian-sample.json",
+    "bytes": 1102,
+    "sha256": "993756d51ca44579e722276e82240fbd4af4f5705f45ba038de275d59e254ac3"
+  },
+  {
+    "file": "domclick-browser-observations.json",
+    "bytes": 2230,
+    "sha256": "89672413b38c9ccd25c2a6147e5c37dc1632083c6f9887f8b1edfc5c03594bc8"
+  },
+  {
+    "file": "domclick-http.html",
+    "bytes": 279,
+    "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5"
+  },
+  {
+    "file": "domclick-photo.json",
+    "bytes": 337,
+    "sha256": "205e44a1a548bb825d62fed5c37b0207bd6028352f9b1435e87f3eb0053b19d7"
+  },
+  {
+    "file": "domclick-photo.webp",
+    "bytes": 78476,
+    "sha256": "5e37609a5261fd00b0ea03f73b0ddb146181419a8c7299adc37f3e05bb140078"
+  },
+  {
+    "file": "domclick-regional-direct-probes.json",
+    "bytes": 1007,
+    "sha256": "fc6c1cfb110eea0434f6d155a8b34924e23e9dd1ae8e7109e84e10474d4e6d66"
+  },
+  {
+    "file": "domclick-sale-card-direct.html",
+    "bytes": 279,
+    "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5"
+  },
+  {
+    "file": "domclick-sale-list-direct.html",
+    "bytes": 279,
+    "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5"
+  },
+  {
+    "file": "http-probes.json",
+    "bytes": 2380,
+    "sha256": "065ab147d33a9b1342c3d93aa37742d770f57c8fd3be2febc2de222d58d5d97d"
+  },
+  {
+    "file": "probe_cian_detail.py.txt",
+    "bytes": 2557,
+    "sha256": "0a9d55d8a374b2372eb04e2f3f5578cff0ce71d8902142bd4f8903885f6d69ec"
+  },
+  {
+    "file": "probe_sources.py.txt",
+    "bytes": 2233,
+    "sha256": "8936085b708ab287cecadc5637c1126e8c4c26ec659a635f48a58d205e768230"
+  },
+  {
+    "file": "usage-cian-api.html",
+    "bytes": 207978,
+    "sha256": "8927efe16450531d038728503ade3b87553fa2fd8c33b1eb1d2ec530e7927c96"
+  },
+  {
+    "file": "usage-cian-api.txt",
+    "bytes": 17445,
+    "sha256": "9fda0f76d758fe0234c765ed0f7813e7bdce7e04a29d4ffcc22f6c375fad95ad"
+  },
+  {
+    "file": "usage-cian-license.html",
+    "bytes": 349809,
+    "sha256": "9881e7842270d3e18c7240f51ff83261441e72a72d61a7eedcbf834c2400e79b"
+  },
+  {
+    "file": "usage-cian-license.txt",
+    "bytes": 79313,
+    "sha256": "bd2da7c41073114b7dd09cd770d5c383c001e133fc4d7edc9232d22a277f41a4"
+  },
+  {
+    "file": "usage-cian-rules.html",
+    "bytes": 443240,
+    "sha256": "2159129700620ece1bd57b29e2a8a545823feb13224d0c1acf8363239a7c8e7f"
+  },
+  {
+    "file": "usage-cian-rules.txt",
+    "bytes": 122754,
+    "sha256": "ff5ee490324d5ec53dbf028cd87564102a4277e26a4bcb41299826bfddcfa5fa"
+  },
+  {
+    "file": "usage-domclick-agreement.pdf",
+    "bytes": 590368,
+    "sha256": "8e16820a6bde5e88c711ffca0c950a87c7f7dc1be91716464a4204e21b713954"
+  },
+  {
+    "file": "usage-domclick-agreement.txt",
+    "bytes": 276499,
+    "sha256": "29d7edb2944e61b601a86b9697c53b4a3e4127edd4691e845604180647ef667e"
+  },
+  {
+    "file": "usage-fetch-results-additional.json",
+    "bytes": 602,
+    "sha256": "f6ce43814193a2e7e4fb2906db89824e8c098f8f4a76f26cdac3b98c9a6eb91d"
+  },
+  {
+    "file": "usage-fetch-results.json",
+    "bytes": 859,
+    "sha256": "27c1b9d79ed62a9c332b6bd8d450b56b853162fa7b19cffa85ff7931b4e85d61"
+  }
+]

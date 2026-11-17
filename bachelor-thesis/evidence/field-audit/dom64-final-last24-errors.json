@@ -1,0 +1,11 @@
+{
+  "url": "https://24.domclick.ru/samara?page=24",
+  "errors": [],
+  "failed": [
+    {
+      "path": "https://mc.yandex.ru/webvisor/33709249",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "cardCount": 0
+}

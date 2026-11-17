@@ -1,0 +1,777 @@
+{
+  "purpose": "Local-only materials excluded from public Git; hashes are an inventory, not a backup.",
+  "files": [
+    {
+      "path": "audio/1.ogg",
+      "sha256": "a2ca21cbdfb1636c8d10c6666d4751e3549fb4c775e5ca72761809751d4018b8"
+    },
+    {
+      "path": "audio/2.ogg",
+      "sha256": "94b494d98a5199fbc6ab4d9af3bea78144925c5d84b4fd42f40d92c989ea2bb4"
+    },
+    {
+      "path": "audio/3.ogg",
+      "sha256": "1e4a99ba540d0bc19a3dbade3b45251f38bea79adfad5d84fdc357632205482c"
+    },
+    {
+      "path": "evidence/2026-11-16/cian-card.html",
+      "sha256": "19a3dc13d5b4eacefa48b223e660f90fcc6fe0e89690a54bbd0867a779e304e5"
+    },
+    {
+      "path": "evidence/2026-11-16/cian-http.html.gz",
+      "sha256": "d96771784ad82b939e2e1c01a2276b649190a80deeb1dde3b69593254af4633b"
+    },
+    {
+      "path": "evidence/2026-11-16/cian-photo.webp",
+      "sha256": "ab1b4a7f9663668013ba43ac064acb3bd51e32bf74985034661958315259a91e"
+    },
+    {
+      "path": "evidence/2026-11-16/domclick-http.html",
+      "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5"
+    },
+    {
+      "path": "evidence/2026-11-16/domclick-photo.webp",
+      "sha256": "5e37609a5261fd00b0ea03f73b0ddb146181419a8c7299adc37f3e05bb140078"
+    },
+    {
+      "path": "evidence/2026-11-16/domclick-sale-card-direct.html",
+      "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5"
+    },
+    {
+      "path": "evidence/2026-11-16/domclick-sale-list-direct.html",
+      "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5"
+    },
+    {
+      "path": "evidence/2026-11-16/usage-cian-api.html",
+      "sha256": "8927efe16450531d038728503ade3b87553fa2fd8c33b1eb1d2ec530e7927c96"
+    },
+    {
+      "path": "evidence/2026-11-16/usage-cian-license.html",
+      "sha256": "9881e7842270d3e18c7240f51ff83261441e72a72d61a7eedcbf834c2400e79b"
+    },
+    {
+      "path": "evidence/2026-11-16/usage-cian-rules.html",
+      "sha256": "2159129700620ece1bd57b29e2a8a545823feb13224d0c1acf8363239a7c8e7f"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/.pi/mcp.json",
+      "sha256": "d72219224d77ec30347de0c988d230ab6a40d8ae36731587e85474e9a5f6cbb8"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/avito-blocked.png",
+      "sha256": "d2a13402abf7ffb9da92ea59443ef43262a868740ec31c061f0ae06b6c9f9426"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/console-2026-11-17T00-44-36-172Z.log",
+      "sha256": "cbe889cb086653c69449146384bcd76564a17e12d0c1902ecf2e1d21d470fea4"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/console-2026-11-17T00-47-38-516Z.log",
+      "sha256": "903b40e97b673300c67ae1446695b11b04eebf4beeaa68699d17861021f07979"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/console-2026-11-17T00-51-28-279Z.log",
+      "sha256": "28ce7c93304f00748ff92748e772b1d565e291524159056c8259df76d09474ea"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/page-2026-11-17T00-44-36-846Z.yml",
+      "sha256": "19bdc5f6cf416a45b699aae64194c309a62268d4e773287e5c21fddfc34f98e7"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/page-2026-11-17T00-47-39-062Z.yml",
+      "sha256": "19bdc5f6cf416a45b699aae64194c309a62268d4e773287e5c21fddfc34f98e7"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/page-2026-11-17T00-47-46-662Z.yml",
+      "sha256": "b95ccd23762e82171b237d54eb83552135e1ef24db538b582ed486f1cba26d00"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/page-2026-11-17T00-49-08-366Z.yml",
+      "sha256": "90f6cc279cdabab32b9f06dcba6430eb06126b9d024e0c86f30a98c92d3c71c6"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/page-2026-11-17T00-49-43-413Z.yml",
+      "sha256": "98c0c3d6afddc96c221138d0489486b8334868b2ac716b0981e1c3c672f9d201"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/page-2026-11-17T00-51-06-073Z.yml",
+      "sha256": "9f1c81bedf4ef93fa793bfac25430bbcadecad2b81e875f0898f07b64824b4fa"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/page-2026-11-17T00-51-34-347Z.yml",
+      "sha256": "476b462195488c90b0cb9794d26c725013198becb5ce6bd0d4fba36cff8657f4"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/page-2026-11-17T00-54-49-687Z.yml",
+      "sha256": "46a3fb6d6205482ab79116ec69e1fb3551107d56aa024222efe2409f3dec63f5"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/page-2026-11-17T00-55-00-748Z.yml",
+      "sha256": "be81d256a646c4c5a36a6e35148fb4ca74d1142b9d166ede1b384b3287450ab1"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/browser-output/page-2026-11-17T00-55-20-339Z.yml",
+      "sha256": "3e9072ffd700fb023ee34838e93f0c763c296ee4ef5007a8879a9aaa76fcaaac"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/pi-events-2.jsonl",
+      "sha256": "a85f595aabb44e25749373fa3415806ddfc43593e2f1c29e5b43f5cd3e4ce470"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/pi-events.jsonl",
+      "sha256": "dd81a81125e61ab93ecf392577c6f70de2fc16a432926e92e40e12e5bbbed414"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/pi-stderr-2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/pi-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/pi-verification-events.jsonl",
+      "sha256": "bfec2d4f73d49a177eae68657d0d3ade4bd05751b87ecf7efb510d54366879b8"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/pi-verification-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/.pi/mcp.json",
+      "sha256": "588d6744fa95e9a67298ebe3a8e5cdf6ba949be6ea0748022779826baed46362"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T00-57-47-566Z.log",
+      "sha256": "a5877241158877dd614c44877d7c392228547deaeb80432899c6283803ba9759"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T00-58-23-938Z.log",
+      "sha256": "baf39b3495ceeb16d12702184705c38909d42fb32f9b47c385c6ee6d55a9c236"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T01-05-35-992Z.log",
+      "sha256": "b1424621b468867a9dbe18158cc2a571c6751c7718c4f9d65370af449f31c78e"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T01-05-48-187Z.log",
+      "sha256": "d274dff2ade8155a176bcf8f0afd6b957ad36349ae4006c4a22deb6e47bd0895"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T01-07-02-701Z.log",
+      "sha256": "fdd556526da9751e5185dba974f8fe193d1f6f15dbc60192f8c522728c2c3c43"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-05-42-500Z.log",
+      "sha256": "4bb3fb29d3e9b957ec38cacced6479f315e7a10bf6fe0cf921e79cac423d3439"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-06-28-255Z.log",
+      "sha256": "f97d4147eded1056dfc66dd11cf6fb2eac9033b19bc6b77f927e74fc255dcaf6"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-13-06-362Z.log",
+      "sha256": "88e7b46159a717f51a27311dc21eb0bad9aad0323bbaf51b5cbe0032b175f104"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-13-56-870Z.log",
+      "sha256": "95aa8f588bee435b27593428f3e7a60e7c0857580f4801c7b907d3edb15afcf0"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-15-08-975Z.log",
+      "sha256": "d4d831338ad9b3d8fde2b80b9a11d84fcf28fadbf47334bac08c0fa83454ca1f"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-15-17-852Z.log",
+      "sha256": "ece01ecf18d6e6ed2d3c58fa054a948a71956750f5aec904798706da698e0552"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-16-00-674Z.log",
+      "sha256": "f4de8fdcaab0d7aa08d7a7865918bc63395574dc1bb4965a568bf2b7b4495dc0"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-16-21-933Z.log",
+      "sha256": "0988593b074fadf562ebc91d64af25e15f59a3f650fe97ac5ba5eeebabe5f171"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-16-32-790Z.log",
+      "sha256": "455f8539bd04769638c14800fec3a5d35982a547c8bc215160f1d424326469a8"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-16-50-325Z.log",
+      "sha256": "a694a921f64e0fbb8d0b66a3fe087fd935c166a3785daa95bf3afc7880869af4"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-17-17-341Z.log",
+      "sha256": "d34d233bb8c8c1dc54dbdb4d9a9a6fbe39f3159689c744ef63fef406f8e8653e"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-17-37-847Z.log",
+      "sha256": "065d7642f990ad5d34c58948cf1551a775bcf87eaecd574c51ffa54478718954"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-18-05-298Z.log",
+      "sha256": "f3d89691a5fd57f41b4b0edcb3cb3aff8c3b2b0796cfcfc653837f09b323d186"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-19-39-726Z.log",
+      "sha256": "10906fadd8b341c47e23b89b3221a6a0ee0617dd433d4c389b91df49cb3b35d5"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-21-30-672Z.log",
+      "sha256": "6c4abde42f20b613dde40324053e483e4527c3b5688e3c7d3a6bb16e4ebc8d41"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-22-06-718Z.log",
+      "sha256": "c640397614f997ac4539a9b5dde4b08ea67ff628342c572b8ce3b8302e4f93b6"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-22-37-187Z.log",
+      "sha256": "18c972a79587c21fa62f67975976b155c10c76a3e0c0527239f903698780e586"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-23-22-094Z.log",
+      "sha256": "3d31f67da0e03ad01e63e74c1449ff1bafe3a1c46f09c4e01b301403f135d39a"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-33-58-535Z.log",
+      "sha256": "15e4a36256eabaf7f89fc06e777581eeac4d5b9a2b5b9bda60f15521ad5e4ec5"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-34-46-793Z.log",
+      "sha256": "84a6640d130919a8feac2c0cb593da6c1339eee12a7b8dfd33546b5837f8727d"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-38-12-121Z.log",
+      "sha256": "6349b06836b4258553f0f9b04881ab3b01537a676d8dbc28110e6f7b53f9c099"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-39-46-131Z.log",
+      "sha256": "d55867a4e1cddead2f3a5cacde46d1e0467dfc7a35f1d4a5d44a345b710b597d"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-41-40-455Z.log",
+      "sha256": "f1620a1145be54e0db9af439654dc4734a3bd8ef1d9bcc22cf9872173c35cb2c"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-45-13-109Z.log",
+      "sha256": "cd501c079c32aa6a5c67fff09a0a8606649862a9f1c6055d6af1d1982e49bb09"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-46-53-195Z.log",
+      "sha256": "1fe18eeb1b779424ade71eeaa9b86a7e407b9ab873fdf6649bf8a7918542b9fc"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-46-56-525Z.log",
+      "sha256": "b2dfdfa890e9123fb5ce318591695770510db86877641b0a66998c9b23805b34"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-47-50-665Z.log",
+      "sha256": "ab46aeec69bec3a460d4747ca5f5ca8668039bc550b54a10dc19dbdb69b5d104"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-48-41-789Z.log",
+      "sha256": "51c063bf312c1abcad108bde05cb4a53f15d9bd831b94ef0eb04edfae24fb5bb"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-49-23-900Z.log",
+      "sha256": "72a3fceafd37319f0a5b9657f2fa0c5a608a07a5d446659faaf7623f49bf7981"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/console-2026-11-17T08-49-56-839Z.log",
+      "sha256": "4319dd054fec2bfe9a86bacbc83f827975cc35a66d5546546d2895ecd638471f"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T00-57-47-795Z.yml",
+      "sha256": "d149c4b4cc325e7a47c93c1b8c4acc5f8ec127e3e005feaff26f72686865810a"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T00-58-19-995Z.yml",
+      "sha256": "a295123105f2e71e8eb61897df4827387254fa2dcd23bca13434c9219f7a973f"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T00-58-29-910Z.yml",
+      "sha256": "ed06ae355e454bf56f645a8f0e2ce3801c81882906d08dbc62c4109c9c2db063"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T01-05-42-066Z.yml",
+      "sha256": "7b6d944f5fe4ae20377751e1af6e9317ab787f947b3dd0398e453c802160a297"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T01-05-54-363Z.yml",
+      "sha256": "2191f3b630237b8187e2e00ae561835d76ced725313804ce5db545de104eec8f"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T01-07-03-159Z.yml",
+      "sha256": "f4bd754e1c733d8b93231a9ea2a02266a5f3347e45f9fe61da74af511d25d6a6"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T01-07-21-397Z.yml",
+      "sha256": "9730eae1093e671efefe0752de9ea1e5f9db8a242806297560c9cec6ebe5e9dd"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T01-07-28-768Z.png",
+      "sha256": "2509ac4316c50e464186b5418bd1395a14c085b7966b160ad7daf06c4baafff8"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T01-08-18-345Z.yml",
+      "sha256": "0f5b3d2e1832bc298835dd2b1f0d4429027c25335dd6d3dc380b7e420401672f"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-05-42-776Z.yml",
+      "sha256": "d149c4b4cc325e7a47c93c1b8c4acc5f8ec127e3e005feaff26f72686865810a"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-05-48-907Z.png",
+      "sha256": "971e995a84a1711946556a121eb2925919e299e99111cdb8be92ee5b98bd371c"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-06-28-900Z.yml",
+      "sha256": "d524fa9d005707812257707ab5590c55517bb388025dfe5a676ac349f60350c6"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-06-38-477Z.png",
+      "sha256": "883ef9d4ae8c11d5efaaadfb95bba561329e63e80a9fbf1bf2aec8e74eb5e7f6"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-06-57-495Z.yml",
+      "sha256": "27e8fbc03a3dcf5681571142c73543208e4cd33eaa4249a4ccb1533b8c441b32"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-07-03-428Z.png",
+      "sha256": "c0a30bed2b3da8fe98dcbe3a6c66a15c6cdafdb851ba84c610c00ab583b1725f"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-13-06-588Z.yml",
+      "sha256": "6346a37d730f466941947da479f3e5df6a74d8467355a997db088c543de429f5"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-14-02-615Z.yml",
+      "sha256": "992511f694b91c9753c61774060cd2139ad66f07f7ad7cd6254e75494615431b"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-15-09-528Z.yml",
+      "sha256": "7071bacb413d808f4394927bcca8bc20eea587a6108a4a6f294cda7b072aa293"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-15-18-046Z.yml",
+      "sha256": "c65914824462155b0f6af13427815eaa529f546d78b0ad92db68001982cb4ea5"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-15-30-295Z.yml",
+      "sha256": "b73ffd72177064940436d8766a19da8a45ee74a9bbb8e8f21766bcbca58c2f96"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-15-34-575Z.yml",
+      "sha256": "92a735e7700177d4677715609fa9944dbd175d4a16c4ab40c8e85081817bb546"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-15-39-193Z.yml",
+      "sha256": "840624eba9ac3b0b8242b3810697c5e859325350793aeb2a9d84fb490e36e127"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-16-01-171Z.yml",
+      "sha256": "61adb433fa01b8c99452d777508139001a5e8529e17b12fefaa6c83a2bca4083"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-16-25-955Z.yml",
+      "sha256": "73c51856b50c37a8bec4eba70afcf46bd69b38fee3737394b8341d6ead00b6e0"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-16-33-339Z.yml",
+      "sha256": "15f898702152ff869ef6a58c0b9bea25b4269ec4640d46e345144c4ad36c29eb"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-16-51-693Z.yml",
+      "sha256": "27ac549922ce4889334e45eb69927323f87dcc0468b435329bafd188c5f08cfb"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-17-18-388Z.yml",
+      "sha256": "f1f1a0d9d999097154b9ab8511d56e5c71880610d591a22e445528bd7cd1c1c3"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-17-38-161Z.yml",
+      "sha256": "f32d7832c94483f1a23ef83b2baa73f39faab6af1d027eb2c921bb19edebdade"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-19-40-282Z.yml",
+      "sha256": "19bdc5f6cf416a45b699aae64194c309a62268d4e773287e5c21fddfc34f98e7"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-20-15-284Z.yml",
+      "sha256": "b47ca236310293a8f1240af995025a8bdf3fd5fe9e2bdb1acc8702e7b1bcbf2b"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-21-36-868Z.yml",
+      "sha256": "088b052d549a3cd7da84fdbcbad8ca84a45c5b72a1885a52efb8719e8560583a"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-22-12-613Z.yml",
+      "sha256": "1c7fcc71a9bc13b9d8764ad49a28dd6c48d2ddf58f25eb48ffc9d39a9b35cdfa"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-22-42-821Z.yml",
+      "sha256": "e0446bdb2f7c9ddff75f942135b1b2f7157f27356ff5577e64f2139915e699e5"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-23-27-646Z.yml",
+      "sha256": "b166cb3445baa713a7593d429216dfbbe29a128471d927360a75484c6e32cbff"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-25-14-279Z.yml",
+      "sha256": "27d0a2c53801ea8e9e5f5cf3fa1cf5a7372d6b06e5d2b855cd4eda5cefaf78c6"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-33-58-812Z.yml",
+      "sha256": "6346a37d730f466941947da479f3e5df6a74d8467355a997db088c543de429f5"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-34-52-416Z.yml",
+      "sha256": "5c74696f2b67d8214b127b4979d62a0a9f88879e591bb69cafccbf1d39699963"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-38-13-053Z.yml",
+      "sha256": "a886946a19d45be3883c7eaa1528fbaf4cb0e148c6e19f3843215bf026a89c88"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-38-34-269Z.yml",
+      "sha256": "a4a6a078647c9c160f37749501c8649df88c8a20e3bae73292a573262c012b96"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-39-46-333Z.yml",
+      "sha256": "32a3946af6a90adc4d23ee65d68ffe1564496e2a804bfe9f3d900b49ef75e568"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-40-27-262Z.yml",
+      "sha256": "c26f36ca120487371b184ddd9fb179da9cd25a5fc1dc3355da4235ff30842d0b"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-41-40-619Z.yml",
+      "sha256": "71a100995a1faccc6b608d88bad2d015b802fd74351ec1c95c72fdc1c336a704"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-42-42-035Z.yml",
+      "sha256": "97a0dfcad3c83f72d44d327b8b33cdc9ca50c40b78b0e9062940fa8af21f3243"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-45-13-688Z.yml",
+      "sha256": "19bdc5f6cf416a45b699aae64194c309a62268d4e773287e5c21fddfc34f98e7"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-45-53-026Z.yml",
+      "sha256": "b47ca236310293a8f1240af995025a8bdf3fd5fe9e2bdb1acc8702e7b1bcbf2b"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-47-55-653Z.yml",
+      "sha256": "358bbc44d460e516d695916132b4c120835249671d49629ba52fb3010529ca10"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-48-42-488Z.yml",
+      "sha256": "167cb6e501b99a2ce5d3487c72d15a2b6f3b797b2dd469e59c922d0683ae7e65"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-49-24-771Z.yml",
+      "sha256": "4c79a1e8141099b02527a375a83cc6bab6765120de7182c0087abc80ae6757ad"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output/page-2026-11-17T08-49-57-553Z.yml",
+      "sha256": "cf4a1d67127a19e1e553330aa4164642b28e18b38838037e6a779e79e0b59a37"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/direct61-mcp-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/direct61-resale-challenge.png",
+      "sha256": "c67f6ff7ffe099ea0bfaf2964d6b6cc94fde0a2e9f22ca8a8c9a80e2a3646730"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/pi-coverage-events.jsonl",
+      "sha256": "29ddcd50fd2e4fbadc20c04690151a3a3d290d157c1febba18d52f3b50ddebfc"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/pi-coverage-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/pi-proxy-events.jsonl",
+      "sha256": "e11939651b8d8a18834d4c2e9e247268938e66dbd2e16fc47a4f8cce85db7329"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/pi-proxy-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/pi-remaining61-events.jsonl",
+      "sha256": "0bbe0effc966c7dafa64408d50e4401ba04664e92453ce4ddc430881b2ccc481"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/pi-remaining61-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/pi-resume61-events.jsonl",
+      "sha256": "a14b069c9ba90131992051426964a14bfa04abfd8dbe69b8827e3e51f4ec8160"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/pi-resume61-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/proxy-house-snapshot.yml",
+      "sha256": "5b8379ddbc42902ae6c963d928aa5520d03e2cc38678fcf2592be7333d7c6efb"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/proxy-house.png",
+      "sha256": "8c8b82b4bda8c3f166bfb29316de0af381ab8c0857a2f1e19216fa64b77eb00c"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/proxy-listing-snapshot.yml",
+      "sha256": "9557558d52aeb06b661fdf79f274e070c009d275e3b2b86a8678bd0cb478928e"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/proxy-listing.png",
+      "sha256": "7a4eb257fd974ae575362ad9249fd04c0dbb92b34b7425827c8df204fe1aa62c"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/proxy-security-20261117.png",
+      "sha256": "0b38c36031f04580ed72673578a48b475356fcbfdc6bd63fe5d23437d0d1ab9a"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/removed61-confirmed8417769121.png",
+      "sha256": "c1ea9b827c35c87e101f500f0d4c486ee5c0f1cc3cb114d5ff7f957d06a0c048"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/removed61-headed-challenge.png",
+      "sha256": "acedf7614055fb60894a09adaa4dc425823c5d1073a79f6777f65429832e972b"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/removed61-headed-mcp-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/removed61-krasnodar-challenge.png",
+      "sha256": "bebd171b5a4519bf0a676247898b59b747e4e05a81f3288728030defcafad339"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/removed61-mcp-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/removed61-moskva-challenge-ready.png",
+      "sha256": "4134813674fa06bdf00ee194f194113e0b9a47027bced9966969121a4177a311"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/removed61-moskva-challenge.png",
+      "sha256": "93bf224d7234e5e4cfe072e6971e3fc6baeec3ddc921982be2c310c5991a3ae6"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/proxy/removed61-studio-challenge.png",
+      "sha256": "49fdf0e27831985993fc1c139f6f6be0ae3dd201437645e3111f438d26f52dd7"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-after-button.png",
+      "sha256": "153229863450e3c10aad9826b0c39d71411f92a05a78b78947e75d9b8269cc07"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-challenge-after-attempt.png",
+      "sha256": "71415d0d1008f86616cb39a837a305fcb598981320d45b8b4e5ab962eddb9836"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-challenge-after-drag.png",
+      "sha256": "37031945a35058f547354b9236743a3e37e8d08fb1c009bdd108e74d2d218a4c"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-challenge-second-result.png",
+      "sha256": "ad4a553cb04e26ef15f399166e78a702f5f1d7032a193f4e840801eb89cd6e62"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-challenge.png",
+      "sha256": "2d88764d36d5299954300a1da23a87d33b2830239dda481d2a74f0c363e54181"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-final-challenge-state.png",
+      "sha256": "97b02d71c6eaaafd9d5ed9610df982796a20ef9d277651148df0350f787ac030"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-first-listing-snapshot.yml",
+      "sha256": "26fc9557a070dae9c79d3ae8c50ed5c26bc0d20cff60e1d8ac08f9b71357f86a"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-first-listing.png",
+      "sha256": "ed5538304ae65d261035db4975cea2c230e9e07529523c123e9bd3a57a29dba8"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-house-blocked.png",
+      "sha256": "883ef9d4ae8c11d5efaaadfb95bba561329e63e80a9fbf1bf2aec8e74eb5e7f6"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-house-recheck-challenge.png",
+      "sha256": "c2953495e23c8125bd64a47ed8d8a4ebd7d7d4b0d3815e728736cc3f3fb5e9bb"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-house-recheck-snapshot.yml",
+      "sha256": "9c5cffb2e0220d9a00900f5d956030e19d97eb51a2029169c3e0fc021bc3ff1a"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-listings-page.png",
+      "sha256": "fc3e11d19c97fae839dd8758661fd70e405b911ffe64281aa9748dcc92352fc5"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-listings-snapshot.yml",
+      "sha256": "24a867bff7c52fcc795f37eecc0f2b6e2813c81732b5fb2babbab6b6d2dd65ef"
+    },
+    {
+      "path": "evidence/field-audit/avito-pi-2026-11-17/verify-property-facts.png",
+      "sha256": "e460544b9ca9c2932bc3123c3eb9d041c593712f2feef6f564dec01006090029"
+    },
+    {
+      "path": "evidence/field-audit/cian-card.html",
+      "sha256": "41b33310a6a1c2e4ecd80c4a70531c0ce1dbd2c562cce9b999e20d1a950168bd"
+    },
+    {
+      "path": "evidence/field-audit/cian-list.html",
+      "sha256": "08acfb98956163a46fadaaa15ded49dba4008cb2c0a8357301d1b4291260b6aa"
+    },
+    {
+      "path": "evidence/field-audit/domclick-list.html",
+      "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/browser-output/console-2026-11-17T11-27-33-583Z.log",
+      "sha256": "ae1aa7c6cf3d33e027c300c559eaf096903d5c9415dbce85ca768e21a956fb3f"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/browser-output/console-2026-11-17T11-29-17-462Z.log",
+      "sha256": "800487f4fac4f701a8c306c89fb36f9ff360de45e84e3a2528de4859ac535666"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/browser-output/console-2026-11-17T11-36-44-369Z.log",
+      "sha256": "04c12e458356f95e3aa62d5cf4f4baad74fcd28968548c7864572354546a1025"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/browser-output/console-2026-11-17T11-36-45-819Z.log",
+      "sha256": "ffcd165a46d59c87bfdf5521e73842f0df51dcff2628c9093a587b8e18056115"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/browser-output/page-2026-11-17T11-27-34-755Z.yml",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/browser-output/page-2026-11-17T11-29-19-851Z.yml",
+      "sha256": "8b60185489838187f1e73d19573c89df6613d607a296b7842295e73daa20d61a"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/browser-output/page-2026-11-17T11-36-45-733Z.yml",
+      "sha256": "65a7083c74335fb08723457e9d5955384edda5938eb83997b4e621a8392f2051"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/browser-output/page-2026-11-17T11-36-47-074Z.yml",
+      "sha256": "46bb3941b4ff5b5d88b1bc5ed1fede5148b647916c003f8f741c3dcd51062fdb"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/cian-room-gallery-ui.png",
+      "sha256": "263f57a1afbc42cbc8ddd70663ed7438c67312d56d552f8fcd5285bc5e1bda08"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/dom-room-gallery-ui.png",
+      "sha256": "e6030c2fcb879519c87eabf1a861627457e03257c8cde1443b3ff97c07834b7d"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/mcp-stderr.log",
+      "sha256": "cbd5d52f2da78379752ed7de8541f06bf35eb2971955f5393e705bde264fa684"
+    },
+    {
+      "path": "evidence/field-audit/rooms62-2026-11-17/mcp-tools.json",
+      "sha256": "cf8a01a2683437c38c61ee16dc3dde1503194afbf3ba5f0fe671dc81904404e7"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/console-2026-11-17T15-45-46-525Z.log",
+      "sha256": "1c817ee871a0f72b7761aa93b579ea013c6138ff849429304916cbe6e52ef46e"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/console-2026-11-17T15-47-35-695Z.log",
+      "sha256": "cd01f0c4cf341ed59ff075ce2d565e7c30ab676cacf06c124386e785051ed0d5"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/console-2026-11-17T15-49-05-997Z.log",
+      "sha256": "8be1c3cfe569576e8d634cc781e20a6b4278f72eda6fd4315fe3df67c1c7fb76"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/console-2026-11-17T15-49-29-416Z.log",
+      "sha256": "b93c797ab5041872d49591a3b1ad543014baa61ff76887cb95c187317cc7c012"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/console-2026-11-17T15-55-20-512Z.log",
+      "sha256": "4afcece91e4336dfe2687c2731e089d2a0459a5a0bfd384b43b14286eb150fc7"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/console-2026-11-17T15-55-50-536Z.log",
+      "sha256": "23327b5e94f68a2e49e4736b1ee83857f10ebc791eb0339290f2d6fd63365727"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/console-2026-11-17T16-06-36-637Z.log",
+      "sha256": "7af57eca9f866c1050cd6c8c82f70dc6720be5382cfaebe3b883e83e3bd8f48c"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/page-2026-11-17T15-45-48-961Z.yml",
+      "sha256": "61e2eb1cc7cb66a02310ae8964c10faaf0ae81b3a13600d5d17b2a7ac16d8c01"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/page-2026-11-17T15-47-36-974Z.yml",
+      "sha256": "7a6be9635f144fe5ca2dde6456c930330dc83050f144587c55b6eaad123c2e62"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/page-2026-11-17T15-49-06-563Z.yml",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/page-2026-11-17T15-49-32-055Z.yml",
+      "sha256": "6884c381e4ebdf4dc24fc3f7eca85477592593bde4f986367a8733c7c6ce9ca9"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/page-2026-11-17T15-55-28-800Z.yml",
+      "sha256": "b5b26b07370def5936dbb0ec9fdb2dec817ad34b4acd0dcfbef062ba4545c3ff"
+    },
+    {
+      "path": "evidence/field-audit/routes64-browser-output/page-2026-11-17T15-56-12-910Z.yml",
+      "sha256": "6c5f062e0b921d158b97e877b6b55ee78c0a14bcab4235ab4a48ce22b1646c44"
+    },
+    {
+      "path": "transcripts/1.json",
+      "sha256": "36991e2f38049aba404195d15da77a5b05ee1d64aa0a9b7ac5da1c42fdb4e711"
+    },
+    {
+      "path": "transcripts/1.md",
+      "sha256": "bcf9796aade765a2242483a75d8688ff44af6124c0d7aad2c462e418285650c0"
+    },
+    {
+      "path": "transcripts/1.txt",
+      "sha256": "b21ca0ea1f80e84a26e18012f42a76bde5ab92162901c41aac3752d1fbd2b562"
+    },
+    {
+      "path": "transcripts/2.json",
+      "sha256": "743cf25695cf409998ab647cfc6d6394d5db31e16430fda31176a156968fb396"
+    },
+    {
+      "path": "transcripts/2.md",
+      "sha256": "5a882a63b43aeb4f59e47c7cf1f3f4d1ffbab547f2ce768ced704632056108d6"
+    },
+    {
+      "path": "transcripts/2.txt",
+      "sha256": "b1da21eefbec8e2a50268882ea62fe1e94bb46a230255ff03662dce9b3f164a0"
+    },
+    {
+      "path": "transcripts/3.json",
+      "sha256": "dfbff841df5c67720113423d9c91da3a06c450379ffc591341129c5c8ee1d0cd"
+    },
+    {
+      "path": "transcripts/3.md",
+      "sha256": "12b9a8ef75afad84b00e7bef8cc98b12eaa058c7934e9a17907a40f484097e7d"
+    },
+    {
+      "path": "transcripts/3.txt",
+      "sha256": "b32d6c0146f1fb78cadccd682d26eccee414462fb7b2f4a524d9dd9d05585fe2"
+    }
+  ]
+}

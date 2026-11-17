@@ -1,0 +1,68 @@
+{
+  "record_type": "Read-only browser DOM observations transcribed from tool results; not a raw API export",
+  "checked_at": "2026-11-16T12:45:39.087219+00:00",
+  "browser": "IAB, not native Chrome",
+  "cian_card": {
+    "url": "https://samara.cian.ru/sale/flat/330631159/",
+    "external_id": "330631159",
+    "rooms": 1,
+    "advertised_area_m2": "47.21",
+    "floor": 2,
+    "floors_total": 18,
+    "price_rub": "7246735",
+    "category_label": "Новостройка",
+    "address_limit": "Only region/city/district visible; no full street or apartment number",
+    "image_url": "https://images.cdn-cian.ru/images/2981595376-1.jpg"
+  },
+  "domclick_card": {
+    "url": "https://samara.domclick.ru/card/sale__flat__2080269220",
+    "external_id": "sale__flat__2080269220",
+    "rooms": 3,
+    "advertised_area_m2": "110",
+    "source_registry_section_area_m2": "103.5",
+    "seller_text_areas_m2": [
+      "103",
+      "112"
+    ],
+    "floor": 12,
+    "floors_total": 20,
+    "price_rub": "24999000",
+    "address": "Самара, улица Буянова, 120"
+  },
+  "domclick_actual_links": {
+    "secondary": "https://samara.domclick.ru/pokupka/kvartiry/vtorichka",
+    "new_build": "https://samara.domclick.ru/pokupka/kvartiry/novostrojki",
+    "rooms": "https://samara.domclick.ru/pokupka/komnaty",
+    "oblast": "https://samara.domclick.ru/pokupka/kvartiry/samarskaya-oblast",
+    "city_tolyatti": "https://samara.domclick.ru/pokupka/kvartiry/samarskaya-oblast/stavropolskij-rajon/tolyatti"
+  },
+  "different_units_same_plan_family": [
+    {
+      "url": "https://samara.domclick.ru/card/sale__new_flat__2072470551?to_flats=true",
+      "unit_number": "121",
+      "entrance": "2",
+      "displayed_area_m2": "54.3",
+      "rooms": 2,
+      "floor": 2,
+      "floors_total": 17,
+      "price_rub": "8304840",
+      "plan_image": "https://img.dmclk.ru/s1920x1080q80/vitrina/8b/4a/8b4a4a26dcc6a064b4f9706fa145df8474def52e.webp"
+    },
+    {
+      "url": "https://samara.domclick.ru/card/sale__new_flat__2072470531?to_flats=true",
+      "unit_number": "1",
+      "entrance": "1",
+      "displayed_area_m2": "54.3",
+      "rooms": 2,
+      "floor": 2,
+      "floors_total": 17,
+      "price_rub": "8304840",
+      "plan_image": "https://img.dmclk.ru/s1920x1080q80/vitrina/c7/61/c76190ba6b7524318ed7e7948706b7592f3f798e.webp"
+    }
+  ],
+  "common_complex_image_urls": [
+    "https://img.dmclk.ru/s1920x1080q80/complex_feed/COMPLEX/5d189566e495dd3896ee7a21d3e2c2d219694e372ebabe3f25f5b437532fa851.webp",
+    "https://img.dmclk.ru/s1920x1080q80/complex_feed/COMPLEX/a403d82db668f54ee68788d03910b42acd0b4df70b8f9934347e98088c5712ec.webp"
+  ],
+  "limits": "Shared URLs are for complex photos in both pages; no pHash or byte-equality test performed. Source claims about different unit numbers are not independently verified ownership/cadastral facts. Avito was not requested."
+}

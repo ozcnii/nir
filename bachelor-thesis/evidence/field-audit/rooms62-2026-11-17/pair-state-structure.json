@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\n  \"dom\": [\n    {\n      \"length\": 86505,\n      \"assignment\": \"     window.__SSR_STATE__={\\\"houseReviews\\\":{\\\"houseRevie\"\n    }\n  ],\n  \"cian\": {\n    \"url\": \"https://samara.cian.ru/sale/flat/319653899/\",\n    \"title\": \"Продаю комнату 68.8м² Солнечная ул., 7, Самара, Самарская область, р-н Промышленный, мкр. Солнечный м. Российская - база ЦИАН, объявление 319653899\",\n    \"configArray\": true,\n    \"stateKeys\": [\n      {\n        \"key\": \"defaultState\",\n        \"valueKeys\": [\n          \"abGroup\",\n          \"abUseExperiments\",\n          \"aside\",\n          \"hideOffer\",\n          \"bookedOfferId\",\n          \"captchaSiteKey\",\n          \"captchaSpamSiteKey\",\n          \"commentsData\"\n        ]\n      }\n    ]\n  }\n}\n"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 7
+}

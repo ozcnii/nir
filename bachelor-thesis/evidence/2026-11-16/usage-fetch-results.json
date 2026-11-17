@@ -1,0 +1,23 @@
+[
+  {
+    "name": "usage-cian-rules.html",
+    "url": "https://www.cian.ru/legal-documents/pravila_polzovaniya_sajtom_cian_0/",
+    "status": 200,
+    "final_url": "https://www.cian.ru/legal-documents/pravila_polzovaniya_sajtom_cian_0/",
+    "type": "text/html; charset=utf-8",
+    "bytes": 443240
+  },
+  {
+    "name": "usage-cian-license.html",
+    "url": "https://www.cian.ru/legal-documents/licenzionnoe_soglashenie_0/",
+    "status": 200,
+    "final_url": "https://www.cian.ru/legal-documents/licenzionnoe_soglashenie_0/",
+    "type": "text/html; charset=utf-8",
+    "bytes": 349809
+  },
+  {
+    "name": "usage-domclick-agreement.pdf",
+    "url": "https://api.domclick.ru/storage-public-files/public/v1/files/0195f690-3635-7e00-8723-abd0cdec9be2/link/redirect?source=96b4c872-e332-402c-ad38-44169feae3b7",
+    "error": "<HTTPError 403: 'Forbidden'>"
+  }
+]

@@ -1,0 +1,69 @@
+{
+  "monthly_rent": {
+    "category_url": "https://www.avito.ru/samara/kvartiry/sdam/na_dlitelnyy_srok-ASgBAgICAkSSA8gQ8AeQUg?cd=1",
+    "observed_card": {
+      "id": "4977842672",
+      "url": "https://www.avito.ru/samara/kvartiry/2-k._kvartira_64_m_2727_et._4977842672?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJVdkdkTUl5SXo4VURQTjBTIjt9_hKLtz8AAAA",
+      "displayed_main_price": "43 000 ₽ в месяц",
+      "period": "monthly",
+      "exact_vs_from": "exact displayed amount; no 'от' wording",
+      "deposit": "Залог 20 000 ₽",
+      "commission": "Без комиссии",
+      "source": "Rendered search card at category_url"
+    }
+  },
+  "sale_listing_from_snapshot": {
+    "source_file": "../verify-listings-snapshot.yml",
+    "source_card_url": "https://www.avito.ru/samara/kvartiry/2-k._kvartira_481_m_1112_et._3638106726?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJYNUhJdG1nYTQ2Z25pdWk0Ijt9XIKvBD8AAAA",
+    "opened_url": "https://www.avito.ru/samara/kvartiry/2-k._kvartira_481_m_1112_et._3638106726?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJYNUhJdG1nYTQ2Z25pdWk0Ijt9XIKvBD8AAAA",
+    "page_title_evidence": "2-к. квартира, 48,1 м², 11/12 эт. на продажу в Самаре | Купить квартиру | Авито (3638106726)",
+    "hydration_source": "window.__staticRouterHydrationData.loaderData['catalog-or-main-or-item'].buyerItem.item",
+    "observed_allowlisted_fields": {
+      "id": 3638106726,
+      "url": "/samara/kvartiry/2-k._kvartira_481_m_1112_et._3638106726",
+      "price": 14766700,
+      "formattedPrice": "14 766 700 ₽",
+      "isActive": true,
+      "paramsDto.items": null
+    },
+    "classification_note": "Actual active apartment-sale ad sourced from the snapshot; source is the general /kvartiry/prodam category, so resale status is not independently established and is not asserted."
+  },
+  "pagination": {
+    "successful_category_url": "https://www.avito.ru/samara/kvartiry/sdam/na_dlitelnyy_srok-ASgBAgICAkSSA8gQ8AeQUg?cd=1",
+    "before": {
+      "page": 1,
+      "url": "https://www.avito.ru/samara/kvartiry/sdam/na_dlitelnyy_srok-ASgBAgICAkSSA8gQ8AeQUg?cd=1",
+      "observed_card_ids": ["4977842672", "8543937410", "8522459113"],
+      "actual_next_link_observed_in_rendered_category": "https://www.avito.ru/samara/kvartiry/sdam/na_dlitelnyy_srok-ASgBAgICAkSSA8gQ8AeQUg?cd=1&context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IlV2R2RNSXlJejhVRFBOMFMiO31WTtqIJgAAAA&p=2"
+    },
+    "after": {
+      "requested_page": 2,
+      "url": "https://www.avito.ru/samara/kvartiry/sdam/na_dlitelnyy_srok-ASgBAgICAkSSA8gQ8AeQUg?cd=1&context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IlV2R2RNSXlJejhVRFBOMFMiO31WTtqIJgAAAA&p=2",
+      "http_status": 429,
+      "result": "IP restriction page; no after-page card IDs available"
+    },
+    "additional_attempt": {
+      "category_page_1": "https://www.avito.ru/samara/kvartiry/prodam-ASgBAgICAUSSA8YQ",
+      "page_2_link_from_snapshot": "https://www.avito.ru/samara/kvartiry/prodam-ASgBAgICAUSSA8YQ?context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6Ilg1SEl0bWdhNDZnbml1aTQiO3303v47JgAAAA&p=2",
+      "both_attempts_http_status": 429
+    }
+  },
+  "removed_ad_search": {
+    "candidate_urls_observed": [],
+    "result": "No public indexed Avito realty-item URL could be collected; removal status not established. No IDs guessed and no Avito candidate opened.",
+    "search_sources": [
+      {"engine": "Google", "query": "site:avito.ru/samara/kvartiry/ \"Объявление снято с публикации\"", "result": "429 /sorry challenge"},
+      {"engine": "DuckDuckGo", "query": "site:avito.ru/samara/kvartiry/ \"Объявление снято с публикации\"", "result": "no Avito item links returned"},
+      {"engine": "Bing", "query": "site:avito.ru/samara/kvartiry/ \"Объявление снято с публикации\"", "result": "no candidate listing URLs among results"},
+      {"engine": "Bing", "query": "site:avito.ru/samara/kvartiry/ \"снято\"", "result": "no candidate listing URLs among results"},
+      {"engine": "Yandex", "query": "site:avito.ru/samara/kvartiry объявление снято с публикации", "result": "showcaptcha; not solved"},
+      {"engine": "Yahoo", "query": "site:avito.ru/samara/kvartiry \"объявление неактуально\"", "result": "navigation HTTP error"}
+    ]
+  },
+  "daily_rent": {
+    "status": "not repeated as instructed",
+    "previous_result_file": "resume61-result.json was absent at the specified path on start (read returned ENOENT)",
+    "prior_observation_as_stated_in_task": "4 980 ₽/day listing vs card 429; not re-verified"
+  },
+  "browser_closed": true
+}

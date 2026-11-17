@@ -1,0 +1,110 @@
+{
+  "date": "2026-11-17",
+  "mode": "Read-only primary-page investigation and manual application of proposed rules; no application implementation/test execution",
+  "positive_control_candidate": {
+    "urls": [
+      "https://samara.domclick.ru/card/sale__room__2071752356",
+      "https://samara.cian.ru/sale/flat/319653899/"
+    ],
+    "address": "Самара, Солнечная улица, 7",
+    "domclick": {
+      "id": 2071752356,
+      "room_area_m2": "9.2",
+      "flat_area_m2": "68.8",
+      "rooms_offered": 1,
+      "rooms_in_flat": 3,
+      "floor": 1,
+      "floors_total": 9,
+      "source_paths": [
+        "inline window.__SSR_STATE__.productCard.objectInfo",
+        "productCard.roomsOffered",
+        "productCard.house.info.floors"
+      ]
+    },
+    "cian": {
+      "id": 319653899,
+      "room_area_m2": "9.0",
+      "kitchen_area_m2": "9.2",
+      "flat_area_m2": "68.8",
+      "rooms_offered": 1,
+      "rooms_in_flat": 3,
+      "floor": 1,
+      "floors_total": 9,
+      "source_path": "window._cianConfig['frontend-offer-card'].find(key='defaultState').value.offerData.offer",
+      "other_area_room_fields": {
+        "roomsForSaleCount": 1,
+        "roomType": "separate",
+        "totalArea": "68.8",
+        "kitchenArea": "9.2",
+        "roomArea": "9.0",
+        "areaParts": [],
+        "roomsCount": 3
+      }
+    },
+    "text_comparison": {
+      "domLength": 1243,
+      "cianLength": 1243,
+      "rawEqual": false,
+      "whitespaceEqual": false,
+      "basicNormalizationEqual": true,
+      "firstRawDifferences": [
+        {
+          "index": 911,
+          "domCode": 171,
+          "cianCode": 34
+        },
+        {
+          "index": 924,
+          "domCode": 187,
+          "cianCode": 34
+        }
+      ],
+      "domWhitespaceLength": 1237,
+      "cianWhitespaceLength": 1237
+    },
+    "manual_gallery_observation": "Both main-gallery UI screenshots show the same photographed room/interior/composition with different platform framing/watermarks. Main agent and fresh critic independently inspected images. Photos only used for manual control, never as proposed automatic matching input.",
+    "identity_boundary": "Publicly substantiated probable same-room control pair; not cadastral/seller-confirmed ground truth.",
+    "current_rule_result": "Separate properties: exact required room areas9.0 and9.2 differ, despite matching normalized full descriptions. No successful attach.",
+    "override_applied": false
+  },
+  "negative_case": {
+    "cases": [
+      {
+        "url": "https://samara.cian.ru/sale/flat/333736406/",
+        "id": 333736406,
+        "roomArea": "17.3",
+        "totalArea": "17.3",
+        "roomsOffered": 1,
+        "roomsInFlat": 1,
+        "floor": 2,
+        "floors": 6,
+        "address": "Самарская, Самара, Промышленный, Физкультурная, 125",
+        "descriptionLength": 283
+      },
+      {
+        "url": "https://samara.cian.ru/sale/flat/333016751/",
+        "id": 333016751,
+        "roomArea": "12.0",
+        "totalArea": "12.0",
+        "roomsOffered": 1,
+        "roomsInFlat": 1,
+        "floor": 2,
+        "floors": 5,
+        "address": "Самарская, Самара, Промышленный, Физкультурная, 125",
+        "descriptionLength": 121
+      }
+    ],
+    "rawDescriptionsEqual": false,
+    "ruleResult": "No attach: room areas differ; known building floor counts also differ. No floor/area guesses."
+  },
+  "evidence": [
+    "pair-fields-and-text-equality.json",
+    "pair-description-normalization.json",
+    "cian319653899-all-area-room-fields.json",
+    "negative-pair-fields.json",
+    "dom-room-gallery-ui.png",
+    "cian-room-gallery-ui.png",
+    "browser-closure.json"
+  ],
+  "browser_closed": true
+}

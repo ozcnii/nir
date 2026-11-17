@@ -1,0 +1,441 @@
+{
+  "date": "2026-11-17",
+  "status": "closed_at_source_verification_and_design_level",
+  "mode": "Read-only source inspection; no application code/schema changes; no new product rules approved",
+  "transport": "Same SOCKS5 socks5://127.0.0.1:10808, existing Playwright MCP config. First Pi Agent, then direct calls to same MCP through its stdio protocol. System VPN settings unchanged.",
+  "verified": {
+    "resale": {
+      "url": "https://www.avito.ru/samara/kvartiry/1-k._kvartira_57_m_1718_et._8199518030?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJIWWU1dWltSDJIc3pTb1RYIjt9IJbhOD8AAAA",
+      "title": "1-к. квартира, 57 м², 17/18 эт. на продажу в Самаре | Купить квартиру | Авито (8199518030)",
+      "heading": "1-к. квартира, 57 м², 17/18 эт.",
+      "item": {
+        "id": 8199518030,
+        "url": "/samara/kvartiry/1-k._kvartira_57_m_1718_et._8199518030",
+        "address": "Самарская обл., Самара, Солнечная ул., 53",
+        "coords": {
+          "lat": 53.25960159,
+          "lng": 50.20936584,
+          "zoom": 16
+        },
+        "price": 9500000,
+        "formattedPrice": {
+          "currencySign": "₽",
+          "discount": null,
+          "formatedString": "9 500 000&nbsp;₽",
+          "isHasValue": true,
+          "isWasLowered": false,
+          "normalizedPricePostFix": "",
+          "oldString": "",
+          "postfix": "",
+          "rubPricePostfix": "₽",
+          "string": "9 500 000",
+          "value": 9500000
+        },
+        "isActive": true,
+        "photosCount": 29
+      },
+      "params": [
+        {
+          "attributeId": 549,
+          "description": "1",
+          "title": "Количество комнат"
+        },
+        {
+          "attributeId": 578,
+          "description": "57 м²",
+          "title": "Общая площадь"
+        },
+        {
+          "attributeId": 2710,
+          "description": "6 м²",
+          "title": "Площадь кухни"
+        },
+        {
+          "attributeId": 2714,
+          "description": "35 м²",
+          "title": "Жилая площадь"
+        },
+        {
+          "attributeId": 496,
+          "description": "17 из 18",
+          "title": "Этаж"
+        },
+        {
+          "attributeId": 118593,
+          "description": "лоджия",
+          "title": "Балкон или лоджия"
+        },
+        {
+          "attributeId": 110836,
+          "description": "гардеробная",
+          "title": "Дополнительно"
+        },
+        {
+          "attributeId": 118594,
+          "description": "совмещенный",
+          "title": "Санузел"
+        },
+        {
+          "attributeId": 110687,
+          "description": "на улицу",
+          "title": "Окна"
+        },
+        {
+          "attributeId": 110710,
+          "description": "евро",
+          "title": "Ремонт"
+        },
+        {
+          "attributeId": 118596,
+          "description": "кухня, хранение одежды, спальные места",
+          "title": "Мебель"
+        },
+        {
+          "attributeId": 1355,
+          "description": "холодильник, стиральная машина",
+          "title": "Техника"
+        },
+        {
+          "attributeId": 110709,
+          "description": "свободная",
+          "title": "Способ продажи"
+        },
+        {
+          "attributeId": 118608,
+          "description": "возможна ипотека",
+          "title": "Условия продажи"
+        }
+      ],
+      "classification": [
+        {},
+        {
+          "type": "Вторичка",
+          "status": "Квартира",
+          "offer_type": "Продам",
+          "rooms": "1",
+          "area": "57 м²",
+          "floor": 17,
+          "floors_count": 18
+        }
+      ]
+    },
+    "monthly_rent": {
+      "url": "https://www.avito.ru/samara/kvartiry/2-k._kvartira_64_m_2727_et._4977842672?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJVdkdkTUl5SXo4VURQTjBTIjt9_hKLtz8AAAA",
+      "title": "2-к. квартира, 64 м², 27/27 эт. в аренду Самаре | Снять квартиру | Авито (4977842672)",
+      "heading": "2-к. квартира, 64 м², 27/27 эт.",
+      "item": {
+        "id": 4977842672,
+        "url": "/samara/kvartiry/2-k._kvartira_64_m_2727_et._4977842672",
+        "address": "Самарская обл., Самара, Физкультурная ул., 103А",
+        "coords": {
+          "lat": 53.21482468,
+          "lng": 50.26053238,
+          "zoom": 16
+        },
+        "price": 43000,
+        "formattedPrice": {
+          "currencySign": "₽",
+          "discount": null,
+          "formatedString": "43 000&nbsp;₽ в месяц",
+          "isHasValue": true,
+          "isWasLowered": false,
+          "normalizedPricePostFix": " в месяц",
+          "oldString": "",
+          "postfix": "в месяц",
+          "rubPricePostfix": "₽ в месяц",
+          "string": "43 000",
+          "value": 43000
+        },
+        "isActive": true,
+        "photosCount": 23
+      },
+      "params": [
+        {
+          "attributeId": 550,
+          "description": "2",
+          "title": "Количество комнат"
+        },
+        {
+          "attributeId": 500,
+          "description": "64 м²",
+          "title": "Общая площадь"
+        },
+        {
+          "attributeId": 2711,
+          "description": "15 м²",
+          "title": "Площадь кухни"
+        },
+        {
+          "attributeId": 2715,
+          "description": "36 м²",
+          "title": "Жилая площадь"
+        },
+        {
+          "attributeId": 501,
+          "description": "27 из 27",
+          "title": "Этаж"
+        },
+        {
+          "attributeId": 110836,
+          "description": "гардеробная",
+          "title": "Дополнительно"
+        },
+        {
+          "attributeId": 110893,
+          "description": "изолированные",
+          "title": "Тип комнат"
+        },
+        {
+          "attributeId": 118594,
+          "description": "совмещённый",
+          "title": "Санузел"
+        },
+        {
+          "attributeId": 110710,
+          "description": "дизайнерский",
+          "title": "Ремонт"
+        },
+        {
+          "attributeId": 118596,
+          "description": "кухня, хранение одежды, спальные места",
+          "title": "Мебель"
+        },
+        {
+          "attributeId": 1355,
+          "description": "холодильник, плита, стиральная машина, телевизор",
+          "title": "Техника"
+        },
+        {
+          "attributeId": 1353,
+          "description": "телевидение",
+          "title": "Интернет и ТВ"
+        }
+      ],
+      "offer": [
+        {},
+        {
+          "offer_type": "Сдам"
+        }
+      ]
+    },
+    "daily_rent": {
+      "url": "https://www.avito.ru/samara/kvartiry/1-k._kvartira_42_m_2_krovati_4595685717?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiIxTGx2VmpoZUcwbTVweDFIIjt9J4VEUz8AAAA&guestsDetailed=%7B%22version%22%3A1%2C%22totalCount%22%3A2%2C%22adultsCount%22%3A2%2C%22children%22%3A%5B%5D%7D",
+      "title": "1-к. квартира, 42 м², 2 кровати в аренду Самаре | Снять квартиру | Авито (4595685717)",
+      "heading": "1-к. квартира, 42 м², 2 кровати",
+      "item": {
+        "id": 4595685717,
+        "url": "/samara/kvartiry/1-k._kvartira_42_m_2_krovati_4595685717",
+        "address": "Самарская обл., Самара, пр-т Карла Маркса, 171",
+        "coords": {
+          "lat": 53.20658875,
+          "lng": 50.1726799,
+          "zoom": 16
+        },
+        "price": 4980,
+        "formattedPrice": {
+          "currencySign": "₽",
+          "discount": null,
+          "formatedString": "4 980&nbsp;₽ за сутки",
+          "isHasValue": true,
+          "isWasLowered": false,
+          "normalizedPricePostFix": " за сутки",
+          "oldString": "",
+          "postfix": "за сутки",
+          "rubPricePostfix": "₽ за сутки",
+          "string": "4 980",
+          "value": 4980
+        },
+        "isActive": true,
+        "photosCount": 26
+      },
+      "params": [
+        {
+          "attributeId": 550,
+          "description": "1",
+          "title": "Количество комнат"
+        },
+        {
+          "attributeId": 165457,
+          "description": "1 раскладушка, 1 двуспальная",
+          "title": "Кровати"
+        },
+        {
+          "attributeId": 500,
+          "description": "42 м²",
+          "title": "Общая площадь"
+        },
+        {
+          "attributeId": 501,
+          "description": "12 из 26",
+          "title": "Этаж"
+        },
+        {
+          "attributeId": 118593,
+          "description": "лоджия",
+          "title": "Балкон или лоджия"
+        },
+        {
+          "attributeId": 175403,
+          "description": "На улицу",
+          "title": "Вид из окна"
+        },
+        {
+          "attributeId": 1355,
+          "description": "кондиционер, холодильник, плита, микроволновка, стиральная машина, посудомоечная машина, водонагреватель, телевизор, фен, утюг",
+          "title": "Техника"
+        },
+        {
+          "attributeId": 1353,
+          "description": "Wi-Fi, телевидение",
+          "title": "Интернет и ТВ"
+        },
+        {
+          "attributeId": 110657,
+          "description": "постельное белье, полотенца, средства гигиены",
+          "title": "Комфорт"
+        },
+        {
+          "attributeId": 110655,
+          "description": "5000 ₽",
+          "title": "Залог"
+        },
+        {
+          "attributeId": 122135,
+          "description": "Да",
+          "title": "Возможна помесячная аренда"
+        }
+      ],
+      "offer": [
+        {},
+        {
+          "offer_type": "Сдам"
+        }
+      ]
+    },
+    "daily_visible_price_context": {
+      "priceAndDateLabels": [
+        "ГлавнаяНедвижимостьКвартирыСнятьПосуточно1-комнатные",
+        "Залог: 5000 ₽",
+        "Заезд: с 15:00",
+        "Выезд: до 12:00",
+        "📍 Заселение с 15:00–16:00, выезд до 12:00 (время можно согласовать).",
+        "❗️ Бронь невозвратная, но даты можно перенести по согласованию.",
+        "📩 Напишите — пришлю фото и уточню наличие на нужные даты.",
+        "4 980 ₽",
+        "за сутки",
+        "4.9 км до центра",
+        "Заезд и выезд",
+        "Выбрать даты",
+        "Чтобы уточнить цену"
+      ],
+      "uiInputs": [
+        "4.9 км до центра",
+        "Выбрать даты\nЧтобы уточнить цену"
+      ]
+    },
+    "pagination": {
+      "before": {
+        "url": "https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1",
+        "title": "Купить квартиру во вторичке в Самаре 🏢 | Цены на вторичное жилье в Самаре | Авито",
+        "ids": [
+          "8199518030",
+          "8557769206",
+          "8320925003",
+          "8071430491",
+          "8430899293",
+          "8300557674",
+          "8503411964",
+          "8423141641",
+          "7825018510",
+          "8457983380"
+        ],
+        "pagination": [
+          {
+            "text": "2",
+            "label": "Страница 2",
+            "url": "https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1&context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkhZZTV1aW1IMkhzelNvVFgiO32IyrAHJgAAAA&p=2"
+          },
+          {
+            "text": "",
+            "label": "Следующая страница",
+            "url": "https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1&context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkhZZTV1aW1IMkhzelNvVFgiO32IyrAHJgAAAA&p=2"
+          }
+        ]
+      },
+      "after": {
+        "url": "https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1&context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkhZZTV1aW1IMkhzelNvVFgiO32IyrAHJgAAAA&p=2",
+        "title": "Купить квартиру во вторичке в Самаре 🏢 | Цены на вторичное жилье в Самаре | Авито",
+        "heading": "Купить квартиру во вторичке в Самаре",
+        "ids": [
+          "8563486024",
+          "8430650267",
+          "8563350794",
+          "8267000459",
+          "8522905342",
+          "8502367130",
+          "8440083794",
+          "8446312568",
+          "8557769206",
+          "8176564264"
+        ],
+        "currentPage": [
+          {
+            "text": "2",
+            "label": null,
+            "value": "page"
+          },
+          {
+            "text": "•••",
+            "label": null,
+            "value": "false"
+          },
+          {
+            "text": "•••",
+            "label": null,
+            "value": "false"
+          },
+          {
+            "text": "2 из 30",
+            "label": null,
+            "value": "page"
+          }
+        ]
+      },
+      "shared_ids": [
+        "8557769206"
+      ]
+    },
+    "removed_ad": {
+      "external_id": "8417769121",
+      "visible_message": "Объявление закрыто.",
+      "embedded_message": "Объявление закрыто.",
+      "item_present": false,
+      "document_status": 200,
+      "detail_evidence": "removed61-confirmed-result.json"
+    }
+  },
+  "pending": {},
+  "evidence": [
+    "remaining61-result.json",
+    "resume61-result.json",
+    "direct61-resale-item-fields.json",
+    "direct61-monthly-item-fields.json",
+    "direct61-daily-item-fields.json",
+    "direct61-resale-page1.json",
+    "direct61-resale-page2-result.json",
+    "direct61-daily-visible-price-labels.json",
+    "direct61-removed-global-search-results.json",
+    "direct61-browser-closure.json",
+    "removed61-confirmed-result.json"
+  ],
+  "browser_closed": true,
+  "accepted_decisions": {
+    "daily_price_kind": {
+      "value": "from",
+      "scope": "Avito same publication with explicit from in listing and no from prefix in detail",
+      "date": "2026-11-17",
+      "note": "No history transition due only to extraction location; not all daily offers globally",
+      "state": "accepted_by_owner"
+    }
+  }
+}

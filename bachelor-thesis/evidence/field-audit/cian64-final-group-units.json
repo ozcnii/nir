@@ -1,0 +1,48 @@
+{
+  "total": 2,
+  "query": {
+    "_type": "flatsale",
+    "engine_version": {
+      "type": "term",
+      "value": 2
+    },
+    "multi_id": {
+      "type": "term",
+      "value": 330631068
+    }
+  },
+  "units": [
+    {
+      "id": 330631068,
+      "url": "https://samara.cian.ru/sale/flat/330631068/?context=4.o4Xd-zoDokU.hOBGlmgyb0PlXEcgndjj_te0cz-2e3f0y6mmYN4O8oY7fm1uijx8rE6DbkN2L7J2QZMsMiv8tDC1_Q&mlSearchSessionGuid=9a9b0d8c97a5b1022eb5d842d22980b6",
+      "regions": [
+        {
+          "id": 4608,
+          "name": "Самарская область"
+        },
+        {
+          "id": 4966,
+          "name": "Самара"
+        }
+      ],
+      "cardTitle": "Купить трехкомнатную квартиру 92.61м² Самарская область, Самара, р-н Советский м. Советская - база ЦИАН, объявление 330631068",
+      "actualUrl": "https://samara.cian.ru/sale/flat/330631068/?context=4.o4Xd-zoDokU.hOBGlmgyb0PlXEcgndjj_te0cz-2e3f0y6mmYN4O8oY7fm1uijx8rE6DbkN2L7J2QZMsMiv8tDC1_Q&mlSearchSessionGuid=9a9b0d8c97a5b1022eb5d842d22980b6"
+    },
+    {
+      "id": 330631223,
+      "url": "https://samara.cian.ru/sale/flat/330631223/?context=4.6EGfCNl21Po.Piuh9HMUCubY2nzLrm1wn6aGhySpzqX4QF35yV1FOHHtk9DXkn0T1TUzmWg3M8xj1FJlTzdI7qzlqw&mlSearchSessionGuid=9a9b0d8c97a5b1022eb5d842d22980b6",
+      "regions": [
+        {
+          "id": 4608,
+          "name": "Самарская область"
+        },
+        {
+          "id": 4966,
+          "name": "Самара"
+        }
+      ],
+      "cardTitle": "Продаю трехкомнатную квартиру 92.61м² Самарская область, Самара, р-н Советский м. Советская - база ЦИАН, объявление 330631223",
+      "actualUrl": "https://samara.cian.ru/sale/flat/330631223/?context=4.6EGfCNl21Po.Piuh9HMUCubY2nzLrm1wn6aGhySpzqX4QF35yV1FOHHtk9DXkn0T1TUzmWg3M8xj1FJlTzdI7qzlqw&mlSearchSessionGuid=9a9b0d8c97a5b1022eb5d842d22980b6"
+    }
+  ]
+}

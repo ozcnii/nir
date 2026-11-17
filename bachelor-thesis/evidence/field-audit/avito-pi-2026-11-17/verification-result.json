@@ -1,0 +1,134 @@
+{
+  "audit": {
+    "date": "2026-11-17",
+    "timestamp_basis": "Browser-output local times; timezone not established",
+    "scope": "Read-only Avito verification using a fresh isolated Pi Playwright context; no application code changed",
+    "isolated_context": "avito-thesis-verified",
+    "initial_url": "https://www.avito.ru/samara/kvartiry/prodam",
+    "initial_response": {"at": "2026-11-17 00:47:39", "http_status": 429, "title": "Доступ ограничен: проблема с IP"},
+    "actions": [
+      {"at": "2026-11-17 00:47:46", "action": "Clicked visible ‘Пройти проверку’ button."},
+      {"action": "A visible Geetest slider puzzle appeared. Several UI drags were rejected; a later horizontal drag of about 120 CSS px passed the challenge. The site displayed ‘Проверка пройдена, перенаправление…’ and then ‘Нужна небольшая проверка браузера’."},
+      {"at": "by 2026-11-17 00:51:06", "action": "The actual apartment-search UI rendered with 7 170 results; opened its first observed apartment card."},
+      {"at": "2026-11-17 00:54:49", "action": "Clicked the real observed footer link to houses for sale; Avito returned HTTP 429 and requested another check."},
+      {"at": "2026-11-17 00:55:00", "action": "Clicked the second visible ‘Пройти проверку’; one visible slider attempt returned ‘Повторите попытку’."},
+      {"at": "2026-11-17 00:55:20", "action": "Stopped further retries; house page still showed the IP-check page (HTTP 429). No networking, proxy, credential, cookie, or security changes."}
+    ],
+    "observed_verification_requests": [
+      {"request": "POST https://www.avito.ru/web/3/firewallCaptcha/verify", "status": 200},
+      {"request": "POST https://www.avito.ru/web/3/firewallPow/get", "status": 200},
+      {"request": "POST https://www.avito.ru/web/3/firewallPow/verify", "status": 200}
+    ],
+    "result": "Partial success: the first check was followed by an actual rendered search page and one opened public listing. A subsequent category request triggered another unresolved IP check."
+  },
+  "listing": {
+    "search_url": "https://www.avito.ru/samara/kvartiry/prodam-ASgBAgICAUSSA8YQ",
+    "search_title": "Купить квартиру в Самаре | Цены на квартиры в Самаре",
+    "visible_result_count": "7 170",
+    "first_card_title": "2-к. квартира, 48,1 м², 11/12 эт.",
+    "first_card_href": "https://www.avito.ru/samara/kvartiry/2-k._kvartira_481_m_1112_et._3638106726?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJYNUhJdG1nYTQ2Z25pdWk0Ijt9XIKvBD8AAAA",
+    "detail_url": "https://www.avito.ru/samara/kvartiry/2-k._kvartira_481_m_1112_et._3638106726?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJYNUhJdG1nYTQ2Z25pdWk0Ijt9XIKvBD8AAAA",
+    "structured_state": {
+      "present": true,
+      "source": "window.__staticRouterHydrationData",
+      "item_path": "loaderData['catalog-or-main-or-item'].buyerItem.item",
+      "params_path": "loaderData['catalog-or-main-or-item'].buyerItem.paramsDto.items",
+      "application_ld_json": false
+    },
+    "id_mapping": {
+      "item.id": 3638106726,
+      "item.externalId": null,
+      "contract_external_id": "3638106726 grounded in item.id and the public URL suffix",
+      "contract_source_code": "avito is the adapter constant, not an Avito field"
+    },
+    "property_and_offer": {
+      "region": {"value": "samara", "source": "item.location.slug"},
+      "location_id": {"value": 653040, "source": "item.locationId"},
+      "address": {"value": "ул. Галактионовская/Чкалова/Самарская/Маяковского, стр. 3", "source": "item.address, item.geo.address, rendered ‘Расположение’"},
+      "coordinates": {
+        "item.geo.coords": {"lat": 53.20398, "lng": 50.1184, "zoom": 16},
+        "item.location.coords": {"lat": 53.195538, "lng": 50.101783, "zoom": 16},
+        "note": "Both distinct published objects retained; not collapsed."
+      },
+      "property_type": {"value": "Квартира", "source": "buyerItem.ga[1].status; category slug kvartiry"},
+      "building_kind": {"value": "Новостройка", "source": "buyerItem.ga[1].type"},
+      "deal": {"value": "Продам", "source": "buyerItem.ga[1].offer_type"},
+      "rooms": {"value": 2, "source": "buyerItem.paramsDto.items[0] / buyerItem.ga[1].rooms"},
+      "total_area_m2": {"value": 48.1, "source": "buyerItem.paramsDto.items[1] / buyerItem.ga[1].area"},
+      "kitchen_area_m2": {"value": 18.6, "source": "buyerItem.paramsDto.items[2] / buyerItem.ga[1].area_kitchen"},
+      "floor": {"value": 11, "source": "buyerItem.paramsDto.items[3] / buyerItem.ga[1].floor"},
+      "building_floors": {"value": 12, "source": "buyerItem.paramsDto.items[3] / buyerItem.ga[1].floors_count"},
+      "price": {
+        "amount": 14766700,
+        "currency": "RUB",
+        "display": "14 766 700 ₽",
+        "listed_from": false,
+        "period": null,
+        "source": "item.price, item.formattedPrice.value/currencySign/postfix",
+        "note": "Offer price, not mortgage/deposit/per-m²/stay total; sale offer has no period and no ‘от’ prefix."
+      },
+      "description_length_utf16_code_units": {
+        "rendered_innerText": 828,
+        "item.description": 875,
+        "item.descriptionHtml_markup": 883,
+        "note": "Lengths only; full description omitted. Rendered and state lengths differ."
+      },
+      "status": {
+        "item.isActive": true,
+        "item.isArchived": false,
+        "item.isBlocked": false,
+        "item.isClosed": false,
+        "item.isDeleted": false,
+        "item.isExpired": false,
+        "item.isFinished": false,
+        "item.isInModeration": false,
+        "item.isRejected": false,
+        "item.statusId": 4
+      },
+      "listed_date_text": {"value": "13 ноября в 18:18", "source": "rendered item footer / item.sortFormatedDate", "year_displayed": false},
+      "photos": {
+        "count": 5,
+        "source": "item.imageUrls; 1280x960 rendition per photo",
+        "downloaded": false,
+        "urls": [
+          "https://50.img.avito.st/image/1/1.tBgZ5ra4GPEvUZr8ffSNclxHGvenR5rnL0oa86lPEPuv.4mkBW7qSK6VoyYTbYeShnaKYQNeBne7-LOCtQPMo9qQ",
+          "https://30.img.avito.st/image/1/1.zw2gLba4Y-SWmuHpsmbyGeSMYeIejOHyloFh5hCEa-4W.En7RTRZLjj1Ic4uLvUtblyFeQHbGXqqzmOtEPgmAMrk?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+          "https://c60.img.avito.st/image/1/1.379Pd7a4c1Z5wPFbfQjp1QrWcVDx1vFAedtxVP_ee1z5.52SQ8OfzWCtU24phIxE2ilrLjb3Fug1M3dhyk_H2ndA",
+          "https://10.img.avito.st/image/1/1.OtsQJLa4ljImkxQ_aFAOz1SFlDSuhRQkJoiUMKCNnjim.VsDEvg4antOYboMA956HOrfTF11QDeBhDp2Zhkmgf_g?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+          "https://40.img.avito.st/image/1/1.MQMELLa4neoymx_najwodiKMn-y6jR_8MoCf6LSFleCy.6lWkwkb_b7HnwvOVcvo8UqaRxQl_0ukn1dFpXMl-xIE"
+        ]
+      }
+    }
+  },
+  "category_and_pagination_checks": {
+    "apartments_for_sale": {"status": "verified", "note": "First result and detail inspected."},
+    "new_build": {"status": "partially_verified", "href_observed": "/samara/kvartiry/prodam/novostroyka-ASgBAgICAkSSA8YQ5geOUg?cd=1", "note": "Concrete offer is tagged Новостройка; separate category page not opened."},
+    "rooms_sale": {"status": "link_only", "href_observed": "/samara/komnaty/prodam-ASgBAgICAUSQA7wQ?cd=1"},
+    "houses_sale": {"status": "blocked", "href_observed": "/samara/doma_dachi_kottedzhi/prodam-ASgBAgICAUSUA9AQ?cd=1", "http_status": 429, "note": "Second visible challenge attempt failed; stopped."},
+    "monthly_rent": {"status": "link_only", "href_observed": "/samara/kvartiry/sdam/na_dlitelnyy_srok-ASgBAgICAkSSA8gQ8AeQUg?cd=1"},
+    "daily_rent": {"status": "link_only", "href_observed": "/samara/kvartiry/sdam/posutochno/-ASgBAgICAkSSA8gQ8AeSUg?cd=1"},
+    "next_page": {"status": "link_only", "transition_performed": false, "href_observed": "/samara/kvartiry/prodam-ASgBAgICAUSSA8YQ?context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6Ilg1SEl0bWdhNDZnbml1aTQiO3303v47JgAAAA&p=2"}
+  },
+  "evidence_files": [
+    "verify-listings-snapshot.yml",
+    "verify-first-listing-snapshot.yml",
+    "verify-listings-page.png",
+    "verify-first-listing.png",
+    "verify-property-facts.png",
+    "verify-challenge.png",
+    "verify-after-button.png",
+    "verify-challenge-after-drag.png",
+    "verify-challenge-after-attempt.png",
+    "verify-final-challenge-state.png",
+    "verify-house-blocked.png",
+    "verify-house-recheck-snapshot.yml",
+    "verify-house-recheck-challenge.png"
+  ],
+  "original_first_attempt_evidence": "result.json and avito-blocked.png unchanged.",
+  "browser_closure": {
+    "closed": true,
+    "method": "browser_close",
+    "ownership": "Only tabs in the MCP-owned isolated context avito-thesis-verified were closed.",
+    "final_result": "No open tabs. Navigate to a URL to create one."
+  }
+}

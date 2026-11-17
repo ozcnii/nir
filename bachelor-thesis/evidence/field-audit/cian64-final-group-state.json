@@ -1,0 +1,117 @@
+{
+  "filters": {
+    "_type": "flatsale",
+    "engine_version": {
+      "type": "term",
+      "value": 2
+    },
+    "multi_id": {
+      "type": "term",
+      "value": 330631068
+    }
+  },
+  "regions": [
+    {
+      "id": 4608,
+      "name": "Самарская",
+      "displayName": "Самарская область",
+      "fullName": "Самарская область",
+      "mainTownId": 4966,
+      "lat": 53.20216,
+      "lng": 50.159618,
+      "boundedBy": {
+        "lowerCorner": {
+          "lat": 51.773037,
+          "lng": 47.930441
+        },
+        "upperCorner": {
+          "lat": 54.677162,
+          "lng": 52.568276
+        }
+      }
+    },
+    {
+      "id": 4609,
+      "name": "Саратовская",
+      "displayName": "Саратовская область",
+      "fullName": "Саратовская область",
+      "mainTownId": 4969,
+      "lat": 51.533269,
+      "lng": 46.034549,
+      "boundedBy": {
+        "lowerCorner": {
+          "lat": 49.80121,
+          "lng": 42.503671
+        },
+        "upperCorner": {
+          "lat": 52.819371,
+          "lng": 50.83258
+        }
+      }
+    },
+    {
+      "id": 4969,
+      "name": "Саратов",
+      "displayName": "Саратов",
+      "fullName": "Саратов г.",
+      "parentId": 4609,
+      "hasDistricts": true,
+      "lat": 51.533269,
+      "lng": 46.034549
+    }
+  ],
+  "resultKeys": [
+    "aggregatedOffers",
+    "avgPriceInformer",
+    "commentingBlockedAgents",
+    "commentingBlockedOffers",
+    "commentingErroneousAgents",
+    "commentingErroneousOffers",
+    "developerInfoRedesigned",
+    "emptyState",
+    "extendedOffersCount",
+    "extensionTypes",
+    "fullUrl",
+    "jsonQuery",
+    "kp",
+    "newbuildingInfo",
+    "offers",
+    "paginationUrls",
+    "qsToUris",
+    "queryString",
+    "quickLinks",
+    "oldQuickLinks",
+    "ratingBlockedAgents",
+    "seo",
+    "suggestions",
+    "suggestionsQuery",
+    "totalOffers",
+    "villageInfo",
+    "puids",
+    "ymEvents"
+  ],
+  "resultsMeta": {
+    "fullUrl": "https://samara.cian.ru/cat.php?deal_type=sale&engine_version=2&multi_id=330631068&offer_type=flat",
+    "jsonQuery": {
+      "_type": "flatsale",
+      "engine_version": {
+        "type": "term",
+        "value": 2
+      },
+      "multi_id": {
+        "type": "term",
+        "value": 330631068
+      }
+    },
+    "queryString": "deal_type=sale&engine_version=2&multi_id=330631068&offer_type=flat",
+    "seo": {
+      "h1": "Купить квартиру в России",
+      "title": "Купить квартиру в России — 2 объявления",
+      "description": "2 объявления"
+    },
+    "paginationUrls": [
+      "https://www.cian.ru/cat.php?deal_type=sale&engine_version=2&multi_id=330631068&offer_type=flat",
+      "https://www.cian.ru/cat.php?deal_type=sale&engine_version=2&multi_id=330631068&offer_type=flat&p=2"
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "basis": "Parsed JSON literal from previously saved public Cian HTML; not a documented API and not current HTTP probe",
+  "source_html_sha256": "19a3dc13d5b4eacefa48b223e660f90fcc6fe0e89690a54bbd0867a779e304e5",
+  "records": [
+    {
+      "keys": [
+        "status",
+        "dealType",
+        "offerType",
+        "geo",
+        "id",
+        "cianId",
+        "publishedUserId",
+        "photos",
+        "totalArea",
+        "roomsCount",
+        "floorNumber",
+        "bargainTerms",
+        "building"
+      ],
+      "id": 330631159,
+      "cianId": 330631159,
+      "dealType": "sale",
+      "offerType": "flat",
+      "status": "published",
+      "geo": {
+        "address": [
+          {
+            "id": 4608,
+            "fullName": "Самарская область",
+            "name": "Самарская",
+            "type": "location",
+            "locationTypeId": 2,
+            "url": "https://samara.cian.ru/kupit-1-komnatnuyu-kvartiru-novostroyki-samarskaya-oblast/"
+          },
+          {
+            "id": 4966,
+            "fullName": "Самара",
+            "name": "Самара",
+            "type": "location",
+            "locationTypeId": 1,
+            "url": "https://samara.cian.ru/kupit-1-komnatnuyu-kvartiru-novostroyki/"
+          },
+          {
+            "id": 232,
+            "fullName": "район Советский",
+            "name": "Советский",
+            "type": "raion",
+            "locationTypeId": -1,
+            "url": "https://samara.cian.ru/kupit-1-komnatnuyu-kvartiru-novostroyki-samarskaya-oblast-samara-sovetskiy-04232/"
+          }
+        ],
+        "coordinates": {
+          "lat": 53.21006234864254,
+          "lng": 50.21075200404231
+        }
+      },
+      "totalArea": "47.21",
+      "roomsCount": 1,
+      "floorNumber": 2
+    }
+  ]
+}

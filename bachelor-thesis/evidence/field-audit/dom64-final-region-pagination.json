@@ -1,0 +1,99 @@
+{
+  "initialLinks": [
+    {
+      "text": "2",
+      "href": "/search?page=2"
+    },
+    {
+      "text": "3",
+      "href": "/search?page=3"
+    },
+    {
+      "text": "4",
+      "href": "/search?page=4"
+    },
+    {
+      "text": "5",
+      "href": "/search?page=5"
+    },
+    {
+      "text": "6",
+      "href": "/search?page=6"
+    },
+    {
+      "text": "7",
+      "href": "/search?page=7"
+    },
+    {
+      "text": "8",
+      "href": "/search?page=8"
+    },
+    {
+      "text": "9",
+      "href": "/search?page=9"
+    },
+    {
+      "text": "40",
+      "href": "/search?page=40"
+    },
+    {
+      "text": "",
+      "href": "/search?page=2"
+    }
+  ],
+  "second": {
+    "url": "https://24.domclick.ru/search?page=2",
+    "records": [
+      {
+        "query": {
+          "locationGuid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+          "adults": "1",
+          "limit": "36",
+          "offset": "36"
+        },
+        "total": 789,
+        "count": 36,
+        "ids": [
+          "7c4bd5f1-b068-4a90-8138-90af86676682",
+          "332c352c-ea05-4b3e-983d-d9a21492b547",
+          "27cee2b7-eded-49af-8e55-725ce1bf32e7"
+        ]
+      }
+    ]
+  },
+  "last": {
+    "clicked": {
+      "text": "40",
+      "href": "/search?page=40"
+    },
+    "url": "https://24.domclick.ru/search?page=22",
+    "records": [
+      {
+        "query": {
+          "locationGuid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+          "adults": "1",
+          "limit": "36",
+          "offset": "1404"
+        },
+        "total": 789,
+        "count": 0,
+        "ids": []
+      },
+      {
+        "query": {
+          "locationGuid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+          "adults": "1",
+          "limit": "36",
+          "offset": "756"
+        },
+        "total": 789,
+        "count": 33,
+        "ids": [
+          "d7277ea3-4df5-4a3b-9e21-2653580bba9e",
+          "d3d014c5-97ea-4681-a979-5a9a411007cc",
+          "17682a50-9c03-4890-a4ef-c85cf7a0adc2"
+        ]
+      }
+    ]
+  }
+}

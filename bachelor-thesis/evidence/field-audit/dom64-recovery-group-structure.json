@@ -1,0 +1,75 @@
+{
+  "anchors": [
+    {
+      "text": "6 648 180 ₽•154 000 ₽/м²Этаж 2/17•Без отделки•кв. №122",
+      "href": "https://samara.domclick.ru/card/sale__new_flat__2072470552?to_flats=true"
+    },
+    {
+      "text": "6 864 030 ₽•159 000 ₽/м²Этаж 4/17•Без отделки•кв. №138",
+      "href": "https://samara.domclick.ru/card/sale__new_flat__2072470567?to_flats=true"
+    },
+    {
+      "text": "6 864 030 ₽•159 000 ₽/м²Этаж 4/17•Без отделки•кв. №18",
+      "href": "https://samara.domclick.ru/card/sale__new_flat__2072470629?to_flats=true"
+    },
+    {
+      "text": "5 468 400 ₽42,9 м² • 19/20 этажСамара, Осетинская улица, 34",
+      "href": "https://samara.domclick.ru/card/sale__new_flat__2061498852"
+    },
+    {
+      "text": "5 559 600 ₽44,7 м² • 13/20 этажСамара, Осетинская улица, 34",
+      "href": "https://samara.domclick.ru/card/sale__new_flat__2061498929"
+    },
+    {
+      "text": "6 998 250 ₽40 м² • 17/25 этажСамара, Безымянка м-н, Вольская улица, 40 ст3Победа",
+      "href": "https://samara.domclick.ru/card/sale__new_flat__2068462311"
+    },
+    {
+      "text": "6 742 400 ₽39,2 м² • 6/25 этажСамара, Безымянка м-н, Вольская улица, 40 ст3Побед",
+      "href": "https://samara.domclick.ru/card/sale__new_flat__2068462420"
+    },
+    {
+      "text": "5 829 300 ₽43,2 м² • 1/23 этажСамара, Управленческий посёлок, улица Ногина, 11г",
+      "href": "https://samara.domclick.ru/card/sale__new_flat__2069893306"
+    },
+    {
+      "text": "6 890 721 ₽43,9 м² • 13/19 этажСамара, посёлок Мехзавод, Строящийся жилой",
+      "href": "https://samara.domclick.ru/card/sale__new_flat__2070314852"
+    }
+  ],
+  "scripts": [
+    "https://statics.dmclk.ru/web-ui-library/scripts/top-mail/code.js",
+    "https://st.top100.ru/top100/top100.js",
+    "https://statics.dmclk.ru/front-core/sentry/sentry.6.2.5.min.js",
+    "https://st.top100.ru/top100/top100.js",
+    "https://mc.yandex.ru/metrika/tag.js",
+    "https://www.googletagmanager.com/gtm.js?id=GTM-KKFDVXV",
+    "https://statics.dmclk.ru/front-core/sentry/sentry-lazy.min.js",
+    "https://statics.domclick.ru/widgets/deals-history-chart/es-build.js",
+    "https://statics.dmclk.ru/web-ui-library/scripts/clickstream/index-0.10.0.js",
+    "https://yastatic.net/safeframe-bundles/0.89/host.js",
+    "https://ssp.rambler.ru/capirs_async.js",
+    "https://statics.dmclk.ru/web-ui-library/scripts/vk/openapi.min.js",
+    "https://domclick.ru/notification-center/webpush-unsubscribe.js",
+    "https://statics.dmclk.ru/widgets/polyfill/index.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/runtime_dcc553ce0ed9c0e4c0e2.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/vendors-cdd60c62_a413d6204d246cc7a777.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/vendors-cb2d071c_a2fd1db89ac9492d16d4.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/vendors-0bc0478e_995a82d86a65563c0ff3.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/vendors-5a94f17d_5d37f2c86c3c314e6ffd.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/vendors-386b9151_550d1fc4c1dc1c98442a.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/vendors-6f37ab7e_a9c45b722314890ccdf2.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/vendors-0fdbedbf_6fbf384bcb5ae2afdcb1.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/vendors-e5bca7e4_e93c2a4b1c7bb119c9d7.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/vendors-27545368_ef518f848ac4f974af33.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/main_b496dbbdffa89bfc01f5.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/swiper-vendors_7752d003ace7c11c788f.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/92_3d24c48db632aa330326.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/152_619c79186b6916fa4964.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/794_be6747fec06012f9aa05.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/845_7a5ae616210ce2ce9fd8.js",
+    "https://statics.dmclk.ru/confer/static/3504/1556099/ca2ad20/js/NewFlatPage_fd847683b30f634e7fd6.js",
+    "https://yandex.ru/ads/system/context.js",
+    "https://mapgl.2gis.com/api/js"
+  ]
+}

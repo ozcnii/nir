@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.avito.ru/moskva/kvartiry/kvartira-studiya_265_m_1214_et._8426673033\n- Page Title: Доступ ограничен: проверка безопасности\n- HTTP status: 439\n- Console: 1 errors, 0 warnings\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T08-41-40-619Z.yml)\n### Events\n- New console entries: browser-output/console-2026-11-17T08-41-40-455Z.log#L1"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 19
+}

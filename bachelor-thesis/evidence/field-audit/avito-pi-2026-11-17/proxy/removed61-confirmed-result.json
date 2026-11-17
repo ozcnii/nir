@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-17",
+  "source_code": "avito",
+  "external_id": "8417769121",
+  "url": "https://www.avito.ru/krasnodar/kvartiry/1-k._kvartira_316_m_49_et._8417769121",
+  "candidate_provenance": "https://apify.com/amitaviv/avito-scraper",
+  "provenance_scope": "Discovery of public URL only; current closure independently verified on Avito via same SOCKS5.",
+  "proxy": "socks5://127.0.0.1:10808",
+  "browser": "Own isolated Playwright MCP, headed; global VPN settings unchanged",
+  "document_status": 200,
+  "title": "Ошибка 404. Страница не найдена",
+  "visible_heading": "Объявление не посмотреть",
+  "visible_message": "Объявление закрыто.",
+  "embedded_path": "window.__staticRouterHydrationData.loaderData['catalog-or-main-or-item']",
+  "embedded_state": {
+    "type": "notFound",
+    "message": "Объявление закрыто.",
+    "isGone": false
+  },
+  "buyerItem_present": false,
+  "item_present": false,
+  "mapping_to_accepted_contract": {
+    "state": "removed",
+    "known_ad": "Existing ads.is_active=false; observed_at advances under existing order rules. Keep property/link/photos/history.",
+    "unknown_ad": "not_found, no empty property/ad created",
+    "implementation_executed": false
+  },
+  "limitations": [
+    "No sale/rent outcome or seller reason inferred",
+    "No removal timestamp published/established",
+    "type=notFound, title404, HTTP status, isGone alone or redirect do not prove closure",
+    "Closed message plus requested known/public publication is this observed source signal; no universal numeric status map invented"
+  ],
+  "evidence": [
+    "removed61-confirmed8417769121-fields.json",
+    "removed61-confirmed8417769121-closed-state.json",
+    "removed61-confirmed8417769121-network.json",
+    "removed61-confirmed8417769121.png",
+    "removed61-headed-browser-closure.json",
+    "removed61-headless-browser-closure.json",
+    "removed61-headed-proxy-launch.json",
+    "removed61-candidates.json"
+  ],
+  "browser_closed": true,
+  "point61_status": "closed_at_source_verification_and_design_level_not_implementation"
+}

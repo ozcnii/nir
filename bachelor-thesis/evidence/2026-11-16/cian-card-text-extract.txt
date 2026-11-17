@@ -1,0 +1,285 @@
+Продажа однокомнатной квартиры 47.21м² Самарская область, Самара, р-н Советский м. Советская - база ЦИАН, объявление 330631159
+@font-face{font-family:Lato;src:local('Lato Light'),local('Lato-Light'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-light.woff2') format('woff2'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-light.woff') format('woff');font-display:swap;font-style:normal;font-weight:300;text-rendering:optimizeLegibility}@font-face{font-family:Lato;src:local('Lato Regular'),local('Lato-Regular'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-regular.woff2') format('woff2'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-regular.woff') format('woff');font-display:swap;font-style:normal;font-weight:400;text-rendering:optimizeLegibility}@font-face{font-family:Lato;src:local('Lato Italic'),local('Lato-Italic'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-italic.woff2') format('woff2'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-italic.woff') format('woff');font-display:swap;font-style:italic;font-weight:400;text-rendering:optimizeLegibility}@font-face{font-family:Lato;src:local('Lato Semibold'),local('Lato-Semibold'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-semibold.woff2') format('woff2'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-semibold.woff') format('woff');font-display:swap;font-style:normal;font-weight:600;text-rendering:optimizeLegibility}@font-face{font-family:Lato;src:local('Lato Semibold Italic'),local('Lato-SemiboldItalic'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-semibolditalic.woff2') format('woff2'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-semibolditalic.woff') format('woff');font-display:swap;font-style:italic;font-weight:600;text-rendering:optimizeLegibility}@font-face{font-family:Lato;src:local('Lato Bold'),local('Lato-Bold'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-bold.woff2') format('woff2'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-bold.woff') format('woff');font-display:swap;font-style:normal;font-weight:700;text-rendering:optimizeLegibility}@font-face{font-family:Lato;src:local('Lato Bold Italic'),local('Lato-BoldItalic'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-bolditalic.woff2') format('woff2'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-bolditalic.woff') format('woff');font-display:swap;font-style:italic;font-weight:700;text-rendering:optimizeLegibility}@font-face{font-family:Lato;src:local('Lato Black'),local('Lato-Black'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-black.woff2') format('woff2'),url('//static.cdn-cian.ru/frontend/fonts/h/lato-black.woff') format('woff');font-display:swap;font-style:normal;font-weight:900;text-rendering:optimizeLegibility}
+html{line-height:1.15;-webkit-text-size-adjust:100%}body{margin:0}h1{font-size:2em;margin:.67em 0}hr{box-sizing:content-box;height:0;overflow:visible}pre{font-family:monospace,monospace;font-size:1em}abbr[title]{border-bottom:none;text-decoration:underline;text-decoration:underline dotted}b,strong{font-weight:bolder}code,kbd,samp{font-family:monospace,monospace;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}button,input,optgroup,select,textarea{font-size:100%;line-height:1.15;margin:0}button,input{overflow:visible}button,select{text-transform:none}[type=button],[type=reset],[type=submit],button{-webkit-appearance:button}[type=button]::-moz-focus-inner,[type=reset]::-moz-focus-inner,[type=submit]::-moz-focus-inner,button::-moz-focus-inner{border-style:none;padding:0}[type=button]:-moz-focusring,[type=reset]:-moz-focusring,[type=submit]:-moz-focusring,button:-moz-focusring{outline:1px dotted ButtonText}fieldset{padding:.35em .75em .625em}legend{box-sizing:border-box;display:table;max-width:100%;padding:0;white-space:normal}progress{vertical-align:baseline}[type=number]::-webkit-inner-spin-button,[type=number]::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}[type=search]::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}details{display:block}summary{display:list-item}*{box-sizing:border-box}html{background-color:var(--background-primary,#fff);color:var(--text-primary-default,#0d162e);font-family:Lato,Arial,sans-serif;font-size:14px;height:100%;line-height:20px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}body{display:flex;flex-direction:column;min-height:100%}button,input,optgroup,select,textarea{font-family:inherit}
+.cian-service-banner{display:flex;justify-content:center;padding:0 16px;background:var(--accent-main-secondary,#d9e8ff);font-family:Lato,Arial,sans-serif;font-weight:400}.cian-service-banner:has(.cian-service-banner__title:empty){display:none!important}.cian-service-banner:not([data-closable=true]) .cian-service-banner__close,.cian-service-banner:not([data-icon=warning]) .cian-service-banner__icon,.cian-service-banner__description:empty{display:none}.cian-service-banner__content{display:flex;align-items:center;justify-content:center;gap:16px;width:100%;max-width:1024px}.cian-service-banner__icon{display:flex;flex-shrink:0;margin:16px 0;padding:8px;border-radius:8px;background:var(--accent-main-primary,#005ede)}.cian-service-banner__text{flex:1 1 0;min-width:0;padding:16px 0;text-align:center;word-break:break-word}.cian-service-banner[data-icon=warning] .cian-service-banner__text{text-align:left}.cian-service-banner__title{font-size:16px;line-height:24px;color:var(--text-primary-default,#0d162e)}.cian-service-banner__description{font-size:14px;line-height:20px;color:var(--text-secondary-default,#697797)}.cian-service-banner__close{display:flex;flex-shrink:0;margin:16px 0;padding:0;border:0;background:0 0;color:var(--icon-secondary-default,#7683a0);cursor:pointer}@media (max-width:640px){.cian-service-banner__content{align-items:flex-start}}
+Наши специалисты уже заботятся о том, чтобы сайт и приложения снова заработали — попробуйте вернуться немного позже
+Мы используем
+куки-файлы.
+Соглашение об использовании
+Умный помощник
++
+Разместить за 0 ₽
+Войти
+Аренда
+Продажа
+Новостройки
+Дома и участки
+Коммерческая
+Ипотека
+Мой дом
+Сервисы
+Приложение Циан
+Ещё
+Ещё
+Ещё
+Фотографии (9)
+Описание
+Расположение
+Контактное лицо
+1-комн. квартира, 47,21 м²
+Недвижимость в Самаре
+Продажа
+Продажа 1-комнатных квартир в Самаре
+Советский
+Обновлено: 14 ноя, 22:25
+1105 просмотров, 2 за сегодня
+Только на Циан
+Продается 1-комн. квартира, 47,21 м²
+в
+ЖК «Скай»
+Самарская область
+,
+Самара
+,
+р-н Советский
+На карте
+Советская
+19 мин.
+Спортивная
+22 мин.
+Победа
+25 мин.
+Сравнить
+Скачать в PDF
+Скачать в .docx
+Пожаловаться
+Планировка
+8 фото
+Общая площадь
+47,21 м²
+Этаж
+2 из 18
+Год сдачи
+2027
+Дом
+Не сдан
+Отделка
+Черновая
+Продается 1-к квартира площадью 47.21 кв.м с черновой отделкой. Квартира расположена на 2 этаже 18 этажного дома, в 2 корпусе. 
+ 
+ЖК "Скай" — Эргономичные светлые планировки, безопасные зелёные дворы, детские и спортивные площадки. Панорамные виды на Волгу с верхних этажей. Рядом — ТРК "Космопорт", школы, детские сады, парки Дружбы и Победы. Всё необходимое — в шаговой доступности! 
+ 
+"Скай"  это два новых 17-этажных дома в развитом районе Самары с семейными планировками, каждая из которых продумана до мелочей. Расположенный недалеко от трех парков  30-летия Победы, Парка Дружбы и Гагарина  жилой комплекс объединяет в себе современные технологии, качественные материалы отделки, хорошую транспортную доступность и многие другие достоинства, гарантирующие комфорт жителей. 
+ 
+Расположение 
+Пешком: 
+- 2 минуты  ост. Ул. Советской Армии; 
+- 10 минут  СГЭУ; 
+- 15 минут  Парк Дружбы; 
+- 20 минут  ст. м. Советская. 
+На автомобиле: 
+- 5 минут  ТЦ "Космопорт"; 
+- 10 минут  Парк Гагарина; 
+- 10 минут  Парк Победы;  
+- 20 минут  Молодёжный парк; 
+- 30 минут  Центр города. 
+ 
+Благоустройство 
+- места для отдыха на свежем воздухе; 
+- игровые площадки для детей всех возрастов; 
+- уличное освещение для безопасных вечерних прогулок; 
+- видеонаблюдение 24/7; 
+- подземный паркинг на 67 машино-места; 
+ 
+Окружение 
+- 5 школ и 8 детских садов в шаговой доступности; 
+- супермаркеты "Магнит", "Пятерочка", "Ашан", ТЦ "Космопорт" в 5 минутах на машине; 
+- 3 поликлиники, ФОК "Чайка", 5 тренажерных залов; 
+- набережная реки Волги в пределах 30 минут.
+О квартире
+Тип жилья
+Новостройка
+Общая площадь
+47,21 м²
+Высота потолков
+3 м
+Отделка
+Черновая
+О доме
+Подписаться на дом
+Количество лифтов
+2 грузовых
+Понравилась квартира — узнайте о
+ней
+больше
+Застройщик ответит на
+все вопросы
+Заказать звонок
+Отделка в ЖК
+Чистовая
+Предчистовая
+Черновая
+О ЖК «Скай»
+Сравнить ЖК
+Сдача комплекса
+Сдача в 3 кв. 2027
+Застройщик
+ГК Развитие
+Класс
+Комфорт
+Количество корпусов
+2
+Тип дома
+Монолитно-кирпичный
+Парковка
+Подземная
+Отделка
+Предчистовая, черновая, чистовая
+Тип комплекса
+Жилой комплекс
+Похоже на
+то, что
+вы ищете?
+Да
+Нет
+Особенности жилого комплекса
+Отделка
+Парковка
+Архитектура
+Входная группа
+Подробнее о жилом комплексе
+Акции в ЖК
+«Скай»
+Узнайте про персональные условия и дополнительные скидки при покупке квартиры
+      у застройщика
+Показать контакты
+Распродажа квартир
+Выгодно
+Рассрочка
+Скидка до 8% при полной оплате
+Скидка до 7% по базовой ипотеке
+Особые условия для будущих мам
+Скидка до 6% по семейной ипотеке
+Скидка для военных и участников СВО
+Обмен c дополнительной скидкой
+Показать еще 6 акций
+Перейти в каталог акций и скидок
+Ипотечный калькулятор
+Стоимость недвижимости
+₽
+Программы
+Базовая
+Семейная
+ИТ-ипотека
+Первый взнос
+₽
+20%
+30%
+40%
+50%
+Срок кредита
+лет
+10 лет
+20 лет
+30 лет
+Загружаем предложения от застройщика и банков
+Расположение
+Другие ЖК рядом
+Корпус проверен
+наш.дом.рф
+Обновлено 10 октября 2026
+Нет в реестре проблемных объектов
+Застройщик не банкрот
+Есть эскроу счёт
+Актуальные фото стройки
+Подробнее о надёжности ЖК
+Преимущества эскроу-счёта
+Ещё квартиры в жилом комплексе
+65 квартир в продаже · Сдача в 3 кв. 2027
+Ход строительства
+0 видео
+0 отзывов
+1-комн.
+от 43,08 м²
+7,24  - 8,37 млн.
+27 квартир
+2-комн.
+от 62,75 м²
+10,03  - 11,8 млн.
+26 квартир
+3-комн.
+от 90,54 м²
+12,53  - 14,86 млн.
+12 квартир
+Автор объявления
+Застройщик «ГК Развитие»
+Надежный застройщик
+2013
+год
+основания
+67
+домов сдано
+в 31 ЖК
+140
+домов строится
+в 39 ЖК
+ГК «Развитие» — один из крупнейших федеральных девелоперов полного цикла в России. Компания строит жилую и коммерческую недвижимость. Также «Развитие» является лидером по объему текущего строительства и ввода жилья в эксплуатацию в Воронежской области и з...
+Подробнее о застройщике
+-15%
+8 525 571 ₽
+7 246 735 ₽
+Распродажа квартир
+Акция от застройщика
+Циан.Ипотека
+Ипотека
+Цена за метр
+153 500 ₽/м²
+Условия сделки
+долевое участие (214-ФЗ)
+Контакты застройщика
+Застройщик
+ГК Развитие
+3.9
+67 отзывов
+Надежный застройщик
+Год основания
+2013
+Жилых комплексов
+68
+Домов строится
+140 домов в 39 ЖК
+Сдано
+67 домов в 31 ЖК
+Справочный центр
+Юридические документы
+Поиск на карте
+Аукцион
+Реклама Циана на ТВ
+Программа «Суперагенты»
+Тарифы и цены
+Реклама на сайте
+Продвижение
+Помощь
+Ипотечный калькулятор
+Проверка недвижимости
+Карта сайта
+Карьера в Циане
+Сайт для инвесторов
+Циан — база проверенных объявлений о продаже и аренде жилой, загородной и коммерческой недвижимости. Онлайн-сервис №1 в России в категории «Недвижимость», по данным Similarweb на сентябрь 2023 г. Используя сервис, вы соглашаетесь с
+Правилами пользования сайтом Циан
+.
+Оплачивая услуги, вы принимаете
+Лицензионное соглашение
+.
+С условиями обработки ваших персональных данных вы можете ознакомиться в
+Политике конфиденциальности
+.
+ООО «Айриэлтор», email:
+support@cian.ru
+.
+На информационном ресурсе применяются
+Рекомендательные технологии
+.
+Мобильная версия сайта
+О приложении
+0+

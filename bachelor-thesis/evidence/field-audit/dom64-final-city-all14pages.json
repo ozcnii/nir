@@ -1,0 +1,2641 @@
+{
+  "pages": [
+    {
+      "page": 1,
+      "url": "https://24.domclick.ru/samara",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "0",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "1999c326-4f66-410d-8ea7-0d01a6e8af4e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f8206224-d271-4361-85e2-fb95e57817df",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "1d4e26e3-f8ec-40b5-9e9a-ac0ef30fcb5b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "98497d9e-fe9c-44b1-8ec5-902e6d27763b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "52486905-ea55-4d7c-a63b-bc4f9a1ae0bc",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b94a5886-bb4c-4087-988b-3636a011acc0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "73c6a10f-7ae4-4fdd-8e25-b1042f776b31",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "38119abc-c106-4057-9780-8f147fe911e9",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "80eef4c9-6788-4c39-8664-7cd7d57df8eb",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "fb1f8c06-6840-4876-96db-b49ba95785b3",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2b069cda-5cc0-4c3d-8418-5620316d838f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d9141cb3-8d21-4d2a-97aa-c2c5f743779e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4ae4c8e5-8e54-4b74-b8e6-340594f6a940",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "e03d842e-a47c-4843-9c0b-380a5947906c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "014672eb-0119-46b7-bfc8-19041ef90e49",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "351b09ba-00ac-4130-96e0-d3d4f8b832a5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "e67e31f6-8c85-4fc0-8ba4-2c9083edd56d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5fe543f1-d343-421b-a579-2f1e0c25a123",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "814d01b2-38cd-4c4e-b391-cc740fe47740",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3350051f-e874-4a4d-8f2e-f0263a45dcb4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "07450ff5-1764-4e8f-8fdc-598485945579",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c21f2943-629e-4fc7-810b-f5eb91f57491",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "038a8dd6-1e00-47fc-a368-ec442972f99c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5a525446-2dcb-4c49-850a-2070e6f02956",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6c8ac4ab-b828-4314-9130-cd0749ab74cb",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7c4bd5f1-b068-4a90-8138-90af86676682",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "332c352c-ea05-4b3e-983d-d9a21492b547",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "17bb83be-55db-40f5-98d0-1a0645a32e1f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2a7bcba1-4717-47db-8d7e-23f07887acc6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "cea3e27a-de6c-4dc0-b8ef-010596101667",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "96d2810f-057e-4c88-ac95-68e2680390a4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6b88d02f-0e96-49ec-a602-c2a130661ff1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3c29f718-a40a-483a-bd26-db4026f41679",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "250d02f9-b03e-46f6-b1d7-725f80aaec38",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "abb581de-0906-4af5-9ae2-ab055e7e8e01",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "57de452e-74a0-4bdf-9189-5343d40fc370",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "url": "https://24.domclick.ru/samara?page=2",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "36",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "7fbe5a90-a318-43a4-bc92-12cc34531479",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "16556055-edd1-427a-8410-43c4285914f7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "cb03dfbe-c5c2-445d-b3d6-bcc6faa36065",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3383ed54-d57d-4723-b216-65db11283fcc",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6f3d9ce2-1b31-45d9-a898-c2119472f535",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8a2cebe3-fa3f-4841-ad8e-01359950b683",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "fed09177-7f52-4e77-bc1e-8e676ce152d4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b4bd0c46-26c9-40b7-88b9-36c0c9580106",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b4ccc1ab-c986-4095-96bc-14f29f9d84ec",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "76c47ed4-929a-423f-b70e-485e0a4f4188",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "bb4e60b4-ccb5-4081-a0bb-d4a545c299be",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "052c6a06-2e7a-4c25-ab1e-bfaf8cbfec4c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8104c5f9-4b03-4a17-9e7d-d0fbd7eaaa62",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "671befe1-5253-4646-8c41-254b6cafda79",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "946edf2d-85b8-47b1-9dd7-27aa204f4ee3",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9d177af6-d1f1-47ea-8256-5efd7df7a6e4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "682046c4-0ecb-46a3-8d51-a706e9146adc",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "acadf7a1-1e0a-44bc-b919-0c1b2291bca6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2d8108ad-d456-49fe-a117-0a6d48d9abd0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "31f9738c-9b05-4655-94b2-c777192b7213",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9ee4434c-6f4c-4a9b-91b0-737b0fc5d787",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "31bce1d3-24cf-4db4-aa0f-a6eee0832ec6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ec4a0fe4-11e8-4d24-bb40-9ef39e2096b8",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "cb44d477-294e-4754-a2b4-3a106fa8ea13",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d8e22556-d42c-4548-8ceb-d3ca68fa7fc3",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b00577fe-f28b-410d-8ca2-f76996a3392a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "225eaf8d-400e-4598-8b42-27a8aacf04d1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ac5ca64a-7cb4-4fe8-bf25-cb2c592021f6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "aa035533-b3bb-47da-a744-afc4395f9f14",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "45368bf4-3241-4bf2-a009-cf4322af5273",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7ff2f421-0324-4f00-abf4-1d943c3639f0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "cee32c7c-b09e-4a2c-b61a-4afd6ba99d15",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2f58d134-f05e-480f-9260-98e557543232",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7d256995-ece3-4efb-b509-9b7aed1ea238",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4fdfcade-0c0c-4833-a17b-bb83e16229a3",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5d828f15-2339-4e00-88f4-d1a15da5323d",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 3,
+      "url": "https://24.domclick.ru/samara?page=3",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "72",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "0b6a3b23-3b48-47aa-bca2-d0dabb47fbbf",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "1506491a-7660-4fa8-8520-6ef5f43b398b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8d59b866-3a0c-45c1-862e-5bed3e8c0d39",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "49b46af0-99b0-4fad-8340-41aa61eb5143",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3be9c290-0e58-47fb-9b42-2ee34aa48164",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3a7d99b2-12d1-4c9f-8271-9e218fecc128",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "35be9775-f73f-4521-9080-e7bddcf9d418",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b2d6125f-d248-40bb-b243-1bce2982e91e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8dc99951-11b3-4091-a766-1d7b65971178",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "1248d33c-3a81-49da-9d8f-adc18ace6227",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "199e24a1-a849-49db-a51b-e8d67dba6ab8",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "59f0d517-b70d-4b49-bba9-d004cc4cffe2",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "605fe554-b72f-4e8c-8108-f32295d8ac19",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b4adeb32-d603-4545-9fa3-b96e79e36365",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d053f6d8-715e-402f-be14-666618254ffa",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9a87a886-d1ac-4c07-96d5-2c9e17b4465f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "da9b7b1f-8017-4e5a-9303-a5d04390a3a7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f445d2f7-9219-4485-865b-eef146890807",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2eedc32f-8d66-40e9-94ae-9dd942f6f36a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "86bc69e9-8dd3-447b-9575-3e63ae749853",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "089abe8f-1598-4202-9bdc-2e057cc87c71",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "451ba044-b5b7-45f7-b0f0-4a1c7366cb40",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "badd621b-996f-4cb0-8107-0be457be0c99",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b35546f9-32c0-4491-a580-7fd0afe87ef5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a294dc0a-2ecb-4315-8497-2329f2aaad94",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a47d85c8-1722-4e80-9b68-74ea67443b3a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "abb4e92b-3867-46c6-ad0b-8c66331f68c6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c93fa7fb-fa3f-4741-baa5-31253fc88041",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "56c28fd1-fe1a-4d8a-a0f6-79253e4e7902",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b2f60069-f011-4455-9867-3d3f1fd903d2",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4458d037-a50c-49a2-a1c1-9846e3cd6f1f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7106adc2-477d-4969-8bfa-9ff06b487611",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5c9c7110-ff5a-413e-8426-d8a287bffbe4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f425b85b-cf79-40b3-94a5-7083d9f90663",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "99f6940b-0e25-4a56-a4ea-647fa05d403f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "463b783e-d634-464f-8bd5-1a093b74655e",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 4,
+      "url": "https://24.domclick.ru/samara?page=4",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "108",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "6d726bf6-2ac1-4818-a7d5-7fcb3cbae0cd",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ddab1484-3ef5-4fd9-9dc9-c933560e5fc8",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d65627a7-dffb-48e9-b668-c305bedb49fe",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "17171d57-383a-4458-99ea-7441f36e5391",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ee4fc9cd-dadf-43f1-9da3-bfe69ae36cbd",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "445135c5-e76e-486b-b964-60fd9a68eef1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "40aee959-c16f-4cd8-97d7-79a677b3d568",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7f34b457-8de8-4c4e-8156-cb7d4ead04a7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7e9543bd-18b2-4577-962d-1ea017ce2e6e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "eec7f287-2eac-4b41-a1ba-bc10c307c551",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4f2bf755-66c8-4453-a464-b723a641604d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "74d8ff64-3a8c-4c93-a5e4-ced7283ab7bf",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ba8a3f14-62f7-4b9a-8c35-d98cce8f918b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "313c22e1-5199-4764-a703-89e8cb55f16f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d3589bd6-1617-42bb-a825-850b19e96ae1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "0f19f1d7-7157-4381-bf0c-2245594a75c1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "dfdc3cd2-de3c-45dc-b3c3-81df9a5398d4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "97d9d9f0-2498-4491-881c-86aee0f5d44a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5b094510-1320-4a57-bdde-fccf9d28f480",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "89fb5e40-c5ef-4ab1-94a3-0cd56188f7e3",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "037cd70e-c0d6-4433-a7bd-60c59b535e95",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "cf0641f7-9fae-46c6-a8ac-c3c10f4a4957",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "efef55b8-0af7-4bef-935b-0baa25679927",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a6dcdbcf-1e5f-423e-9dce-9efd799d2987",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8045070f-fa40-4f1c-9a01-0fe543ee7466",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "886ad656-b7a0-49d5-ad4b-6f8b6011289a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "33426937-7bdc-4e7d-8a9d-aac35a026afa",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "12a45be8-2d34-4da9-ad1b-dfedc1f2538a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "202f8eff-b635-4a4b-9834-03463025b39b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "32f1d242-79c7-4609-8832-18504ec5599e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "53e5ae54-d4aa-4414-af3e-e6d2a36e21a8",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "fb20ecf7-468b-4c66-83d3-6a97392f799b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "793e67c2-dea5-4308-8cad-367485dcb766",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7aadaa0c-5184-42b0-885c-7924461a101e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "17d29e5c-7d49-41a4-b724-91130fbeeb7e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "bcab099b-85bc-4940-897d-d3f3ba5a2ff0",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "url": "https://24.domclick.ru/samara?page=5",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "144",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "9323491c-a728-4cae-a484-ce8554a099e8",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "52cb9c5c-0a64-4416-907a-c5a6a77210b7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d6c1f26f-aca5-4bfe-bf13-8284d5f256bc",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "89b2b351-de64-4ee3-b6fe-cd17796a347e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "95ebe9b9-60f6-42c6-9947-e27526f391fd",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "76142817-61f4-4b6d-a01d-3e2aa73f2709",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "e5a7c206-2566-4f9c-83da-48305e9398ed",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "23a25041-3a48-432e-9b00-dae7e922b3d9",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a3fc9249-e782-4354-a11b-2e00463593c2",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "53ca9845-35d2-486e-9286-7e12806a9ec4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d4776fea-efff-4f70-9ab6-d543aa39d2ac",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8de6e44f-9bdc-4939-845f-96a990c68749",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "0a16c1e8-240a-4a3b-a7e9-b9fba23539c6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "e8e52a32-98bb-4645-8a22-7b98ff251563",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "77b43f1c-aae6-4fc1-8778-3c3e41a5649b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b95d3a3a-6f5d-49e6-958e-a1af4dd5e9c5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "960587c1-12d3-4b4f-ad30-1ccaf1126fb9",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "1d869b79-5968-4309-9775-a766a1af1440",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "336b72d9-811a-4bd0-8142-c9df2691188e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4460a085-c22a-4a3b-9121-f8136bb3bbaf",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "dcc067c6-e1f2-45b5-b317-b1e4bd7b85e1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "37a81dbd-97bf-44e7-a88f-2acab85a652e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3b17deb6-f30a-44fa-b33a-481c38ff0452",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7d6d0533-49e5-4a3b-ac52-ea886e485e3e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ecdad7f4-1405-4408-89cb-d1cfd7601b81",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "272215f0-dec5-4df9-a472-bc02902a2b78",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "85c5d6b4-b075-4ac1-9f5f-c4d605e83011",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "eda58d19-128b-4a88-a4d7-125340448f43",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "83b0d7f1-86a5-42db-bf29-741ec60a76ba",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4cff6415-133c-43ff-bc94-cfb512502c13",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d4d858e9-6ddf-4ed6-8b82-1c369e222725",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "60998f7a-84be-46f8-92da-5f321504d74d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "60fba3e1-9fe7-4545-a10f-db6594a40a31",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9094a520-f85d-4012-9b2b-f93faa6c5de5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "652b0f8c-084f-4bba-b679-e6e75282c1ac",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "342c2dbe-ee10-4f96-beb3-0c1da984c681",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 6,
+      "url": "https://24.domclick.ru/samara?page=6",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "180",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "f1fbd352-58aa-45f3-8c8d-37e94dec9bb6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7d77790d-4513-42b4-92f7-01ee6915cb15",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "dfc4f043-71a2-45ee-9849-569a9552a5f6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c01774c8-ba4b-40cb-b3aa-94997d76a193",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c806b76c-3a79-4f0e-9d92-645dc4d9991d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "142f9096-9a88-4f2c-8d98-2b33f506998b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "94b7442e-18dd-44ef-b1dd-43433c61783a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7901eb04-fdbb-47bb-a5d0-9816aabb4acb",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "41faff48-c9e4-4705-a873-5e78db29b863",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4c8fa5b2-6569-406e-80be-1a8fdf71589d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "1f22f993-4f5b-4daf-a01b-539d8c29b610",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "85bc3e88-8f04-4c19-b6d1-adb44dcf1ae0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5db529ad-7628-4dd2-adfd-58ce4ecce811",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "64526156-e22a-471a-93ad-71624f66e05f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "97d5a2ba-c4ab-46c3-895e-c85bdcbadda0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3056676d-719a-49dc-abc4-5b9581bf31d7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "733efcb1-0140-4679-bbba-e9fe2d81ba03",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a7709e1e-0876-4e7f-bd80-ae9e82223abe",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "efb2b14e-8c9d-44b9-98aa-727e606bed80",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4cefd944-bee6-458d-91a1-162cfde2b68c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3a984566-ddc8-4743-bbfc-cda9ff054a61",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6c40d1ab-2738-4c7e-b01a-b7882879d6aa",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "38898724-ca1b-4364-86b1-b547bb94d59a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d068279d-2c12-4b0f-90c3-5a6719a18380",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "94c35006-73f1-48c7-9818-40771baf0217",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "41579b5f-792a-4295-bc46-c28c8fa0bfc7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b73a607a-fcf6-46f6-bcb1-43cab27bbe94",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b0f0bd96-6acf-4cf7-8bab-442912e6e196",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "75465b1d-2d48-4094-a523-7446e0cf6bb4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f81da812-0956-44a6-b337-e69c5f0bf652",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "eea9b338-a228-4849-8464-7f81506692ad",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "e3ea13d8-bb22-4e8e-a4ab-a4134a0db6b7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "1f0b2ba5-17f8-4cf2-b100-c130fa1f534a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7bd918bc-218b-432f-8045-710419bf1deb",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "58dfa66c-5325-4102-9134-9252f96d7c62",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "582ce3b6-6c25-4164-958f-f85902a22eee",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 7,
+      "url": "https://24.domclick.ru/samara?page=7",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "216",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "8683c400-23ff-42ac-a8b8-95abe2b15ad2",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b681ce4f-a66c-4906-8562-36589f514c68",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7cd4f28e-75a9-4b29-9eb8-8b14db62b51b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b043c099-9eda-40f5-8dcb-210201981286",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a9c44580-adbb-4bd3-8694-e13402c5f2f8",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "635e5ff8-bddc-4564-8847-484228182db7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7c6aff40-8929-435e-b796-8c64d3d5618b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4567bb94-f2f1-4149-8fa9-b4a8603c6599",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b697c39a-18b4-4110-8344-a921231054f6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c2dc28cf-87e8-4b7e-a417-6ef468d65470",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c158090e-d59b-4f56-8352-6d7a95be68e8",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "76b598a5-8f85-4d09-8848-cd583bdf6987",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "48bb32d3-95dc-4b04-83c2-e82f3df2f4dd",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9e4bfe9a-a2d4-426c-8db5-ac636fc8e061",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "56c5aa44-3627-4462-a37f-c6dd7c423269",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d596a0a2-0215-4c73-80ca-35009947115d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "755b1496-a69e-4da6-974a-d82686aa24f5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5d13d2e4-5fa5-4808-aebc-778dacc9ae06",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "79076f54-3cca-42a2-83e5-7269b0928912",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "fd09c2a2-45fe-4b28-84ce-f140b6fa4da0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "af09da5a-4003-4642-9583-f661990de6ab",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a207dcee-9457-4956-980d-4718fb656e89",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "083ede84-4fa9-4686-883f-4db887d30198",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b201a477-187d-494d-98a0-90bf40355f8f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c7b78e03-2a5c-4d5f-bf97-3d892dc1ca09",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a14a150a-cd45-4b14-a98b-deb57cbb5749",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "35b59608-8703-4ce4-8837-8af46d512c34",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "40264bca-b0f6-4ead-a220-74e71a78dd55",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "841849b4-4db7-4dec-93c7-0eccbb5fb4d5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "173d6059-ef3e-427c-8222-20954a48e32b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f25b97a1-7021-4e9a-ba45-2961a260f690",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2f8450d3-5527-4c06-a93c-b2c927fdfc08",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c1f0c83e-4849-4cc5-848a-73f6e887f513",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3ebfb755-0103-452a-8035-73c70407d70d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7e9371a6-db99-4bd2-ad2f-7c541faa4426",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "e4efc0ed-65e6-4366-9131-ade4ae397309",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 8,
+      "url": "https://24.domclick.ru/samara?page=8",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "252",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "79c0ce9a-4c62-44f0-b5f2-c9d8863e771f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b5a8f208-4542-48f9-b4b4-d1540caf7a54",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c9e32f2e-7234-41a1-9b0b-970f502d9d18",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9b5f6850-7989-4db4-bc5b-1fbd3bd64fdb",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "549feb0f-a9cf-4cfb-b105-6512667da073",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "89f451d5-55d6-41c6-ad31-b1136088063d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "deb3272a-0749-4db7-afd4-58d92cc39568",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3547538d-1fb8-4e3f-97b3-9b7d95eb8578",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ad8ac7ec-fde1-4488-b081-84ace104a9f1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "0a32595f-bff0-49c3-bc12-80c319627fd0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d28f511b-72b8-4741-9d87-02bbab63ac34",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "56645f18-07cf-4922-b8d1-987893940497",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c571c893-069a-4c39-a8ec-61281454179e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f6016f20-1963-4b9c-a160-310fdfae4301",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6e8ac036-0416-4a83-9018-1129e92b515b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "bad10bb6-e65e-433a-8622-dd543ab2780b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "54228f97-b74f-42bb-ab42-4b6228352528",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "260ed753-bf6f-49a6-9c4b-6c5055c222e1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "16df4475-7d32-478d-a476-700ed3847d00",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "59b8bce8-4a78-4f49-8305-4ea1f489823e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9b8c9930-51bb-468c-8d4e-a9ec1435cbc4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "1dfa0322-978d-4a38-959d-003a62b68261",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "40e24f58-d9d6-40e8-b8ad-8c12477ec365",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c90e6462-217e-4be9-a434-ff2d30bfabd6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2f43aca5-c66e-4bff-93cb-146b453409a5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "09b38cfb-4d8e-4f6e-b7d0-e1f3615b9aaa",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2ae3048f-9d58-4e51-b082-073fdcb0c2eb",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "91c3eec0-a746-45f9-a165-b5a8abddb437",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "88bed341-ae79-4067-83cb-ba9145bedb14",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "769219b0-1c8d-489a-b500-ae530345ff4b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "33eeed3d-7a8a-4ea0-aecc-0fba9af2b31c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "00b0ddb3-68b2-456d-8c64-635404c17b7c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "32dd7a4f-1ef7-4f3f-aa78-68651c8a7cce",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "771133ed-9887-4a30-beec-6d046051eef2",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f805b6a1-a1e1-4960-b02d-1f8bdf0c1691",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8d94ff3f-5eb1-4354-acf8-3789e60313b9",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 9,
+      "url": "https://24.domclick.ru/samara?page=9",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "288",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "3c4c3825-a362-4c6f-93ec-fc4033cdd56c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "771d29a4-3c3f-49e6-b867-16cd382ce60c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c08adc98-4253-4468-8721-ed79c82b29ac",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "403053b4-6f0c-4325-82dc-9b6c09864704",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c2fe9d30-b2ae-4a53-b5f2-bf5fe2bb46dd",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "05136d7b-53db-4b6f-bd3d-6fcc60a94306",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "1f259d7e-88e1-4f55-ad4c-604a25536ee5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "057ca5d3-314d-4aeb-9ae9-9db84319cb0c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "0d1f810d-b638-464c-b28c-0b879659cb49",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2bf8b91a-9597-4382-8dcc-e4782ba8bea7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8b4cf15d-a420-48a5-afaa-ce6757dd0d53",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f8258952-05d2-4331-9478-4da6950ac1de",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "306540b8-748c-4f59-b4b7-515b19c0bea2",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8c04a84a-a755-4da9-8017-77a84b8db376",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "806d71fb-b88b-4137-bfda-dd9ed3c566a9",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2d39f21f-0a82-443a-96c0-dac25e0d2286",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2c9a1c9b-79f3-4bc1-90fc-af8c72f29be2",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b91d03e9-ae7c-4403-9a00-485b664d65a5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8facb6b5-8158-4ad7-969c-a0a2c2972611",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "313ebab5-df25-45dc-92d6-ba4eb8e1fbc7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "0b7db3ed-ceba-4c72-a785-7db43fd9bdeb",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2b3dc05a-ac22-47b2-babc-605ee4c89d97",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "213ac48c-acfa-454a-9b77-04ccf703d4ae",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a29a403d-9f1e-49d7-a7b6-480f1aa6acaf",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "dd53c5a0-e1fc-463a-bfba-cc0c815edbb4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b826b9e9-0aa0-416c-86eb-1357a087ef06",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "005ca668-8ace-4736-8f7e-203dccbba813",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7afcc75b-94cf-456b-b267-35b901fd7160",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6d4e07af-ba1c-4a63-bb02-8dd7a29e1a97",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4473ff69-1740-4455-b0a3-9e1ca362ba66",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "0bd11a75-3a70-496c-b33c-d1827e6811ac",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6b477345-1102-4f46-ab7d-12ed87cc1e41",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "48291081-cc63-42b3-a2ff-c586d6bc0e6b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "bdf09da7-bd7a-44ca-a853-80946b826963",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "fe74ba71-e4eb-4d54-b6b6-7bb0720b54fc",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "683fd8ac-deff-4727-a27b-3a5fcaabc7d3",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 10,
+      "url": "https://24.domclick.ru/samara?page=10",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "324",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "5a051320-7be1-4301-aaf2-4c1d60a165ed",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "fd0c22cb-a6cf-4f62-a960-fd4fe5734065",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7fa0296d-82ec-49dd-9d97-4b62ca0d6840",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "092e41d4-07c0-4723-9c09-eaf09a5ada82",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "68d29f68-4462-4252-bca4-2445b41273cd",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9d2bcc47-4001-450d-b848-38f923870a17",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "47a3192c-bf53-42fc-b284-b9ec26f736af",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b6f733cd-957d-464b-9644-43a8326e795a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4bfdad82-159c-406c-a51d-718234f33001",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "85355949-176f-41a6-9937-052d3bac32a0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "dc4328fa-9564-41ad-834a-fd2952f9844f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ea45cf8b-30f6-4dba-95a7-007de146d25d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "74572993-c110-48e3-8549-eed7300dfebf",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9ff0232d-aa96-46df-95ee-6205097f8319",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "bf36406b-7484-4c5c-b28b-866e52a60768",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8419aee6-7335-41cf-b50f-126cbdcce317",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "bc8bcf86-f028-4c7e-ac74-64cb4a8089a0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "16422fe1-dce4-4959-9aa8-73cfaa2eb0c9",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3bae4f25-61f2-48a1-956f-56f6e2778518",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9179b4b9-3c1e-415a-be00-16da5d724e03",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2cce5a11-e77f-4994-bb16-81620925f653",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7eec377b-de85-478e-9f24-3ce9fa1eb99a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "42ffd391-a288-412c-b175-cca06e339749",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a20bd4f1-2c48-49c6-8c17-78c736ce02a5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9aad8704-b9f1-477a-89cd-bed44f5338db",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9f4c3940-8a8b-4ab1-b732-4acf3aa5073b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b2b1251c-5bab-4f44-ac27-b6fcb3ae6ef3",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f759dc7a-42b4-491f-933b-dbb34742f310",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ee649739-8f89-48f9-b273-6f4e9a17bf6d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3ccb6e25-02f4-4b89-8df6-257802583256",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "434dd506-2168-40dd-b2eb-ffbe5f368855",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "42416b7b-9e56-4132-839e-f41258d95cf4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "aff3760e-6951-4b10-8e50-a10b65edea00",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "e63f8bfd-07e0-4f7a-8d7a-e98426df2856",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d58d80ea-3424-4ab1-bb8d-e1b30fc5e529",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7f3d5916-32ab-406f-8947-89bf7765affd",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 11,
+      "url": "https://24.domclick.ru/samara?page=11",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "360",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "8c19d24f-3648-4fb9-8b66-cdfe7a63335f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "82bd22aa-ba1e-4d6b-919f-11d32745b746",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "48d263b6-e58c-410e-94eb-90fbd4582ff1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "67fdb6e6-1ddf-4325-8238-27b8977a6d16",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "57607d32-20f5-4057-a521-8fe6e752475e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "89e95aa1-cf23-4c0b-aff7-c0310e532596",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "074ad98e-47dd-4d98-be57-eebf97cbbcb2",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "973eae22-b93e-4ca6-9464-aeff9ed5f08f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9820ea50-91c3-488a-aa0d-067934650708",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7731e783-2c0b-48bf-b00a-d9f1739ef07c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "827a7840-b73c-444b-8c10-5f43e8ba7631",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "fd0245bf-5cd6-4d26-8137-eb0c5dafbc0a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5f2a50e5-4ced-4c3c-803b-dda5e87787b6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "82d9d871-22b7-4206-a8bc-4a3c89ed2632",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b769c19f-8811-4db4-bb06-e07b07dadf1f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "1ea52ec0-db53-4705-a24e-0ff9168934e1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9c51c45a-2edc-457d-a209-467e066aae67",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7ab9cece-e203-44b1-8bac-d6d279617157",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "24e1a566-c4e5-413d-a62a-7c5b46cd11a6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "770e7069-a324-4f78-b813-83afc5bcb74b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "69f61693-553b-4a23-94c3-86e6a96f1f81",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "30ff24a6-56ba-4f23-beaa-80617d42a832",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "82c735f4-07ea-4c51-861b-e3f55840c888",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d474d599-b20c-4b2b-ba69-b92c67b518d0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5352e989-a7c4-4994-a285-16b848884610",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "68e162ac-cf78-452f-ab44-e2258b4d821e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "158f5fef-a71b-4d3e-8aa9-a5c02f064847",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "93cf66f6-f12f-41ca-adc5-02aadce4c851",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "83807a8a-5abc-4566-aba3-fbb3f762cc4b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5abe73d9-fdfb-4cc7-91e7-186fcb447c44",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f3099e88-d6b5-46f4-aafa-a84d9372f24d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "067040cc-7187-4418-8abc-0e27046b3456",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d4e84c2d-f981-4281-9e1a-6c0641626336",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "8603a873-4427-4f9a-97ed-6fb967fe38a6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c7786326-7fb5-4431-a402-cf5b660cb558",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7104b039-abf7-4e0c-b168-92ff4a33f271",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 12,
+      "url": "https://24.domclick.ru/samara?page=12",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "396",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "dfb2f68f-e0e9-41a7-84b3-72722e9f7387",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2597bf58-dfb3-4faf-9dcb-cfccb6d186b3",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5ba77013-8a3e-4364-98fe-a455901cc9ac",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4ab96c08-d633-4048-8a7b-63388526ae82",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d7130b3b-ce49-46b8-b35d-196707ee9870",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ca8dd722-c36e-49eb-843c-b9dd8ec46b5e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6f4991db-a4c6-490b-8d72-082370f255a1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a66e9cfa-1f8b-4fc3-93b0-e371a98d4071",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6ad35545-d914-4421-ac92-10f39faf7b1e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c7d5cbcd-0a8f-4c57-b2c2-43fb704ea0e5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "56af3fa5-3673-4201-9e4c-8172504ea109",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "00b98c99-f537-47b9-b48e-2bde98ffb0dc",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "055dcac9-10d7-4209-b6c9-3b44104fd77d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3fc42a1c-3087-48e9-9d5a-6d09fa34725d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "20e3b4ec-7e54-45e3-babf-0120971705ba",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "21fdacfe-5330-46ad-8555-dcdd76127f11",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "843fe9f9-affe-40a3-beed-677363b917aa",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "dd42ae5a-a5c2-498d-a252-bc4f6a2ee426",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "eb3311f5-4a68-4dcb-9515-88f5804736e7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "782503ba-a5a1-4166-8a6d-7f67cc1b5163",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d412fe48-324f-4340-8886-32798f3eea41",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f750ff4d-2fa4-4534-966f-576e95fd924d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a3d47058-d3b7-4618-954f-0ed564ba8be7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2c4d0925-6598-41d5-bb8e-f3ca16f6532c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "cd778da8-ff55-4bf8-9642-9e0a05c07cbf",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "fb420dd0-04b8-4be1-9bba-d67521f23611",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "01d458c4-a3ad-4f9c-9340-4587023dcec5",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ac077f98-f62b-4941-95b4-7b91bb610ad0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d5b2874f-dafa-424a-b8ca-4fe08670ed41",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2e35971c-eb09-46bc-b723-1c07fd0ce98d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "669940e6-0895-4a2c-a8e4-1a9e1bb9dd8a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "2d783631-0806-4ee0-adc7-5ac572e624d7",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c9900f06-48f3-4253-bc20-376f9292a7e4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d75d633e-5629-4818-9f9e-27a8718cca40",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6b9526f7-ad04-41f3-b138-542becbab70b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "929e8c67-22e7-409a-851a-28a4fbaecb26",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 13,
+      "url": "https://24.domclick.ru/samara?page=13",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "432",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 36,
+      "categories": {
+        "flat": 36
+      },
+      "items": [
+        {
+          "id": "666a6dbd-a807-4cdf-945f-f8f8e4308c62",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f26528d6-8839-487e-badd-f7a32db414db",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "fc875cd3-cf6b-4888-bed1-e3bfe40c42e0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "452699e7-1f37-488d-9525-7315e11dd427",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "28897d53-149a-4e66-a00c-05e10930ca6e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4320a5ea-e191-4db8-a476-657b71d78fff",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "17bed987-87cb-460c-9063-b14adc2bc900",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "05888784-75a2-4434-b6f2-4f24a3787f67",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6109939b-d922-4539-a18c-b02ca4c206e9",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "1f41f23c-e4d4-4c35-9afd-76be92eb978f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6277836a-98ff-421c-9a89-a2b87ac83fa9",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3b34211f-406b-4a18-bfed-ce8db06b151b",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b967d291-55a3-42b9-a4e9-bacc3fa96b8e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "cd066bd3-bc40-4215-b355-239805f3df8c",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "0b8ebcfc-6c1b-4973-a28a-33c09b834025",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "6485ec62-4822-4c0c-9f63-ef22ad80d221",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f9130410-f443-4567-9d2d-b83b6202c279",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ab40295e-fb18-401b-9b41-3a71d6ff757d",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "47c7eb6c-347f-4f8f-949c-e5f1ba173794",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "b52b0bcb-83e0-4203-907d-f5c32e03dbaf",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "4f31933c-c7de-4b7a-bffe-036198c1c679",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "ed56de5c-0f5e-4b16-b840-d674541a5957",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "3352ad10-abd5-4a79-ba70-48a06d54026a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "adcaca43-5798-47ee-8656-871e87ce468f",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "688a007c-7a7e-485d-83bf-27d44089dbfe",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "770f2c40-5d61-4561-b597-2170ffface63",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "e1d061dd-4f45-456b-90fe-8c1ec28bd524",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "e7ff41b8-cd2e-4c00-9258-a7ab6f6fe449",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "07e3990c-b619-4945-a88a-d03a93477ba2",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "bdc0bb2f-8bc8-41bb-b6eb-01867a0d4da9",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "d8d17446-0dd3-4e9b-8188-229d6d2c6a79",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "631148eb-ef4f-424e-a66d-13553856e2e4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "eaf1c306-2025-48cb-87f7-81ff2feb24a0",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c4e6287e-0abc-4345-b53b-22fc0ef9531a",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "a231eb14-55b5-4b7c-9873-766c9314aba6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "7fbed3a6-60f4-4b2a-9561-05f5d24bbd54",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    },
+    {
+      "page": 14,
+      "url": "https://24.domclick.ru/samara?page=14",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "468",
+        "cleanUrlType": "LOCALITY"
+      },
+      "total": 476,
+      "count": 8,
+      "categories": {
+        "flat": 8
+      },
+      "items": [
+        {
+          "id": "08c45dad-1aa6-4186-b575-3f197ec814d1",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "13a23be5-784e-4a14-a95a-bc6e333d7af4",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "465fd860-920f-431c-ab0b-34440f2a6138",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "f9c35ea0-f6e6-4eea-a224-97e72cb805e6",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "28711db4-0fc5-4bc5-8a72-482b5f948e3e",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "9ac0fdce-6b8c-4320-bb5a-19976b6d5f08",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "c9a59d76-340f-4360-b310-d68acdb83cf9",
+          "category": "flat",
+          "source": "CAS"
+        },
+        {
+          "id": "5feee2f0-35e3-4e88-a56c-1ef1ba5b04b5",
+          "category": "flat",
+          "source": "CAS"
+        }
+      ]
+    }
+  ],
+  "observedItems": 476,
+  "uniqueIds": 476,
+  "categories": {
+    "flat": 476
+  }
+}

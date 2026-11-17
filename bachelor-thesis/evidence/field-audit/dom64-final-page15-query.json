@@ -1,0 +1,85 @@
+{
+  "url": "https://24.domclick.ru/samara?page=14",
+  "requests": [
+    {
+      "path": "/api/offers/ad/v1",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "504",
+        "cleanUrlType": "LOCALITY"
+      }
+    },
+    {
+      "path": "/api/offers/ad/v1",
+      "query": {
+        "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+        "adults": "1",
+        "limit": "36",
+        "offset": "468",
+        "cleanUrlType": "LOCALITY"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "status": 200,
+      "keys": [
+        "offers",
+        "total",
+        "minPrice",
+        "maxPrice",
+        "metro"
+      ],
+      "scalars": {
+        "total": 476,
+        "minPrice": 1725,
+        "maxPrice": 57500,
+        "metro": true
+      },
+      "arrays": {
+        "offers": 0
+      }
+    },
+    {
+      "status": 200,
+      "keys": [
+        "offers",
+        "total",
+        "minPrice",
+        "maxPrice",
+        "metro"
+      ],
+      "scalars": {
+        "total": 476,
+        "minPrice": 1725,
+        "maxPrice": 57500,
+        "metro": true
+      },
+      "arrays": {
+        "offers": 8
+      }
+    }
+  ],
+  "cardCount": 16,
+  "head": "Сдать жильё\nБонусы\nФильтры\nНайти\nКраткосрочная аренда\nПосуточная аренда жилья в Самаре\nСнять жилье посуточно в Самаре\nПо умолчанию\nНа карте\nПартнёр:\nЗа северным сиянием — в Мурманскую область\nЕсли сияние нельзя будет наблюдать ни в одну ночь поездки — вернём стоимость жилья бонусами Спасибо\nСмотреть жильё в Мурманске\nКак работает гарантия\n1 из 25\nКвартира в центе города Самары.\nКвартира   1 комната   43 м²\nРоссия, Самара, Самарская улица, 263\nАлабинская\n  ~15 мин.\nКомфортная, тёплая, уютная квартира находится в центре города в новом доме ЖК «5 Звезд», рядом с набережной реки Волги. Удобная локация дома, рядом находятся: Набережная Волги с гор",
+  "nav": [
+    {
+      "text": "16",
+      "href": "https://24.domclick.ru/samara?page=16"
+    },
+    {
+      "text": "17",
+      "href": "https://24.domclick.ru/samara?page=17"
+    },
+    {
+      "text": "24",
+      "href": "https://24.domclick.ru/samara?page=24"
+    },
+    {
+      "text": "",
+      "href": "https://24.domclick.ru/samara?page=15"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+[
+  {
+    "source": "avito",
+    "status": "browser_tool_policy_block",
+    "note": "Independent HTTP request had already been dispatched before browser policy rejection. Do not use its content or replay it as a workaround. Technical availability is not verified."
+  },
+  {
+    "source": "cian",
+    "requested_url": "https://samara.cian.ru/kupit-kvartiru/",
+    "checked_at": "2026-11-16T10:38:56.830863+04:00",
+    "auth": "none",
+    "method": "single urllib GET, default Python user-agent",
+    "status": 200,
+    "final_url": "https://samara.cian.ru/kupit-kvartiru/",
+    "content_type": "text/html; charset=utf-8",
+    "bytes": 2402864,
+    "sha256": "9e03c271787b88ea3dad5c82b0842a522c2c31647d36fa418c6b2f2f0cb049a7",
+    "title": "Купить квартиру в Самаре от 2,7 млн руб., продажа квартир во вторичке и первичке на Циан. Для Вас нашли 8 420 объявлений с описанием и фото.",
+    "links_count": 538,
+    "images_count": 195,
+    "sample_links": [
+      "#",
+      "//samara.cian.ru",
+      "//samara.cian.ru/compare/",
+      "//samara.cian.ru/dialogs/",
+      "https://samara.cian.ru/rent/flat/favorites/",
+      "https://samara.cian.ru/razmestit-obyavlenie/",
+      "/authenticate/",
+      "https://samara.cian.ru/snyat/",
+      "https://samara.cian.ru/kupit/",
+      "https://samara.cian.ru/novostrojki/",
+      "/zagorod",
+      "https://samara.cian.ru/commercial/"
+    ],
+    "sample_images": [
+      "//static.cdn-cian.ru/frontend/header-frontend/icon.e047a5eddd37a636.png",
+      "https://images.cdn-cian.ru/images/2981595376-4.jpg",
+      "https://images.cdn-cian.ru/images/2895448231-4.jpg"
+    ],
+    "challenge_markers": [
+      "captcha"
+    ],
+    "elapsed_seconds": 2.12
+  },
+  {
+    "source": "domclick",
+    "requested_url": "https://domclick.ru/",
+    "checked_at": "2026-11-16T10:38:56.830461+04:00",
+    "auth": "none",
+    "method": "single urllib GET, default Python user-agent",
+    "status": 401,
+    "final_url": "https://domclick.ru/",
+    "content_type": "text/html",
+    "bytes": 279,
+    "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5",
+    "title": "",
+    "links_count": 0,
+    "images_count": 0,
+    "sample_links": [],
+    "sample_images": [],
+    "challenge_markers": [],
+    "elapsed_seconds": 0.18
+  }
+]

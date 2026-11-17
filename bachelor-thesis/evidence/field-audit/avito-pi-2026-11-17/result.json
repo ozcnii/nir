@@ -1,0 +1,71 @@
+{
+  "task": "Read-only verification of Avito through Pi + Playwright MCP",
+  "tool": {
+    "identity": "Pi Playwright MCP",
+    "operation": "browser_tabs(new) followed by browser_snapshot, browser_take_screenshot, and read-only browser_evaluate",
+    "isolated_context": "avito-thesis-audit"
+  },
+  "observation": {
+    "observed_at_utc": "2026-11-17T00:44:45.616Z",
+    "requested_url": "https://www.avito.ru/samara/kvartiry/prodam",
+    "actual_url": "https://www.avito.ru/samara/kvartiry/prodam",
+    "page_title": "Доступ ограничен: проблема с IP",
+    "http_status": 429,
+    "access_result": "Access restricted: Avito returned an IP-related interstitial; no listing page was available.",
+    "visible_text": "Страница не загрузилась из-за проблем с IP. IP — это адрес вашего устройства в интернете. Иногда IP выглядит необычно, поэтому нужно пройти простую проверку. Пройти проверку. Что делать, если проблема повторяется: отключить VPN; отключить AdBlock или другие блокировщики рекламы; перезагрузить роутер. Если это не сработает, обратиться в поддержку. Что не так с IP-адресом: с него идёт очень много запросов; обычно такое бывает, когда одним IP пользуется робот или сразу несколько человек.",
+    "observed_page_fields_and_sources": [
+      {
+        "field": "page_title",
+        "value": "Доступ ограничен: проблема с IP",
+        "source": "document.title / Playwright navigation metadata"
+      },
+      {
+        "field": "interstitial_heading",
+        "value": "Страница не загрузилась из-за проблем с IP",
+        "source": "rendered accessibility snapshot, heading ref e19"
+      },
+      {
+        "field": "interstitial_text",
+        "value": "IP-related access restriction, including the page's explanation of unusually high request volume",
+        "source": "rendered document.body.innerText / accessibility snapshot refs e22, e25-e35"
+      },
+      {
+        "field": "verification_button",
+        "value": "Пройти проверку",
+        "source": "rendered accessibility snapshot, button ref e24; not clicked"
+      },
+      {
+        "field": "http_status",
+        "value": 429,
+        "source": "Playwright MCP browser_tabs navigation result"
+      }
+    ],
+    "evidence_references": {
+      "screenshot": "avito-blocked.png (Playwright MCP screenshot output)",
+      "snapshot": "browser-output/page-2026-11-17T00-44-36-846Z.yml (snapshot output referenced by initial navigation result)"
+    }
+  },
+  "listing_verification": {
+    "listing_or_card_observed": false,
+    "individual_offer_opened": false,
+    "reason": "The initial requested page returned HTTP 429 and an IP restriction interstitial. Per instructions, verification stopped without interacting with the challenge or retrying.",
+    "fields": [
+      {"field": "stable_external_offer_id", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no listing/card rendered"},
+      {"field": "individual_offer_url", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no listing/card rendered; the observed URL is only the search/listing landing URL"},
+      {"field": "deal_type_and_price_period", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no listing/card rendered"},
+      {"field": "price_amount_currency_and_listed_or_from_qualification", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no listing/card rendered"},
+      {"field": "property_kind_and_market_segment", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no listing/card rendered"},
+      {"field": "region_and_address_components", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no property card/details rendered"},
+      {"field": "coordinates", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no property data rendered"},
+      {"field": "offered_property_area_and_area_unit", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no property card/details rendered"},
+      {"field": "rooms_offered_vs_whole_flat_rooms", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no property card/details rendered"},
+      {"field": "floor_and_building_floors", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no property card/details rendered"},
+      {"field": "house_land_area_and_unit", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no house listing rendered"},
+      {"field": "seller_description_length", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no individual listing rendered"},
+      {"field": "photo_urls_and_count", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no listing/card rendered"},
+      {"field": "explicit_published_or_removed_marker", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no individual listing rendered"},
+      {"field": "monthly_daily_room_house_examples_and_next_page_navigation", "status": "unverified_due_to_access_restriction", "source_path": "Unavailable: no genuine listing page/card navigation was available"},
+      {"field": "published_inline_data_jsonld_or_initial_state", "status": "unverified_due_to_access_restriction", "source_path": "Not inspected: restricted interstitial only; no listing page data available"}
+    ]
+  }
+}

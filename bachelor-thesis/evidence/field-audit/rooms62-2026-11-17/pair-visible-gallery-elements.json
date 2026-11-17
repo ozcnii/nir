@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n[{\"url\":\"https://samara.domclick.ru/card/sale__room__2071752356\",\"images\":[{\"src\":\"https://img.dmclk.ru/s1200x800q80/vitrina/bc/39/bc39046c4ee4bf1965ff0bac75ed3bf726e3ac3a.webp\",\"alt\":\"\",\"width\":315,\"height\":420,\"naturalWidth\":600},{\"src\":\"https://img.dmclk.ru/s1200x800q80/vitrina/a8/ef/a8ef53c45422a15ddb45f7caa05de199d43b4a73.webp\",\"alt\":\"\",\"width\":315,\"height\":420,\"naturalWidth\":600},{\"src\":\"https://img.dmclk.ru/s1200x800q80/vitrina/79/3e/793ebf1e62f0d17c75ec5d76abbd299d9f589585.webp\",\"alt\":\"\",\"width\":368.046875,\"height\":420,\"naturalWidth\":588}]},{\"url\":\"https://samara.cian.ru/sale/flat/319653899/\",\"images\":[{\"src\":\"https://images.cdn-cian.ru/images/2829868368-1.jpg\",\"alt\":\"\",\"width\":674,\"height\":446,\"naturalWidth\":720},{\"src\":\"https://images.cdn-cian.ru/images/2829868375-1.jpg\",\"alt\":\"\",\"width\":674,\"height\":446,\"naturalWidth\":588},{\"src\":\"https://images.cdn-cian.ru/images/2829868385-1.jpg\",\"alt\":\"\",\"width\":674,\"height\":446,\"naturalWidth\":720}]}]"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 12
+}

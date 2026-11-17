@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\n  \"priceAndDateLabels\": [\n    \"ГлавнаяНедвижимостьКвартирыСнятьПосуточно1-комнатные\",\n    \"Залог: 5000 ₽\",\n    \"Заезд: с 15:00\",\n    \"Выезд: до 12:00\",\n    \"📍 Заселение с 15:00–16:00, выезд до 12:00 (время можно согласовать).\",\n    \"❗️ Бронь невозвратная, но даты можно перенести по согласованию.\",\n    \"📩 Напишите — пришлю фото и уточню наличие на нужные даты.\",\n    \"4 980 ₽\",\n    \"за сутки\",\n    \"4.9 км до центра\",\n    \"Заезд и выезд\",\n    \"Выбрать даты\",\n    \"Чтобы уточнить цену\"\n  ],\n  \"uiInputs\": [\n    \"4.9 км до центра\",\n    \"Выбрать даты\\nЧтобы уточнить цену\"\n  ]\n}\n### Page\n- Page URL: https://www.avito.ru/samara/kvartiry/1-k._kvartira_42_m_2_krovati_4595685717?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiIxTGx2VmpoZUcwbTVweDFIIjt9J4VEUz8AAAA&guestsDetailed=%7B%22version%22%3A1%2C%22totalCount%22%3A2%2C%22adultsCount%22%3A2%2C%22children%22%3A%5B%5D%7D\n- Page Title: 1-к. квартира, 42 м², 2 кровати в аренду Самаре | Снять квартиру | Авито (4595685717)\n- Console: 33 errors, 1 warnings\n### Events\n- New console entries: browser-output/console-2026-11-17T08-23-22-094Z.log#L31-L36"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 19
+}

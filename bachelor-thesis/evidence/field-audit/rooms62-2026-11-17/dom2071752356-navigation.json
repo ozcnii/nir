@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://samara.domclick.ru/card/sale__room__2071752356\n- HTTP status: 401 Unauthorized\n- Console: 1 errors, 0 warnings\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T11-27-34-755Z.yml)\n### Events\n- New console entries: browser-output/console-2026-11-17T11-27-33-583Z.log#L1-L7"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 2
+}

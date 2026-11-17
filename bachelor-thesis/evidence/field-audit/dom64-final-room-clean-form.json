@@ -1,0 +1,16 @@
+{
+  "url": "https://24.domclick.ru/samara?categories=room",
+  "query": {
+    "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+    "adults": "1",
+    "limit": "36",
+    "offset": "0",
+    "categories": "room",
+    "cleanUrlType": "LOCALITY"
+  },
+  "response": {
+    "total": 0,
+    "count": 0
+  },
+  "method": "Чистая загрузка общего списка, checkbox room и штатная форма; даты не выбирались"
+}

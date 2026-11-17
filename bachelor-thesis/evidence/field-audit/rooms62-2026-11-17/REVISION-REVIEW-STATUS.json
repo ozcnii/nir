@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-17",
+  "status": "owner_accepted_strict_S_point62_closed_design_only",
+  "critic": "blank_rooms62_revision_critic",
+  "critic_context": "fork_turns=none; no previous reviews/scores read; primary evidence only",
+  "scores": {
+    "conservative_S": 9.0,
+    "heuristic_H": 9.0
+  },
+  "score_scope": "Readiness of concrete proposals for owner choice, not accuracy/recall/implementation readiness",
+  "conservative_S": {
+    "same_room_control_pair": "Not merged; internally contradictory new snapshot proposedrejected",
+    "main_limit": "Requires published full room address; real successful positive case not obtained; lower recall"
+  },
+  "heuristic_H": {
+    "same_room_control_pair": "Predicted attach when new normalization independently chooses explicit room-description area9.20, both area_m2 agree, one positive candidate",
+    "normalization_change": "Explicit room-text area priority over contradictory structured area; only proposed",
+    "residual_risks": [
+      "Copied full detailed description including article can falsely merge distinct identical rooms",
+      "Wrong explicit text area can become chosen area; article is not a unique physical-room identifier"
+    ],
+    "implementation_test_performed": false
+  },
+  "common_changes_proposed": [
+    "Explicit single/share/bundle/unknown boundaries",
+    "Finite field list and unique fully positive candidate, not unique preliminary candidate",
+    "Preserve scoped room/apartment identifiers in address",
+    "Check explicit unit changes before updating repeated source/key",
+    "No new database fields, image hashes, image processing, manual correction or split/rebind"
+  ],
+  "owner_acceptance": "StrictSaccepted; associated room-only4.2/P4clarifications accepted, schema unchanged; implementation not started",
+  "proposal": "../../../ROOM-MATCHING-6.2-REVISION.md",
+  "review": "../../../reviews/ROOMS62-REVISION-FRESH-REVIEW.md",
+  "owner_choice": {
+    "variant": "S",
+    "residual_limits_accepted": [
+      "missed_duplicates",
+      "possible_errors_in_published_room_addresses"
+    ],
+    "H_selected": false,
+    "date": "2026-11-17"
+  }
+}

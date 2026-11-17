@@ -1,0 +1,12 @@
+{
+  "observed_at": "2026-11-17T05:02:39.294182+04:00",
+  "method": "read-only ps; task-owned Playwright MCP arguments",
+  "processes": [
+    {
+      "pid": 61227,
+      "ppid": 61218,
+      "command": "npm exec @playwright/mcp@0.0.85 --isolated --headless --codegen none --proxy-server socks5://127.0.0.1:10808 --timeout-navigation 30000 --output-dir /Users/qq/Documents/ssau/bachelor-thesis/evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output             "
+    }
+  ],
+  "note": "Confirms proxy configuration, not changed egress IP or absence of IP restrictions."
+}

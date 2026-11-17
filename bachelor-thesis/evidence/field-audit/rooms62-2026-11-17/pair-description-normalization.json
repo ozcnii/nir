@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\"domLength\":1243,\"cianLength\":1243,\"rawEqual\":false,\"whitespaceEqual\":false,\"basicNormalizationEqual\":true,\"firstRawDifferences\":[{\"index\":911,\"domCode\":171,\"cianCode\":34},{\"index\":924,\"domCode\":187,\"cianCode\":34}],\"domWhitespaceLength\":1237,\"cianWhitespaceLength\":1237}"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 11
+}

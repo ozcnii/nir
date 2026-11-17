@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-17",
+  "method": "Five real detail pages read in IAB. Seller strings compared inside browser tools, not application matching. No image processing or code files.",
+  "positive_pair": {
+    "urls": [
+      "https://samara.cian.ru/sale/flat/333842107/",
+      "https://samara.domclick.ru/card/sale__flat__2080269220"
+    ],
+    "address": "Самарская область,Самара,Буянова120",
+    "area_m2": "110",
+    "rooms": 3,
+    "floor": 12,
+    "floors_total": 20,
+    "unit_number_published": false,
+    "raw_cian_chars": 2270,
+    "raw_domclick_chars": 2279,
+    "normalized_chars_each": 2225,
+    "normalized_full_seller_text_equal": true,
+    "normalization": "Case/ё, quotes, decorative emoji and whitespace. Words, digits and decimal punctuation retained. Only seller body, not site UI.",
+    "layout_measurements": {
+      "kitchen_living": "28",
+      "bedroom_1": "24",
+      "bedroom_2": "23",
+      "hall": "19.1",
+      "bathroom": "8.3"
+    },
+    "expected": "Proposed B passes observed conditions if unique candidate. Not application result or cadastral proof."
+  },
+  "negative_pair": {
+    "urls": [
+      "https://samara.domclick.ru/card/sale__new_flat__2072470551?to_flats=true",
+      "https://samara.domclick.ru/card/sale__new_flat__2072470531?to_flats=true"
+    ],
+    "house": "Самара,Гвардейскийпер7а",
+    "area_m2": "54.3",
+    "rooms": 2,
+    "floor": 2,
+    "unit_numbers": [
+      "121",
+      "1"
+    ],
+    "entrances": [
+      "2",
+      "1"
+    ],
+    "text_scope": "Matching project text is under Подробнее о ЖК, not individual seller description.",
+    "expected": "different; no merge."
+  },
+  "insufficient_card": {
+    "url": "https://samara.cian.ru/sale/flat/330631159/",
+    "address": "Самарская область,Самара,районСоветский",
+    "area_m2": "47.21",
+    "rooms": 1,
+    "floor": 2,
+    "house_unknown": true,
+    "expected": "Not enough established address data for A/B; not proof no real duplicate exists."
+  },
+  "counterfactual_checks": [
+    {
+      "case": "Hide rooms on one side of positive pair",
+      "kind": "hypothetical data ablation, not actual site state",
+      "expected": "B remains possible because area/floor known."
+    },
+    {
+      "case": "Hide negative pair apartment numbers",
+      "kind": "hypothetical data ablation",
+      "expected": "Common ЖК section does not qualify for B."
+    },
+    {
+      "case": "Remove seller descriptions from positive pair",
+      "kind": "hypothetical data ablation",
+      "expected": "Same house/area/floor insufficient."
+    }
+  ],
+  "limits": "Small selected set; no measured precision/recall. Full identical seller description is a heuristic; text can be copied.",
+  "description_extraction_reproduction": {
+    "cian_body": "[data-name=Description], seller body only; omit trailing site CTA",
+    "domclick_body": "Smallest visible body containing seller opening and final invitation, under Описание от продавца; omit collapse UI",
+    "boundaries": "Квартира, из которой… through Приглашаем на просмотр!",
+    "comparison": "Full strings after presentation normalization; instrument output normalizedExactEqual=true, both 2225chars",
+    "scope": "A comparison of page text, not execution of an application matching algorithm."
+  },
+  "post_review_hypothetical_check": {
+    "kind": "logical invented scenario, not site observation",
+    "steps": [
+      "Existing address has no unit",
+      "Qualifying incoming publication gives unit121",
+      "Compatible address patch retains121",
+      "Next incoming unit1 contradicts accumulated121"
+    ],
+    "expected": "No second attach; no new DB fields"
+  }
+}

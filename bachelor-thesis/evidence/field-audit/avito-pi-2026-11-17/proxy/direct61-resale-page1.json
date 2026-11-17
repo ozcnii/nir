@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\n  \"url\": \"https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1\",\n  \"title\": \"Купить квартиру во вторичке в Самаре 🏢 | Цены на вторичное жилье в Самаре | Авито\",\n  \"ids\": [\n    \"8199518030\",\n    \"8557769206\",\n    \"8320925003\",\n    \"8071430491\",\n    \"8430899293\",\n    \"8300557674\",\n    \"8503411964\",\n    \"8423141641\",\n    \"7825018510\",\n    \"8457983380\"\n  ],\n  \"pagination\": [\n    {\n      \"text\": \"2\",\n      \"label\": \"Страница 2\",\n      \"url\": \"https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1&context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkhZZTV1aW1IMkhzelNvVFgiO32IyrAHJgAAAA&p=2\"\n    },\n    {\n      \"text\": \"\",\n      \"label\": \"Следующая страница\",\n      \"url\": \"https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1&context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkhZZTV1aW1IMkhzelNvVFgiO32IyrAHJgAAAA&p=2\"\n    }\n  ]\n}\n### Page\n- Page URL: https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1\n- Page Title: Купить квартиру во вторичке в Самаре 🏢 | Цены на вторичное жилье в Самаре | Авито\n- Console: 34 errors, 1 warnings\n### Events\n- New console entries: browser-output/console-2026-11-17T08-19-39-726Z.log#L32-L48"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 9
+}

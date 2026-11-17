@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.avito.ru/samara/kvartiry/1-k._kvartira_57_m_1718_et._8199518030?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJIWWU1dWltSDJIc3pTb1RYIjt9IJbhOD8AAAA\n- Page Title: 1-к. квартира, 57 м², 17/18 эт. на продажу в Самаре | Купить квартиру | Авито (8199518030)\n- Console: 12 errors, 0 warnings\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T08-22-12-613Z.yml)\n### Events\n- New console entries: browser-output/console-2026-11-17T08-22-06-718Z.log#L1-L14"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 12
+}

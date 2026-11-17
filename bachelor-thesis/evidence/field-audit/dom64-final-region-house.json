@@ -1,0 +1,30 @@
+{
+  "url": "https://24.domclick.ru/search?location_id=321b0daa-da95-4ce5-81b3-a7ab62d89d19&adt=1&categories=house",
+  "query": {
+    "locationGuid": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
+    "adults": "1",
+    "limit": "36",
+    "offset": "0",
+    "categories": "house"
+  },
+  "response": {
+    "total": 0,
+    "count": 0,
+    "examples": []
+  },
+  "inputs": [
+    {
+      "placeholder": "Город или населённый пункт",
+      "value": "Самарская область"
+    },
+    {
+      "placeholder": "Заезд – Выезд",
+      "value": ""
+    },
+    {
+      "placeholder": "Гости",
+      "value": "1 гость"
+    }
+  ],
+  "actualLinks": []
+}

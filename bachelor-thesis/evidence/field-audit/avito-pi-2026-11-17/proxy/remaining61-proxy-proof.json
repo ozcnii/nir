@@ -1,0 +1,12 @@
+{
+  "observed_at": "2026-11-17T12:05:25.383429+04:00",
+  "socks5_handshake_hex": "0500",
+  "processes": [
+    {
+      "pid": 75810,
+      "ppid": 75801,
+      "command": "npm exec @playwright/mcp@0.0.85 --isolated --headless --codegen none --proxy-server socks5://127.0.0.1:10808 --timeout-navigation 30000 --output-dir /Users/qq/Documents/ssau/bachelor-thesis/evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output             "
+    }
+  ],
+  "scope": "Read-only local handshake + task MCP command args. Egress IP not measured."
+}

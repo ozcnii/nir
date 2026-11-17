@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\"url\":\"https://www.avito.ru/moskva/kvartiry/kvartira-studiya_265_m_1214_et._8426673033\",\"title\":\"Доступ ограничен: проблема с IP\",\"heading\":\"Страница не загрузилась из-за проблем с IP\",\"statusText\":[],\"item\":null}\n### Page\n- Page URL: https://www.avito.ru/moskva/kvartiry/kvartira-studiya_265_m_1214_et._8426673033\n- Page Title: Доступ ограничен: проблема с IP\n- HTTP status: 429\n- Console: 1 errors, 0 warnings\n### Events\n- New console entries: browser-output/console-2026-11-17T08-41-40-455Z.log#L2-L3"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 20
+}

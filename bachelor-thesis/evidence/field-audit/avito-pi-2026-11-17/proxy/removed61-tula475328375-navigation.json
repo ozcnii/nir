@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.avito.ru/tula/kvartiry/2-k_kvartira_46_m_22_et._475328375\n- Page Title: Доступ ограничен: проверка безопасности\n- HTTP status: 439\n- Console: 1 errors, 0 warnings\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T08-33-58-812Z.yml)\n### Events\n- New console entries: browser-output/console-2026-11-17T08-33-58-535Z.log#L1"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 2
+}

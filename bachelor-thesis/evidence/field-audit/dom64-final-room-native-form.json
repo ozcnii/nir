@@ -1,0 +1,33 @@
+{
+  "method": "Checkbox room и requestSubmit существующей формы, даты не выбирались",
+  "url": "https://24.domclick.ru/samara?min_price=1725&max_price=57500&categories=room",
+  "query": {
+    "locationGuid": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+    "adults": "1",
+    "limit": "36",
+    "offset": "0",
+    "minPrice": "1725",
+    "maxPrice": "57500",
+    "categories": "room",
+    "cleanUrlType": "LOCALITY"
+  },
+  "response": {
+    "total": 0,
+    "count": 0
+  },
+  "inputs": [
+    {
+      "placeholder": "Город или населённый пункт",
+      "value": "Самара"
+    },
+    {
+      "placeholder": "Заезд – Выезд",
+      "value": ""
+    },
+    {
+      "placeholder": "Гости",
+      "value": "1 гость"
+    }
+  ],
+  "cards": 0
+}

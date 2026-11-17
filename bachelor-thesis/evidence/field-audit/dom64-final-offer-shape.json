@@ -1,0 +1,50 @@
+{
+  "url": "https://24.domclick.ru/samara?page=2",
+  "total": 476,
+  "offers": 36,
+  "shape": [
+    "id",
+    "title",
+    "fullPrice",
+    "pricePerNight",
+    "discountPercent",
+    "finalPrice",
+    "description",
+    "rooms",
+    "geoInfo",
+    "area",
+    "category",
+    "photos",
+    "subways",
+    "source",
+    "spasiboAmount",
+    "isFavorite",
+    "isPartialPayment"
+  ],
+  "sample": [
+    {
+      "id": "7fbe5a90-a318-43a4-bc92-12cc34531479",
+      "category": "flat",
+      "source": "CAS",
+      "title": "Квартира на Ташкентской улице 141"
+    },
+    {
+      "id": "16556055-edd1-427a-8410-43c4285914f7",
+      "category": "flat",
+      "source": "CAS",
+      "title": "Квартира на бульваре Ивана Финютина 61"
+    },
+    {
+      "id": "cb03dfbe-c5c2-445d-b3d6-bcc6faa36065",
+      "category": "flat",
+      "source": "CAS",
+      "title": "Квартира на бульваре Ивана Финютина 59"
+    },
+    {
+      "id": "3383ed54-d57d-4723-b216-65db11283fcc",
+      "category": "flat",
+      "source": "CAS",
+      "title": "2-х кoмнaтная квaртиpа"
+    }
+  ]
+}

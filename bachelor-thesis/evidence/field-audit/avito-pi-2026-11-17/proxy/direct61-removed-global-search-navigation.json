@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.bing.com/search?q=site%3Aavito.ru%20%22%D0%BA%D0%B2%D0%B0%D1%80%D1%82%D0%B8%D1%80%D0%B0%22%20%22%D0%9E%D0%B1%D1%8A%D1%8F%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%20%D1%81%D0%BD%D1%8F%D1%82%D0%BE%20%D1%81%20%D0%BF%D1%83%D0%B1%D0%BB%D0%B8%D0%BA%D0%B0%D1%86%D0%B8%D0%B8%22\n- Page Title: site:avito.ru \"квартира\" \"Объявление снято с публикации\" - Поиск\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T08-25-14-279Z.yml)"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 20
+}

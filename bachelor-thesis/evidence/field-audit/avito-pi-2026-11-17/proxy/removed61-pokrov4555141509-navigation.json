@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.avito.ru/pokrov/kvartiry?f=ASgCAgECAkWSAwoiTVRBMU9RPT0i5gcKIk5USTFOQT09Ig\n- Page Title: Квартиры в Покрове 🏢: продажа, покупка и аренда | Авито\n- Console: 7 errors, 3 warnings\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T08-34-52-416Z.yml)\n### Events\n- New console entries: browser-output/console-2026-11-17T08-34-46-793Z.log#L1-L22"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 4
+}

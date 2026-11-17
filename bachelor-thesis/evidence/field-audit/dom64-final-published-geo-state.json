@@ -1,0 +1,1412 @@
+{
+  "seoDataKeys": [
+    "title",
+    "description",
+    "ogImage",
+    "telegramImage",
+    "twitterImage",
+    "vkImage",
+    "route"
+  ],
+  "destination": {
+    "page": "search",
+    "pageParams": {
+      "locationId": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+      "cleanUrlType": "LOCALITY",
+      "categories": []
+    },
+    "seoParams": {
+      "title": "Снять жилье посуточно в Самаре - аренда недвижимости на сутки недорого: 476 объявлений размещения на короткий срок с фото и ценами на Домклик",
+      "description": "🏠 Аренда жилья посуточно в Самаре на Домклик - 476 объектов размещения от 1725 рублей. ⭐ Снять недвижимость на сутки по выгодной цене, с подробным описанием и фото от собственника."
+    },
+    "templateParams": {
+      "localityName": "Самара",
+      "localityNameLoc2": "Самаре",
+      "localityNameGent": "Самары",
+      "minPrice": 1725,
+      "maxPrice": 57500,
+      "minArea": 14,
+      "maxArea": 633,
+      "total": 476,
+      "ratingValue": 4.7,
+      "ratingCount": 340
+    },
+    "htmlH1": "Снять жилье посуточно в Самаре",
+    "breadcrumbs": [
+      {
+        "url": "/",
+        "text": "Краткосрочная аренда",
+        "snippetTitle": "🟢 КРАТКОСРОЧНАЯ АРЕНДА"
+      },
+      {
+        "url": "/samara",
+        "text": "Посуточная аренда жилья в Самаре",
+        "snippetTitle": "🟢 ПОСУТОЧНО"
+      }
+    ],
+    "relinks": [
+      {
+        "name": "Жилье-посуточно-в-Самаре",
+        "title": "Жилье посуточно в Самаре",
+        "links": [
+          {
+            "url": "/samara/studii",
+            "text": "Студии"
+          },
+          {
+            "url": "/samara/apartamenty",
+            "text": "Апартаменты"
+          },
+          {
+            "url": "/samara/kvartiry",
+            "text": "Квартиры"
+          }
+        ]
+      },
+      {
+        "name": "Посуточная-аренда-в-Самарской-области",
+        "title": "Посуточная аренда в Самарской области",
+        "links": [
+          {
+            "url": "/toljatti/kvartiry",
+            "text": "Тольятти"
+          },
+          {
+            "url": "/syzran/kvartiry",
+            "text": "Сызрань"
+          },
+          {
+            "url": "/pgt-strojkeramika/kvartiry",
+            "text": "Пгт Стройкерамика"
+          },
+          {
+            "url": "/poselok-mehzavod/kvartiry",
+            "text": "Посёлок Мехзавод"
+          },
+          {
+            "url": "/pos-pridorozhnyj/kvartiry",
+            "text": "Пос. Придорожный"
+          },
+          {
+            "url": "/otradnyj/kvartiry",
+            "text": "Отрадный"
+          }
+        ]
+      },
+      {
+        "name": "Снять-жилье-посуточно-в-других-регионах",
+        "title": "Снять жилье посуточно в других регионах",
+        "links": [
+          {
+            "url": "/moskva/kvartiry",
+            "text": "Москва"
+          },
+          {
+            "url": "/sankt-peterburg/kvartiry",
+            "text": "Санкт-Петербург"
+          },
+          {
+            "url": "/sochi/kvartiry",
+            "text": "Сочи"
+          },
+          {
+            "url": "/novosibirsk/kvartiry",
+            "text": "Новосибирск"
+          },
+          {
+            "url": "/krasnodar/kvartiry",
+            "text": "Краснодар"
+          },
+          {
+            "url": "/ekaterinburg/kvartiry",
+            "text": "Екатеринбург"
+          },
+          {
+            "url": "/kazan/kvartiry",
+            "text": "Казань"
+          },
+          {
+            "url": "/krasnojarsk/kvartiry",
+            "text": "Красноярск"
+          },
+          {
+            "url": "/tjumen/kvartiry",
+            "text": "Тюмень"
+          },
+          {
+            "url": "/nizhnij-novgorod/kvartiry",
+            "text": "Нижний Новгород"
+          },
+          {
+            "url": "/kaliningrad/kvartiry",
+            "text": "Калининград"
+          },
+          {
+            "url": "/rostov-na-donu/kvartiry",
+            "text": "Ростов-на-Дону"
+          },
+          {
+            "url": "/ufa/kvartiry",
+            "text": "Уфа"
+          },
+          {
+            "url": "/murmansk/kvartiry",
+            "text": "Мурманск"
+          },
+          {
+            "url": "/vladivostok/kvartiry",
+            "text": "Владивосток"
+          },
+          {
+            "url": "/irkutsk/kvartiry",
+            "text": "Иркутск"
+          },
+          {
+            "url": "/habarovsk/kvartiry",
+            "text": "Хабаровск"
+          },
+          {
+            "url": "/perm/kvartiry",
+            "text": "Пермь"
+          },
+          {
+            "url": "/cheljabinsk/kvartiry",
+            "text": "Челябинск"
+          },
+          {
+            "url": "/juzhno-sahalinsk/kvartiry",
+            "text": "Южно-Сахалинск"
+          },
+          {
+            "url": "/anapa/kvartiry",
+            "text": "Анапа"
+          },
+          {
+            "url": "/voronezh/kvartiry",
+            "text": "Воронеж"
+          },
+          {
+            "url": "/kislovodsk/kvartiry",
+            "text": "Кисловодск"
+          },
+          {
+            "url": "/kemerovo/kvartiry",
+            "text": "Кемерово"
+          },
+          {
+            "url": "/jaroslavl/kvartiry",
+            "text": "Ярославль"
+          },
+          {
+            "url": "/tomsk/kvartiry",
+            "text": "Томск"
+          },
+          {
+            "url": "/omsk/kvartiry",
+            "text": "Омск"
+          },
+          {
+            "url": "/pjatigorsk/kvartiry",
+            "text": "Пятигорск"
+          },
+          {
+            "url": "/volgograd/kvartiry",
+            "text": "Волгоград"
+          },
+          {
+            "url": "/tula/kvartiry",
+            "text": "Тула"
+          },
+          {
+            "url": "/cheboksary/kvartiry",
+            "text": "Чебоксары"
+          },
+          {
+            "url": "/kaluga/kvartiry",
+            "text": "Калуга"
+          },
+          {
+            "url": "/rjazan/kvartiry",
+            "text": "Рязань"
+          },
+          {
+            "url": "/gelendzhik/kvartiry",
+            "text": "Геленджик"
+          },
+          {
+            "url": "/izhevsk/kvartiry",
+            "text": "Ижевск"
+          },
+          {
+            "url": "/sevastopol/kvartiry",
+            "text": "Севастополь"
+          },
+          {
+            "url": "/novorossijsk/kvartiry",
+            "text": "Новороссийск"
+          },
+          {
+            "url": "/pgt-sirius/kvartiry",
+            "text": "Пгт Сириус"
+          },
+          {
+            "url": "/zelenogradsk/kvartiry",
+            "text": "Зеленоградск"
+          },
+          {
+            "url": "/stavropol/kvartiry",
+            "text": "Ставрополь"
+          },
+          {
+            "url": "/surgut/kvartiry",
+            "text": "Сургут"
+          },
+          {
+            "url": "/ulan-ude/kvartiry",
+            "text": "Улан-Удэ"
+          },
+          {
+            "url": "/smolensk/kvartiry",
+            "text": "Смоленск"
+          },
+          {
+            "url": "/blagoveschensk/kvartiry",
+            "text": "Благовещенск"
+          },
+          {
+            "url": "/blagoveschensk-amurskaja-oblast/kvartiry",
+            "text": "Благовещенск"
+          },
+          {
+            "url": "/ljubertsy/kvartiry",
+            "text": "Люберцы"
+          },
+          {
+            "url": "/barnaul/kvartiry",
+            "text": "Барнаул"
+          },
+          {
+            "url": "/saratov/kvartiry",
+            "text": "Саратов"
+          },
+          {
+            "url": "/orenburg/kvartiry",
+            "text": "Оренбург"
+          },
+          {
+            "url": "/essentuki/kvartiry",
+            "text": "Ессентуки"
+          },
+          {
+            "url": "/penza/kvartiry",
+            "text": "Пенза"
+          },
+          {
+            "url": "/astrahan/kvartiry",
+            "text": "Астрахань"
+          },
+          {
+            "url": "/nizhnevartovsk/kvartiry",
+            "text": "Нижневартовск"
+          },
+          {
+            "url": "/toljatti/kvartiry",
+            "text": "Тольятти"
+          },
+          {
+            "url": "/lipetsk/kvartiry",
+            "text": "Липецк"
+          },
+          {
+            "url": "/abakan/kvartiry",
+            "text": "Абакан"
+          },
+          {
+            "url": "/jalta/kvartiry",
+            "text": "Ялта"
+          },
+          {
+            "url": "/tver/kvartiry",
+            "text": "Тверь"
+          },
+          {
+            "url": "/uljanovsk/kvartiry",
+            "text": "Ульяновск"
+          },
+          {
+            "url": "/petropavlovsk-kamchatskij/kvartiry",
+            "text": "Петропавловск-Камчатский"
+          },
+          {
+            "url": "/simferopol/kvartiry",
+            "text": "Симферополь"
+          },
+          {
+            "url": "/vladikavkaz/kvartiry",
+            "text": "Владикавказ"
+          },
+          {
+            "url": "/novokuznetsk/kvartiry",
+            "text": "Новокузнецк"
+          },
+          {
+            "url": "/velikij-novgorod/kvartiry",
+            "text": "Великий Новгород"
+          },
+          {
+            "url": "/odintsovo/kvartiry",
+            "text": "Одинцово"
+          },
+          {
+            "url": "/ivanovo/kvartiry",
+            "text": "Иваново"
+          },
+          {
+            "url": "/svetlogorsk/kvartiry",
+            "text": "Светлогорск"
+          },
+          {
+            "url": "/neftejugansk/kvartiry",
+            "text": "Нефтеюганск"
+          },
+          {
+            "url": "/mineralnye-vody/kvartiry",
+            "text": "Минеральные Воды"
+          },
+          {
+            "url": "/petrozavodsk/kvartiry",
+            "text": "Петрозаводск"
+          },
+          {
+            "url": "/balashiha/kvartiry",
+            "text": "Балашиха"
+          },
+          {
+            "url": "/jakutsk/kvartiry",
+            "text": "Якутск"
+          },
+          {
+            "url": "/taganrog/kvartiry",
+            "text": "Таганрог"
+          },
+          {
+            "url": "/magnitogorsk/kvartiry",
+            "text": "Магнитогорск"
+          },
+          {
+            "url": "/kirov/kvartiry",
+            "text": "Киров"
+          },
+          {
+            "url": "/pgt-krasnaja-poljana/kvartiry",
+            "text": "Пгт Красная Поляна"
+          },
+          {
+            "url": "/brjansk/kvartiry",
+            "text": "Брянск"
+          },
+          {
+            "url": "/pos-kommunarka/kvartiry",
+            "text": "Пос. Коммунарка"
+          },
+          {
+            "url": "/nizhnij-tagil/kvartiry",
+            "text": "Нижний Тагил"
+          },
+          {
+            "url": "/derbent/kvartiry",
+            "text": "Дербент"
+          },
+          {
+            "url": "/chita/kvartiry",
+            "text": "Чита"
+          },
+          {
+            "url": "/kurgan/kvartiry",
+            "text": "Курган"
+          },
+          {
+            "url": "/naberezhnye-chelny/kvartiry",
+            "text": "Набережные Челны"
+          },
+          {
+            "url": "/vologda/kvartiry",
+            "text": "Вологда"
+          },
+          {
+            "url": "/podolsk/kvartiry",
+            "text": "Подольск"
+          },
+          {
+            "url": "/vorkuta/kvartiry",
+            "text": "Воркута"
+          },
+          {
+            "url": "/pionerskij/kvartiry",
+            "text": "Пионерский"
+          },
+          {
+            "url": "/belgorod/kvartiry",
+            "text": "Белгород"
+          },
+          {
+            "url": "/kirovsk/kvartiry",
+            "text": "Кировск"
+          },
+          {
+            "url": "/krasnogorsk/kvartiry",
+            "text": "Красногорск"
+          },
+          {
+            "url": "/kostroma/kvartiry",
+            "text": "Кострома"
+          },
+          {
+            "url": "/mahachkala/kvartiry",
+            "text": "Махачкала"
+          },
+          {
+            "url": "/murino/kvartiry",
+            "text": "Мурино"
+          },
+          {
+            "url": "/pskov/kvartiry",
+            "text": "Псков"
+          },
+          {
+            "url": "/cherepovets/kvartiry",
+            "text": "Череповец"
+          },
+          {
+            "url": "/evpatorija/kvartiry",
+            "text": "Евпатория"
+          },
+          {
+            "url": "/vladimir/kvartiry",
+            "text": "Владимир"
+          },
+          {
+            "url": "/kirovsk-murmanskaja-oblast/kvartiry",
+            "text": "Кировск"
+          },
+          {
+            "url": "/obninsk/kvartiry",
+            "text": "Обнинск"
+          },
+          {
+            "url": "/volzhskij/kvartiry",
+            "text": "Волжский"
+          },
+          {
+            "url": "/lazarevskoe/kvartiry",
+            "text": "Лазаревское"
+          },
+          {
+            "url": "/lugansk/kvartiry",
+            "text": "Луганск"
+          },
+          {
+            "url": "/vyborg/kvartiry",
+            "text": "Выборг"
+          },
+          {
+            "url": "/mytischi/kvartiry",
+            "text": "Мытищи"
+          },
+          {
+            "url": "/norilsk/kvartiry",
+            "text": "Норильск"
+          },
+          {
+            "url": "/himki/kvartiry",
+            "text": "Химки"
+          },
+          {
+            "url": "/arhangelsk/kvartiry",
+            "text": "Архангельск"
+          },
+          {
+            "url": "/sterlitamak/kvartiry",
+            "text": "Стерлитамак"
+          },
+          {
+            "url": "/pgt-sheregesh/kvartiry",
+            "text": "Пгт Шерегеш"
+          },
+          {
+            "url": "/majkop/kvartiry",
+            "text": "Майкоп"
+          },
+          {
+            "url": "/s-estosadok/kvartiry",
+            "text": "С. Эстосадок"
+          },
+          {
+            "url": "/staryj-oskol/kvartiry",
+            "text": "Старый Оскол"
+          },
+          {
+            "url": "/verhnjaja-pyshma/kvartiry",
+            "text": "Верхняя Пышма"
+          },
+          {
+            "url": "/novyj-urengoj/kvartiry",
+            "text": "Новый Уренгой"
+          },
+          {
+            "url": "/ejsk/kvartiry",
+            "text": "Ейск"
+          },
+          {
+            "url": "/zelenograd/kvartiry",
+            "text": "Зеленоград"
+          },
+          {
+            "url": "/kotelniki/kvartiry",
+            "text": "Котельники"
+          },
+          {
+            "url": "/kursk/kvartiry",
+            "text": "Курск"
+          },
+          {
+            "url": "/zheleznovodsk/kvartiry",
+            "text": "Железноводск"
+          },
+          {
+            "url": "/joshkar-ola/kvartiry",
+            "text": "Йошкар-Ола"
+          },
+          {
+            "url": "/korolev/kvartiry",
+            "text": "Королёв"
+          },
+          {
+            "url": "/tuapse/kvartiry",
+            "text": "Туапсе"
+          },
+          {
+            "url": "/miass/kvartiry",
+            "text": "Миасс"
+          },
+          {
+            "url": "/rybinsk/kvartiry",
+            "text": "Рыбинск"
+          },
+          {
+            "url": "/saransk/kvartiry",
+            "text": "Саранск"
+          },
+          {
+            "url": "/novocherkassk/kvartiry",
+            "text": "Новочеркасск"
+          },
+          {
+            "url": "/syktyvkar/kvartiry",
+            "text": "Сыктывкар"
+          },
+          {
+            "url": "/s-mirnoe/kvartiry",
+            "text": "С. Мирное"
+          },
+          {
+            "url": "/kaspijsk/kvartiry",
+            "text": "Каспийск"
+          },
+          {
+            "url": "/mirnyj-poselok-krasnodarskij-kraj/kvartiry",
+            "text": "Мирный посёлок"
+          },
+          {
+            "url": "/mirnyj-poselok/kvartiry",
+            "text": "Мирный посёлок"
+          },
+          {
+            "url": "/njagan/kvartiry",
+            "text": "Нягань"
+          },
+          {
+            "url": "/ussurijsk/kvartiry",
+            "text": "Уссурийск"
+          },
+          {
+            "url": "/berezniki/kvartiry",
+            "text": "Березники"
+          },
+          {
+            "url": "/nahodka/kvartiry",
+            "text": "Находка"
+          },
+          {
+            "url": "/nalchik/kvartiry",
+            "text": "Нальчик"
+          },
+          {
+            "url": "/zlatoust/kvartiry",
+            "text": "Златоуст"
+          },
+          {
+            "url": "/tobolsk/kvartiry",
+            "text": "Тобольск"
+          },
+          {
+            "url": "/feodosija/kvartiry",
+            "text": "Феодосия"
+          },
+          {
+            "url": "/elista/kvartiry",
+            "text": "Элиста"
+          },
+          {
+            "url": "/batajsk/kvartiry",
+            "text": "Батайск"
+          },
+          {
+            "url": "/kogalym/kvartiry",
+            "text": "Когалым"
+          },
+          {
+            "url": "/kolomna/kvartiry",
+            "text": "Коломна"
+          },
+          {
+            "url": "/apatity/kvartiry",
+            "text": "Апатиты"
+          },
+          {
+            "url": "/severodvinsk/kvartiry",
+            "text": "Северодвинск"
+          },
+          {
+            "url": "/pgt-novoivanovskoe/kvartiry",
+            "text": "Пгт Новоивановское"
+          },
+          {
+            "url": "/hanty-mansijsk/kvartiry",
+            "text": "Ханты-Мансийск"
+          },
+          {
+            "url": "/orel/kvartiry",
+            "text": "Орел"
+          },
+          {
+            "url": "/poselok-gorodskogo-tipa-dagomys/kvartiry",
+            "text": "Посёлок городского типа Дагомыс"
+          },
+          {
+            "url": "/achinsk/kvartiry",
+            "text": "Ачинск"
+          },
+          {
+            "url": "/tambov/kvartiry",
+            "text": "Тамбов"
+          },
+          {
+            "url": "/pushkino/kvartiry",
+            "text": "Пушкино"
+          },
+          {
+            "url": "/zvenigorod/kvartiry",
+            "text": "Звенигород"
+          },
+          {
+            "url": "/poselok-gorodskogo-tipa-sirius/kvartiry",
+            "text": "Посёлок городского типа Сириус"
+          },
+          {
+            "url": "/nojabrsk/kvartiry",
+            "text": "Ноябрьск"
+          },
+          {
+            "url": "/bor/kvartiry",
+            "text": "Бор"
+          },
+          {
+            "url": "/poselok-malinovka/kvartiry",
+            "text": "Посёлок Малиновка"
+          },
+          {
+            "url": "/sergiev-posad/kvartiry",
+            "text": "Сергиев Посад"
+          },
+          {
+            "url": "/mariupol/kvartiry",
+            "text": "Мариуполь"
+          },
+          {
+            "url": "/neftekamsk/kvartiry",
+            "text": "Нефтекамск"
+          },
+          {
+            "url": "/reutov/kvartiry",
+            "text": "Реутов"
+          },
+          {
+            "url": "/jurga/kvartiry",
+            "text": "Юрга"
+          },
+          {
+            "url": "/rzhev/kvartiry",
+            "text": "Ржев"
+          },
+          {
+            "url": "/syzran/kvartiry",
+            "text": "Сызрань"
+          },
+          {
+            "url": "/poselok-shushary/kvartiry",
+            "text": "Посёлок Шушары"
+          },
+          {
+            "url": "/gorjachij-kljuch/kvartiry",
+            "text": "Горячий Ключ"
+          },
+          {
+            "url": "/suzdal/kvartiry",
+            "text": "Суздаль"
+          },
+          {
+            "url": "/pgt-nahabino/kvartiry",
+            "text": "Пгт Нахабино"
+          },
+          {
+            "url": "/elabuga/kvartiry",
+            "text": "Елабуга"
+          },
+          {
+            "url": "/salavat/kvartiry",
+            "text": "Салават"
+          },
+          {
+            "url": "/chajkovskij/kvartiry",
+            "text": "Чайковский"
+          },
+          {
+            "url": "/poselok-pargolovo/kvartiry",
+            "text": "Посёлок Парголово"
+          },
+          {
+            "url": "/elizovo/kvartiry",
+            "text": "Елизово"
+          },
+          {
+            "url": "/alushta/kvartiry",
+            "text": "Алушта"
+          },
+          {
+            "url": "/gorod-pushkin/kvartiry",
+            "text": "Город Пушкин"
+          },
+          {
+            "url": "/sudak/kvartiry",
+            "text": "Судак"
+          },
+          {
+            "url": "/izberbash/kvartiry",
+            "text": "Избербаш"
+          },
+          {
+            "url": "/nadym/kvartiry",
+            "text": "Надым"
+          },
+          {
+            "url": "/s-sukko/kvartiry",
+            "text": "С. Сукко"
+          },
+          {
+            "url": "/dzerzhinsk/kvartiry",
+            "text": "Дзержинск"
+          },
+          {
+            "url": "/pgt-gurzuf/kvartiry",
+            "text": "Пгт Гурзуф"
+          },
+          {
+            "url": "/kudrovo/kvartiry",
+            "text": "Кудрово"
+          },
+          {
+            "url": "/balakovo/kvartiry",
+            "text": "Балаково"
+          },
+          {
+            "url": "/orsk/kvartiry",
+            "text": "Орск"
+          },
+          {
+            "url": "/almetevsk/kvartiry",
+            "text": "Альметьевск"
+          },
+          {
+            "url": "/berdsk/kvartiry",
+            "text": "Бердск"
+          },
+          {
+            "url": "/s-vitjazevo/kvartiry",
+            "text": "С. Витязево"
+          },
+          {
+            "url": "/chehov/kvartiry",
+            "text": "Чехов"
+          },
+          {
+            "url": "/lobnja/kvartiry",
+            "text": "Лобня"
+          },
+          {
+            "url": "/komsomolsk-na-amure/kvartiry",
+            "text": "Комсомольск-на-Амуре"
+          },
+          {
+            "url": "/dagomys/kvartiry",
+            "text": "Дагомыс"
+          },
+          {
+            "url": "/d-lebedki/kvartiry",
+            "text": "Д. Лебедки"
+          },
+          {
+            "url": "/belokuriha/kvartiry",
+            "text": "Белокуриха"
+          },
+          {
+            "url": "/kyzyl/kvartiry",
+            "text": "Кызыл"
+          },
+          {
+            "url": "/s-djadkovo/kvartiry",
+            "text": "С. Дядьково"
+          },
+          {
+            "url": "/uchaly/kvartiry",
+            "text": "Учалы"
+          },
+          {
+            "url": "/shahty/kvartiry",
+            "text": "Шахты"
+          },
+          {
+            "url": "/s-osinovaja-gora/kvartiry",
+            "text": "С. Осиновая Гора"
+          },
+          {
+            "url": "/pgt-misajlovo/kvartiry",
+            "text": "Пгт Мисайлово"
+          },
+          {
+            "url": "/kamyshin/kvartiry",
+            "text": "Камышин"
+          },
+          {
+            "url": "/ob/kvartiry",
+            "text": "Обь"
+          },
+          {
+            "url": "/chebarkul/kvartiry",
+            "text": "Чебаркуль"
+          },
+          {
+            "url": "/kolpino/kvartiry",
+            "text": "Колпино"
+          },
+          {
+            "url": "/engels/kvartiry",
+            "text": "Энгельс"
+          },
+          {
+            "url": "/jarovoe/kvartiry",
+            "text": "Яровое"
+          },
+          {
+            "url": "/s-myshako/kvartiry",
+            "text": "С. Мысхако"
+          },
+          {
+            "url": "/oktjabrskij/kvartiry",
+            "text": "Октябрьский"
+          },
+          {
+            "url": "/d-novogrjaznovo/kvartiry",
+            "text": "Д. Новогрязново"
+          },
+          {
+            "url": "/novocheboksarsk/kvartiry",
+            "text": "Новочебоксарск"
+          },
+          {
+            "url": "/artem/kvartiry",
+            "text": "Артем"
+          },
+          {
+            "url": "/egorevsk/kvartiry",
+            "text": "Егорьевск"
+          },
+          {
+            "url": "/domodedovo/kvartiry",
+            "text": "Домодедово"
+          },
+          {
+            "url": "/mezhdurechensk/kvartiry",
+            "text": "Междуреченск"
+          },
+          {
+            "url": "/s-divnomorskoe/kvartiry",
+            "text": "С. Дивноморское"
+          },
+          {
+            "url": "/murom/kvartiry",
+            "text": "Муром"
+          },
+          {
+            "url": "/gorno-altajsk/kvartiry",
+            "text": "Горно-Алтайск"
+          },
+          {
+            "url": "/kerch/kvartiry",
+            "text": "Керчь"
+          },
+          {
+            "url": "/bratsk/kvartiry",
+            "text": "Братск"
+          },
+          {
+            "url": "/pos-semidvore/kvartiry",
+            "text": "Пос. Семидворье"
+          },
+          {
+            "url": "/gubkinskij/kvartiry",
+            "text": "Губкинский"
+          },
+          {
+            "url": "/uraj/kvartiry",
+            "text": "Урай"
+          },
+          {
+            "url": "/sosnovyj-bor/kvartiry",
+            "text": "Сосновый Бор"
+          },
+          {
+            "url": "/bajkalsk/kvartiry",
+            "text": "Байкальск"
+          },
+          {
+            "url": "/s-olginka/kvartiry",
+            "text": "С. Ольгинка"
+          },
+          {
+            "url": "/volgodonsk/kvartiry",
+            "text": "Волгодонск"
+          },
+          {
+            "url": "/kp-dombaj/kvartiry",
+            "text": "Кп. Домбай"
+          },
+          {
+            "url": "/d-krasnyj-ogorok/kvartiry",
+            "text": "Д. Красный Огорок"
+          },
+          {
+            "url": "/pavlovsk/kvartiry",
+            "text": "Павловск"
+          },
+          {
+            "url": "/kovrov/kvartiry",
+            "text": "Ковров"
+          },
+          {
+            "url": "/torzhok/kvartiry",
+            "text": "Торжок"
+          },
+          {
+            "url": "/michurinsk/kvartiry",
+            "text": "Мичуринск"
+          },
+          {
+            "url": "/kamensk-shahtinskij/kvartiry",
+            "text": "Каменск-Шахтинский"
+          },
+          {
+            "url": "/elektrostal/kvartiry",
+            "text": "Электросталь"
+          },
+          {
+            "url": "/vidnoe/kvartiry",
+            "text": "Видное"
+          },
+          {
+            "url": "/kstovo/kvartiry",
+            "text": "Кстово"
+          },
+          {
+            "url": "/angarsk/kvartiry",
+            "text": "Ангарск"
+          },
+          {
+            "url": "/aksaj/kvartiry",
+            "text": "Аксай"
+          },
+          {
+            "url": "/pgt-jablonovskij/kvartiry",
+            "text": "Пгт Яблоновский"
+          },
+          {
+            "url": "/s-mariinskij/kvartiry",
+            "text": "С. Мариинский"
+          },
+          {
+            "url": "/pgt-koreiz/kvartiry",
+            "text": "Пгт Кореиз"
+          },
+          {
+            "url": "/pgt-strojkeramika/kvartiry",
+            "text": "Пгт Стройкерамика"
+          },
+          {
+            "url": "/d-zelenaja-poljana/kvartiry",
+            "text": "Д. Зеленая Поляна"
+          },
+          {
+            "url": "/bijsk/kvartiry",
+            "text": "Бийск"
+          },
+          {
+            "url": "/belovo/kvartiry",
+            "text": "Белово"
+          },
+          {
+            "url": "/pesochnyj/kvartiry",
+            "text": "Песочный"
+          },
+          {
+            "url": "/beloretsk/kvartiry",
+            "text": "Белорецк"
+          },
+          {
+            "url": "/zelenodolsk/kvartiry",
+            "text": "Зеленодольск"
+          },
+          {
+            "url": "/territorija-gusarskaja/kvartiry",
+            "text": "Территория Гусарская"
+          },
+          {
+            "url": "/dmitrov/kvartiry",
+            "text": "Дмитров"
+          },
+          {
+            "url": "/d-kislovka/kvartiry",
+            "text": "Д. Кисловка"
+          },
+          {
+            "url": "/s-novaja-usman/kvartiry",
+            "text": "С. Новая Усмань"
+          },
+          {
+            "url": "/gatchina/kvartiry",
+            "text": "Гатчина"
+          },
+          {
+            "url": "/donetsk-donetskaja-narodnaja-respublika/kvartiry",
+            "text": "Донецк"
+          },
+          {
+            "url": "/mirnyj-respublika-saha-jakutija/kvartiry",
+            "text": "Мирный"
+          },
+          {
+            "url": "/d-gribki/kvartiry",
+            "text": "Д. Грибки"
+          },
+          {
+            "url": "/uhta/kvartiry",
+            "text": "Ухта"
+          },
+          {
+            "url": "/shelehov/kvartiry",
+            "text": "Шелехов"
+          },
+          {
+            "url": "/pos-otradnoe/kvartiry",
+            "text": "Пос. Отрадное"
+          },
+          {
+            "url": "/x-guamka/kvartiry",
+            "text": "X. Гуамка"
+          },
+          {
+            "url": "/s-chigiri/kvartiry",
+            "text": "С. Чигири"
+          },
+          {
+            "url": "/salehard/kvartiry",
+            "text": "Салехард"
+          },
+          {
+            "url": "/schelkovo/kvartiry",
+            "text": "Щёлково"
+          },
+          {
+            "url": "/alupka/kvartiry",
+            "text": "Алупка"
+          },
+          {
+            "url": "/sysert/kvartiry",
+            "text": "Сысерть"
+          },
+          {
+            "url": "/velikie-luki/kvartiry",
+            "text": "Великие Луки"
+          },
+          {
+            "url": "/poselok-rybnoe/kvartiry",
+            "text": "Посёлок Рыбное"
+          },
+          {
+            "url": "/pos-gorjachevodskij/kvartiry",
+            "text": "Пос. Горячеводский"
+          },
+          {
+            "url": "/azov/kvartiry",
+            "text": "Азов"
+          },
+          {
+            "url": "/pos-znamenskij/kvartiry",
+            "text": "Пос. Знаменский"
+          },
+          {
+            "url": "/s-zasechnoe/kvartiry",
+            "text": "С. Засечное"
+          },
+          {
+            "url": "/kirishi/kvartiry",
+            "text": "Кириши"
+          },
+          {
+            "url": "/rp-novoivanovskoe/kvartiry",
+            "text": "Рп. Новоивановское"
+          },
+          {
+            "url": "/kineshma/kvartiry",
+            "text": "Кинешма"
+          },
+          {
+            "url": "/gorod-kronshtadt/kvartiry",
+            "text": "Город Кронштадт"
+          },
+          {
+            "url": "/gorod-sestroretsk/kvartiry",
+            "text": "Город Сестрорецк"
+          },
+          {
+            "url": "/uglich/kvartiry",
+            "text": "Углич"
+          },
+          {
+            "url": "/s-nebug/kvartiry",
+            "text": "С. Небуг"
+          },
+          {
+            "url": "/uzlovaja/kvartiry",
+            "text": "Узловая"
+          },
+          {
+            "url": "/pyt-jah/kvartiry",
+            "text": "Пыть-Ях"
+          },
+          {
+            "url": "/balashov/kvartiry",
+            "text": "Балашов"
+          },
+          {
+            "url": "/s-kabardinka/kvartiry",
+            "text": "С. Кабардинка"
+          },
+          {
+            "url": "/pos-ilinskoe-usovo/kvartiry",
+            "text": "Пос. Ильинское-Усово"
+          },
+          {
+            "url": "/kopejsk/kvartiry",
+            "text": "Копейск"
+          },
+          {
+            "url": "/bugulma/kvartiry",
+            "text": "Бугульма"
+          },
+          {
+            "url": "/s-pribrezhnoe/kvartiry",
+            "text": "С. Прибрежное"
+          },
+          {
+            "url": "/krymsk/kvartiry",
+            "text": "Крымск"
+          },
+          {
+            "url": "/nizhnekamsk/kvartiry",
+            "text": "Нижнекамск"
+          },
+          {
+            "url": "/poselok-loo/kvartiry",
+            "text": "Посёлок Лоо"
+          },
+          {
+            "url": "/ramenskoe/kvartiry",
+            "text": "Раменское"
+          },
+          {
+            "url": "/cherkessk/kvartiry",
+            "text": "Черкесск"
+          },
+          {
+            "url": "/usole-sibirskoe/kvartiry",
+            "text": "Усолье-Сибирское"
+          },
+          {
+            "url": "/pgt-jantarnyj/kvartiry",
+            "text": "Пгт Янтарный"
+          },
+          {
+            "url": "/serov/kvartiry",
+            "text": "Серов"
+          },
+          {
+            "url": "/poselok-zapadnyj/kvartiry",
+            "text": "Посёлок Западный"
+          },
+          {
+            "url": "/d-borisovichi/kvartiry",
+            "text": "Д. Борисовичи"
+          },
+          {
+            "url": "/pervouralsk/kvartiry",
+            "text": "Первоуральск"
+          },
+          {
+            "url": "/muravlenko/kvartiry",
+            "text": "Муравленко"
+          },
+          {
+            "url": "/solnechnogorsk/kvartiry",
+            "text": "Солнечногорск"
+          },
+          {
+            "url": "/liski/kvartiry",
+            "text": "Лиски"
+          },
+          {
+            "url": "/dolgoprudnyj/kvartiry",
+            "text": "Долгопрудный"
+          },
+          {
+            "url": "/s-arhyz/kvartiry",
+            "text": "С. Архыз"
+          },
+          {
+            "url": "/pos-pridorozhnyj/kvartiry",
+            "text": "Пос. Придорожный"
+          },
+          {
+            "url": "/pgt-mirnyj-moskovskaja-oblast/kvartiry",
+            "text": "Пгт Мирный"
+          },
+          {
+            "url": "/pos-tazovskij/kvartiry",
+            "text": "Пос. Тазовский"
+          },
+          {
+            "url": "/klin/kvartiry",
+            "text": "Клин"
+          },
+          {
+            "url": "/sortavala/kvartiry",
+            "text": "Сортавала"
+          },
+          {
+            "url": "/ivanteevka/kvartiry",
+            "text": "Ивантеевка"
+          },
+          {
+            "url": "/poselok-novaja-gubaha/kvartiry",
+            "text": "Посёлок Новая Губаха"
+          },
+          {
+            "url": "/pereslavl-zalesskij/kvartiry",
+            "text": "Переславль-Залесский"
+          },
+          {
+            "url": "/aul-novaja-adygeja/kvartiry",
+            "text": "Аул Новая Адыгея"
+          },
+          {
+            "url": "/dsont-berd/kvartiry",
+            "text": "ДСОНТ Бердь"
+          },
+          {
+            "url": "/s-agoj/kvartiry",
+            "text": "С. Агой"
+          },
+          {
+            "url": "/st-aksajkardandetal/kvartiry",
+            "text": "СТ Аксайкардандеталь"
+          },
+          {
+            "url": "/vostochnyj-poselok-udmurtskaja-respublika/kvartiry",
+            "text": "Восточный посёлок"
+          },
+          {
+            "url": "/poselok-mehzavod/kvartiry",
+            "text": "Посёлок Мехзавод"
+          },
+          {
+            "url": "/sadovodcheskoe-tovarischestvo-aksajkardandetal/kvartiry",
+            "text": "Садоводческое товарищество Аксайкардандеталь"
+          },
+          {
+            "url": "/rubtsovsk/kvartiry",
+            "text": "Рубцовск"
+          },
+          {
+            "url": "/shadrinsk/kvartiry",
+            "text": "Шадринск"
+          },
+          {
+            "url": "/kamensk-uralskij/kvartiry",
+            "text": "Каменск-Уральский"
+          }
+        ]
+      }
+    ],
+    "urlType": "LOCALITY"
+  },
+  "options": {
+    "locationName": "Самара",
+    "nameLocIn": "в Самаре",
+    "offersCount": 476,
+    "offersPluralText": "476 предложений",
+    "objectPluralText": "476 объектов",
+    "minPrice": 1725,
+    "minPriceText": "1 725 рублей"
+  },
+  "localities": {
+    "fetchStatus": "idle"
+  },
+  "regions": {
+    "aId": 2299,
+    "guid": "1d1463ae-c80f-4d19-9331-a1b68a85b553",
+    "regionGuid": "1d1463ae-c80f-4d19-9331-a1b68a85b553",
+    "localityGuid": "1d1463ae-c80f-4d19-9331-a1b68a85b553",
+    "displayName": "Москва",
+    "regionName": "Москва",
+    "localityName": "Москва",
+    "bbox": [
+      [
+        55.142221,
+        36.803259
+      ],
+      [
+        56.021281,
+        37.96779
+      ]
+    ]
+  }
+}

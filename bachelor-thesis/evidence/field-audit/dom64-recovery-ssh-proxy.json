@@ -1,0 +1,17 @@
+{
+  "method": "Own Chromium via existing SOCKS5 [IP removed]:1080 (SSH listener), no system changes",
+  "status": 401,
+  "url": "https://samara.domclick.ru/",
+  "title": "403 | Домклик",
+  "text": "Похоже, ваш запрос выглядит необычно\nСистема защиты могла принять ваши действия за автоматические. Пожалуйста, отключите VPN или расширения, изменяющие браузер, и попробуйте снова.\nЕсли ошибка остаётся, свяжитесь с поддержкой, указав IP-адрес и Request ID.\n\n\nIP-адрес: [IP removed]\nRequest ID: [removed]\nНаписать в поддержку\n \nОбновить страницу",
+  "links": [
+    {
+      "text": "Написать в поддержку",
+      "href": "mailto:security@domclick.ru"
+    },
+    {
+      "text": "Написать в поддержку",
+      "href": "mailto:security@domclick.ru"
+    }
+  ]
+}

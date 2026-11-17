@@ -1,0 +1,344 @@
+{
+  "date": "2026-11-17",
+  "method": "Manual transcription of read-only DOM inline-script inspection in own IAB. No official API used, no application code or Playwright collector implemented. Fourteen actual detail pages revisited; not a sitewide completeness claim.",
+  "formats": {
+    "cian": "inline frontend-offer-card config JSON array -> defaultState.offerData.offer; display price in defaultState.offerData.offerPrice",
+    "dom_regular": "inline window.__SSR_STATE__ -> productCard; serialized JS includes undefined, not a pure JSON document; source undefined distinct from explicit null",
+    "dom_new_flat": "inline window.__SSR_STATE__ -> shell.flatDetails.data; shell.isDeletedFlat=false in inspected active unit",
+    "dom_daily_partner": "script#__NUXT_DATA__, indexed serialization array -> detail:2252883 properties + vuex objectBasePrice"
+  },
+  "cards": [
+    {
+      "source": "cian",
+      "kind": "room_sale",
+      "url": "https://samara.cian.ru/sale/flat/333736406/",
+      "id": 333736406,
+      "format": "cian",
+      "category": "roomSale",
+      "flatType": "rooms",
+      "offerType": "flat",
+      "area": "17.3",
+      "roomsCount": 1,
+      "roomsForSaleCount": 1,
+      "floor": 2,
+      "floors": 6,
+      "price": 1650000,
+      "photos": 14,
+      "descriptionLength": 283,
+      "coordinates": {
+        "lat": 53.219921,
+        "lng": 50.269481
+      },
+      "state": "published"
+    },
+    {
+      "source": "domclick",
+      "kind": "room_sale",
+      "url": "https://samara.domclick.ru/card/sale__room__2071752356",
+      "id": 2071752356,
+      "format": "dom_regular",
+      "area": 68.8,
+      "roomArea": 9.2,
+      "rooms": 3,
+      "roomsOffered": 1,
+      "floor": 1,
+      "floors": 9,
+      "price": 1400000,
+      "photos": 6,
+      "descriptionLength": 1243,
+      "coordinates": {
+        "lat": 53.240691,
+        "lon": 50.190295
+      },
+      "subject": "Самарская область",
+      "state": 2
+    },
+    {
+      "source": "cian",
+      "kind": "monthly_rent",
+      "url": "https://samara.cian.ru/rent/flat/336133634/",
+      "id": 336133634,
+      "format": "cian",
+      "category": "flatRent",
+      "area": "40.0",
+      "rooms": 1,
+      "floor": 18,
+      "floors": 25,
+      "price": 38000,
+      "paymentPeriod": "monthly",
+      "leaseTermType": "longTerm",
+      "depositSeparate": 38000,
+      "photos": 10,
+      "descriptionLength": 921,
+      "state": "published"
+    },
+    {
+      "source": "domclick",
+      "kind": "monthly_rent",
+      "url": "https://samara.domclick.ru/card/rent__flat__2081993306",
+      "id": 2081993306,
+      "format": "dom_regular",
+      "dealType": "rent",
+      "offerType": "flat",
+      "area": 55,
+      "rooms": 2,
+      "floor": 4,
+      "floors": 6,
+      "price": 70000,
+      "photos": 17,
+      "descriptionLength": 1082,
+      "subject": "Самарская область",
+      "coordinates": {
+        "lat": 53.193061,
+        "lon": 50.087783
+      },
+      "state": 2
+    },
+    {
+      "source": "cian",
+      "kind": "daily_rent",
+      "url": "https://samara.cian.ru/rent/flat/329504239/",
+      "id": 329504239,
+      "format": "cian",
+      "category": "dailyFlatRent",
+      "area": "32.0",
+      "rooms": 1,
+      "floor": 4,
+      "floors": 23,
+      "price": 3000,
+      "priceType": "all",
+      "offerPrice": "от 3 000 ₽/сут.",
+      "photos": 14,
+      "descriptionLength": 2462,
+      "state": "published",
+      "warning": "priceType=all does not mean exact listed price; here displayed offerPrice explicitly says from"
+    },
+    {
+      "source": "domclick",
+      "kind": "daily_partner",
+      "url": "https://domclick.sutochno.ru/detail/2252883?guests_adults=1&occupied=2026-11-17%3B2026-11-18",
+      "id": 2252883,
+      "format": "dom_daily_partner",
+      "area": 23,
+      "rooms": 1,
+      "floor": 4,
+      "floors": 5,
+      "address": "Суворова улица, 13А",
+      "city": "Новокуйбышевск",
+      "coordinates": {
+        "lat": 53.108529999998,
+        "lng": 49.949734
+      },
+      "photos": 14,
+      "descriptionLength": 125,
+      "photoPath": "//static.sutochno.ru/doc/files/objects/2/252/883/699d88d60d929.jpg",
+      "observedImgURL": "https://static.sutochno.ru/doc/files/objects/2/252/883/699d88d60d929.jpg",
+      "status": "approved",
+      "objectBasePrice": {
+        "object_id": 2252883,
+        "base_price": {
+          "currency_code": "RUB",
+          "price": 1800,
+          "included_persons": 2,
+          "price_per_person": 0
+        }
+      },
+      "objectPrice": null,
+      "priceObject": {},
+      "jsonld": {
+        "type": "AggregateOffer",
+        "lowPrice": 1800,
+        "priceCurrency": "RUB"
+      },
+      "warning": "Base price found, selected-stay total not obtained. Not a current exact booking quote."
+    },
+    {
+      "source": "cian",
+      "kind": "house_sale",
+      "url": "https://samara.cian.ru/sale/suburban/318836076/",
+      "id": 318836076,
+      "format": "cian",
+      "category": "houseSale",
+      "offerType": "suburban",
+      "area": "90.9",
+      "rooms": "not published as roomsCount",
+      "floors": 1,
+      "land": {
+        "area": "27.0",
+        "areaUnitType": "sotka"
+      },
+      "price": 6200000,
+      "photos": 16,
+      "descriptionLength": 548,
+      "state": "published"
+    },
+    {
+      "source": "domclick",
+      "kind": "house_sale",
+      "url": "https://samara.domclick.ru/card/sale__house__2079647938",
+      "id": 2079647938,
+      "format": "dom_regular",
+      "area": 100,
+      "rooms": null,
+      "floor": null,
+      "floors": 1,
+      "land": {
+        "area": 6.24,
+        "areaUnit": "сотка"
+      },
+      "price": 4850000,
+      "photos": 12,
+      "descriptionLength": 787,
+      "addressDisplay": "Россия, Самара, Северный переулок",
+      "addressLocality": "СНТ Яблонька",
+      "subject": "Самарская область",
+      "coordinates": {
+        "lat": 53.287693,
+        "lon": 50.296222
+      },
+      "state": 2,
+      "warning": "Multiple locality ancestors, including СНТ Яблонька, СДТ Звёздочка and Самара. Keep hierarchy; do not equate display city with innermost locality or infer a missing house."
+    },
+    {
+      "source": "cian",
+      "kind": "new_flat_sale",
+      "url": "https://samara.cian.ru/sale/flat/330631159/",
+      "id": 330631159,
+      "format": "cian",
+      "category": "newBuildingFlatSale",
+      "area": "47.21",
+      "rooms": 1,
+      "floor": 2,
+      "floors": 18,
+      "price": 7246735,
+      "photos": 9,
+      "descriptionLength": 1547,
+      "addressParts": [
+        "Самарская область",
+        "Самара",
+        "район Советский"
+      ],
+      "coordinates": {
+        "lat": 53.21006234864254,
+        "lng": 50.21075200404231
+      },
+      "state": "published",
+      "warning": "No house in published geo.address; coordinates do not supply it."
+    },
+    {
+      "source": "domclick",
+      "kind": "new_flat_sale",
+      "url": "https://samara.domclick.ru/card/sale__new_flat__2072470551?to_flats=true",
+      "id": 2072470551,
+      "format": "dom_new_flat",
+      "isDeletedFlat": false,
+      "area": 54.3,
+      "rooms": 2,
+      "floor": 2,
+      "floors": 17,
+      "flatNumber": "121",
+      "entrance": "2",
+      "price": 8304840,
+      "address": "Гвардейский переулок, 7а",
+      "subject": "Самарская область",
+      "coordinates": {
+        "lat": 53.22549,
+        "lon": 50.23738
+      },
+      "description": null,
+      "photos": 1,
+      "photoPath": "/vitrina/8b/4a/8b4a4a26dcc6a064b4f9706fa145df8474def52e.webp",
+      "warning": "media.photos entries are relative path strings; do not substitute complex.description for null individual description. Obtain published full image URL from actual card DOM without inventing CDN formats."
+    },
+    {
+      "source": "cian",
+      "kind": "removed_flat_sale",
+      "url": "https://samara.cian.ru/sale/flat/333705897/",
+      "id": 333705897,
+      "format": "cian",
+      "state": "deleted",
+      "removalMarker": "Объявление снято с публикации",
+      "area": "72.0",
+      "rooms": 2,
+      "floor": 9,
+      "floors": 21,
+      "price": 12050000,
+      "photos": "field absent in inspected offer",
+      "descriptionLength": 53
+    },
+    {
+      "source": "domclick",
+      "kind": "removed_house_sale",
+      "url": "https://domclick.ru/card/sale__house__2071895305",
+      "id": 2071895305,
+      "format": "dom_regular",
+      "state": 8,
+      "removalMarker": "Объявление снято с размещения",
+      "area": 110,
+      "rooms": 3,
+      "floors": 2,
+      "land": {
+        "area": 5,
+        "areaUnit": "сотка"
+      },
+      "price": 14000000,
+      "photos": 26,
+      "descriptionLength": 158,
+      "subject": "Московская область",
+      "warning": "Status8 removal verified only against this explicit page marker; do not invent meanings of other numeric statuses."
+    },
+    {
+      "source": "cian",
+      "kind": "secondary_sale",
+      "url": "https://samara.cian.ru/sale/flat/333842107/",
+      "id": 333842107,
+      "format": "cian",
+      "category": "flatSale",
+      "area": "110.0",
+      "rooms": 3,
+      "floor": 12,
+      "floors": 20,
+      "price": 24999000,
+      "photos": 24,
+      "descriptionLength": 2270,
+      "coordinates": {
+        "lat": 53.19803,
+        "lng": 50.123792
+      },
+      "state": "published"
+    },
+    {
+      "source": "domclick",
+      "kind": "secondary_sale",
+      "url": "https://samara.domclick.ru/card/sale__flat__2080269220",
+      "id": 2080269220,
+      "format": "dom_regular",
+      "area": 110,
+      "rooms": 3,
+      "floor": 12,
+      "floors": 20,
+      "price": 24999000,
+      "photos": 24,
+      "descriptionLength": 2280,
+      "coordinates": {
+        "lat": 53.198325,
+        "lon": 50.124039
+      },
+      "subject": "Самарская область",
+      "housingType": "source undefined",
+      "readyHousing": null,
+      "state": 2
+    }
+  ],
+  "limits": [
+    "One checked card per source/family, not a census of all pages",
+    "Not a Playwright automation test or production parser",
+    "Avito deferred",
+    "Listing pagination not tested in this pass",
+    "Some fields legitimately absent; full mandatory contract not automatically guaranteed",
+    "Partner selected-stay price unavailable",
+    "Plain JSON.parse alone does not handle Domclick SSR undefined or resolve Nuxt indexed references",
+    "No photo downloads, hashes or new DB fields"
+  ],
+  "recommendation": "Preserve approved browser loading. Propose reading embedded structured state by source and page family, DOM fallback only for checked missing fields and published absolute image URLs. Not a newly approved architecture or implementation."
+}

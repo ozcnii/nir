@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-17",
+  "method": "Own IAB, real listing pages, expanded filter controls; read-only inspection. No search submitted, code implemented or full product audit.",
+  "cian": {
+    "url": "https://samara.cian.ru/kupit-3-komnatnuyu-kvartiru/",
+    "opened": "Ещё фильтры",
+    "observed": [
+      "Тип объекта: Неважно/Новостройки/Вторичка",
+      "Комнатность: Студия/1/2/3/4/5/6+/Свободная планировка",
+      "Цена за всё/за м²",
+      "Площадь: Общая/Кухня/Жилая",
+      "Этаж",
+      "Этажей в доме",
+      "Регион/Район/Метро"
+    ],
+    "extraNotRequirements": [
+      "Ремонт",
+      "Парковка",
+      "Материал дома",
+      "Год постройки",
+      "Продавец",
+      "Фото/видео",
+      "Сохранить поиск"
+    ]
+  },
+  "domclick": {
+    "url": "https://samara.domclick.ru/pokupka/kvartiry/trekhkomnatnaja",
+    "opened": "Фильтры",
+    "observed": [
+      "Квартира/Дом, участок/Коммерция/Гараж",
+      "Вторичка/Новостройка/Комната/Жилой комплекс",
+      "Студия/1/2/3/4/5+",
+      "За объект/За м²/Ипотека",
+      "Цена: sale_price__gte/lte",
+      "Общая площадь: area__gte/lte",
+      "Этаж: floor__gte/lte",
+      "Этажность: floors__gte/lte"
+    ],
+    "extraNotRequirements": [
+      "На карте",
+      "Сохранить поиск",
+      "Материал стен",
+      "Продавец",
+      "Условия"
+    ]
+  },
+  "limits": [
+    "Only sale-flat listings inspected, not rental/room/house filter interfaces",
+    "No matching, filtering correctness or data completeness measured",
+    "Existing card data audits used for actual field semantics",
+    "Sites are analogues, not the source of mandatory university requirements"
+  ]
+}

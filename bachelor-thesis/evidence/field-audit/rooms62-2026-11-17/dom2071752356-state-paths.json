@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\n  \"url\": \"https://samara.domclick.ru/card/sale__room__2071752356\",\n  \"title\": \"Купить комнату в 3-комн. квартире, 9.2 м² по адресу Самара, Солнечная улица, 7, 1 этаж за 1 400 000 руб. в Домклик — поиск, проверка, безопасная сделка с жильем в офисе Сбербанка.\",\n  \"ssrPresent\": false,\n  \"productType\": \"undefined\",\n  \"keys\": [],\n  \"item\": null\n}"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 5
+}

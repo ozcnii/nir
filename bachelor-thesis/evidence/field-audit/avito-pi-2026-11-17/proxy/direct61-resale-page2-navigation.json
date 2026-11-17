@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1&context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkhZZTV1aW1IMkhzelNvVFgiO32IyrAHJgAAAA&p=2\n- Page Title: Купить квартиру во вторичке в Самаре 🏢 | Цены на вторичное жилье в Самаре | Авито\n- Console: 26 errors, 0 warnings\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T08-21-36-868Z.yml)\n### Events\n- New console entries: browser-output/console-2026-11-17T08-21-30-672Z.log#L1-L30"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 10
+}

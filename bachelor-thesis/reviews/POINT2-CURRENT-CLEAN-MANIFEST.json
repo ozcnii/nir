@@ -1,0 +1,7 @@
+{
+  "snapshot": "POINT2-CURRENT-CLEAN-SNAPSHOT.md",
+  "sha256": "f1e3226dd17010fa41a903e98d52ef0edbb7026fed44c55aa2bf83d5c4b37c6c",
+  "scope": "POINT2-REVIEW-SCOPE.md",
+  "date": "2026-11-17",
+  "context": "fork_turns=none; no prior reviews or scores; no target score"
+}

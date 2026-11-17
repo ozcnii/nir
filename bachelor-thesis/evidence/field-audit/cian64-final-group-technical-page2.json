@@ -1,0 +1,78 @@
+{
+  "publishedStateUrl": "https://www.cian.ru/cat.php?deal_type=sale&engine_version=2&multi_id=330631068&offer_type=flat&p=2",
+  "observation": {
+    "url": "https://www.cian.ru/cat.php?deal_type=sale&engine_version=2&multi_id=330631068&offer_type=flat&p=1",
+    "title": "Купить квартиру в России — 2 объявления",
+    "h1": "Купить квартиру в России",
+    "text": "Умный помощник\n+ Разместить за 0 ₽\nВойти\nАренда\nПродажа\nНовостройки\nДома и участки\nКоммерческая\nИпотека\nМой дом\nСделка\nСервисы\nПриложение Циан\nКупить\nКвартиру в новостройке и вторичке\nКомнатность\nЦена\nЕщё фильтры\nРегион\nРайон\nМетро\nСохранить поиск\nМультиобъявление №330631068\nНедвижимость в РоссииПродажа\nКупить квартиру в России\nНайдено 2 объявления\nПо умолчанию\nНа карте\nПервичная продажа\nЕщё фото\n3-комн. квартира, 92,61 м², 2/18 этаж\nСекция 1 • Сдача корпуса 3 кв. 2027\nРаспродажа квартир\nещё 7 акций\nЖК «Скай»\nсдача ГК: 3 кв. 2027 года\nСоветская\n19 минут пешком\nСамарская область, Самара, р-н Со",
+    "cards": [
+      "https://samara.cian.ru/sale/flat/330631068/?context=4.26F04Q7aw7c.0SUSytviFxVwnzBSZUhpy-75xy0YCgTW1gp2K7xi7Mq4afNYevX4cvaBDKnnkzxKIib1H8hLybJhpA&mlSearchSessionGuid=9a9b0d8c97a5b1022eb5d842d22980b6",
+      "https://samara.cian.ru/sale/flat/330631223/?context=4.MxZZ5LkdLcs.4rEum2e2CVL8Wj1xsAjj3u7QDQwY9k6nYoBP3NL06RY5olvSAfmSv3P8wqj8JgOORzh6_YMaEciBLw&mlSearchSessionGuid=9a9b0d8c97a5b1022eb5d842d22980b6"
+    ],
+    "links": [
+      {
+        "text": "Войти",
+        "href": "https://www.cian.ru/authenticate/?returnUrl=https://www.cian.ru/cat.php?deal_type=sale&engine_version=2&multi_id=330631068&offer_type=flat&p=1"
+      },
+      {
+        "text": "На карте",
+        "href": "https://www.cian.ru/map/?deal_type=sale&engine_version=2&multi_id=330631068&offer_type=flat&p=1"
+      },
+      {
+        "text": "Советская",
+        "href": "https://samara.cian.ru/kupit-kvartiru-samarskaya-oblast-samara-metro-sovetskaya-05265-265/"
+      },
+      {
+        "text": "Самарская область",
+        "href": "https://samara.cian.ru/kupit-kvartiru-samarskaya-oblast/"
+      },
+      {
+        "text": "р-н Советский",
+        "href": "https://samara.cian.ru/kupit-kvartiru-samarskaya-oblast-samara-sovetskiy-04232/"
+      },
+      {
+        "text": "м. Советская",
+        "href": "https://samara.cian.ru/kupit-kvartiru-samarskaya-oblast-samara-metro-sovetskaya-05265-265/"
+      },
+      {
+        "text": "Советская",
+        "href": "https://samara.cian.ru/kupit-kvartiru-samarskaya-oblast-samara-metro-sovetskaya-05265-265/"
+      },
+      {
+        "text": "Самарская область",
+        "href": "https://samara.cian.ru/kupit-kvartiru-samarskaya-oblast/"
+      },
+      {
+        "text": "р-н Советский",
+        "href": "https://samara.cian.ru/kupit-kvartiru-samarskaya-oblast-samara-sovetskiy-04232/"
+      },
+      {
+        "text": "м. Советская",
+        "href": "https://samara.cian.ru/kupit-kvartiru-samarskaya-oblast-samara-metro-sovetskaya-05265-265/"
+      }
+    ],
+    "next": []
+  },
+  "meta": {
+    "query": {
+      "_type": "flatsale",
+      "engine_version": {
+        "type": "term",
+        "value": 2
+      },
+      "page": {
+        "type": "term",
+        "value": 1
+      },
+      "multi_id": {
+        "type": "term",
+        "value": 330631068
+      }
+    },
+    "total": 2,
+    "ids": [
+      330631068,
+      330631223
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\"dom\":{\"url\":\"https://samara.domclick.ru/card/sale__room__2071752356\",\"id\":2071752356,\"roomArea\":9.2,\"totalArea\":68.8,\"rooms\":3,\"roomsOffered\":1,\"floor\":1,\"houseFloorFields\":{\"floors\":9},\"address\":\"Россия, Самара, Солнечная улица, 7\"},\"cian\":{\"url\":\"https://samara.cian.ru/sale/flat/319653899/\",\"id\":319653899,\"roomArea\":\"9.0\",\"kitchenArea\":\"9.2\",\"totalArea\":\"68.8\",\"rooms\":3,\"roomsOffered\":1,\"floor\":1,\"floors\":9},\"textComparison\":{\"domLength\":1243,\"domOriginalDescriptionLength\":1243,\"cianLength\":1243,\"rawEqual\":false,\"originalRawEqual\":false,\"domAreaMention\":true,\"cianAreaMention\":true}}"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 10
+}

@@ -1,0 +1,218 @@
+{
+  "capturedAt": "2026-11-17T01:03:37.740Z",
+  "proxyConfiguration": {
+    "source": "/Users/qq/Documents/ssau/bachelor-thesis/evidence/field-audit/avito-pi-2026-11-17/proxy/.pi/mcp.json",
+    "mcpServer": "playwright",
+    "package": "@playwright/mcp@0.0.85",
+    "args": [
+      "--isolated",
+      "--headless",
+      "--proxy-server",
+      "socks5://127.0.0.1:10808"
+    ],
+    "verification": "local MCP launch configuration read; process argv was not available in page context; external egress IP not checked",
+    "processArgumentsProof": "proxy-launch-proof.json (read-only OS process inspection)"
+  },
+  "access": {
+    "context": "avito-proxy-audit-2026-11-17",
+    "listingUrl": "https://www.avito.ru/samara/doma_dachi_kottedzhi/prodam-ASgBAgICAUSUA9AQ?cd=1",
+    "initialDocumentStatus": 439,
+    "initialTitle": "Доступ ограничен: проверка безопасности",
+    "laterListingTitle": "Купить дом, дачу или коттедж 🏡 в Самаре | Недвижимость в Самаре | Авито",
+    "challengeEndpointsObserved": [
+      "POST /web/3/firewallPow/get → 200",
+      "POST /web/3/firewallPow/verify → 200"
+    ],
+    "outcome": "After the initial 439 security page, the normal category listing rendered in this isolated context and its public first-card link opened the detail page; no login or seller contact was used.",
+    "listingCount": 1934,
+    "observedPagination": {
+      "current": 1,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        30
+      ],
+      "totalPages": 30,
+      "nextPage": "/samara/doma_dachi_kottedzhi/prodam-ASgBAgICAUSUA9AQ?cd=1&context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IlZ2ZHhWR2xvYUZBekxVZWUiO32FDHnwJgAAAA&p=2"
+    },
+    "firstHouseCard": {
+      "title": "Дом 59,2 м² на участке 6 сот., Самара",
+      "url": "/samara/doma_dachi_kottedzhi/dom_592_m_na_uchastke_6_sot._8457143068?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJWdmR4Vkdsb2FGQXpMVWVlIjt9LVAozz8AAAA",
+      "id": 8457143068
+    }
+  },
+  "listing": {
+    "id": 8457143068,
+    "externalId": null,
+    "sourceCode": "avito",
+    "canonicalUrl": "https://www.avito.ru/samara/doma_dachi_kottedzhi/dom_592_m_na_uchastke_6_sot._8457143068",
+    "observedUrl": "https://www.avito.ru/samara/doma_dachi_kottedzhi/dom_592_m_na_uchastke_6_sot._8457143068?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJWdmR4Vkdsb2FGQXpMVWVlIjt9LVAozz8AAAA",
+    "title": "Дом 59,2 м² на участке 6 сот.",
+    "deal": "sale (public page says “на продажу” / “Купить”)",
+    "propertyType": "house",
+    "categorySlug": "doma_dachi_kottedzhi",
+    "region": "Subject Самарская обл. explicitly in address; listing URL scope samara is not a ready region FK",
+    "address": "Самарская обл., Волжский р-н, сельское поселение Черноречье, пос. Чапаевка, КП Бавария парк",
+    "geo": {
+      "address": "Самарская обл., Волжский р-н, сельское поселение Черноречье, пос. Чапаевка, КП Бавария парк",
+      "coords": {
+        "lat": 53.178563,
+        "lng": 50.427189,
+        "zoom": 16
+      },
+      "references": []
+    },
+    "houseAreaM2": 59.2,
+    "rooms": 2,
+    "floorsInHouse": 1,
+    "landArea": {
+      "value": 6,
+      "unit": "сот."
+    },
+    "landCategory": "индивидуальное жилищное строительство (ИЖС)",
+    "yearBuilt": 2026,
+    "price": {
+      "value": 6250000,
+      "currency": "₽",
+      "display": "6 250 000 ₽",
+      "period": null,
+      "qualifier": "sale asking price; no period/postfix"
+    },
+    "description": {
+      "sourcePath": "window.__staticRouterHydrationData.loaderData['catalog-or-main-or-item'].buyerItem.item.description",
+      "hydrationStringLengthChars": 2260,
+      "visibleSectionTextLengthChars": 2051
+    },
+    "photoUrls": [
+      "https://10.img.avito.st/image/1/1.RpfT_ba46n7lSmhz09hS5tVd6HhtXGho5VHofGNU4nRl.ZB2NzQ-vlqMXBv-YCGn89fsDm8pzH-2qWeNALPtl8Fg?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://c70.img.avito.st/image/1/1.6l3iara4RrTU3cS5ulHpLeTKRLJcy8Si1MZEtlLDTr5U.vT6ecY_LATBCvC1bNr2b6Z4h6Ibw6nER76PEfvw-wyE",
+      "https://c60.img.avito.st/image/1/1.fOoju7a40AMVDFIOV-4rmiUb0gWdGlIVFRfSAZMS2AmV.8sxQRN5a4an7DPCmPSBAz_6sFzYr4ih9Vqj_MTLFSuU",
+      "https://40.img.avito.st/image/1/1.8DLhdba4XNvXwt7WjU7tQ-fVXt1f1N7N19le2VHcVNFX.53oVQj6ol0NSvTiV9Jy2BIn2pamk2TEGsEdlweUZkXo",
+      "https://c90.img.avito.st/image/1/1.XyEPIba488g5lnHFPXBeUAmB8c6xgHHeOY3xyr-I-8K5.Ob2Y0mRUgstnDgqEjvXyPISFzqQtaNKOTpiXvxxyyYQ",
+      "https://30.img.avito.st/image/1/1.edkvNra41TAZgVc9UUsHrimW1zaRl1cmGZrXMp-f3TqZ.VYOmRM3--4gm4cy9MBJTQGJi8-q_d7zbm10CXV0GJYI?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://c80.img.avito.st/image/1/1.FfCcwba4uRmqdjsUupkQgJphux8iYDsPqm27GyxosRMq.464FxXpRKwWBQcoZ8uGFacs-zluirgv2y37833IDL-0",
+      "https://30.img.avito.st/image/1/1.qr_alba4BlbsIoRbgs_7z9w1BFBkNIRA7DkEVGo8Dlxs.xxb0aXZIf9bgwowg_r_mgxeVpsGfSsEaRlooTtXjv6U?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://20.img.avito.st/image/1/1.5o7V6La4SmfjX8hqlZOb_NNISGFrSchx40RIZWVBQm1j.wMCzr-bRUMXxrfflkZn28UarvfLULOQIcBpixXF2Xgo?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://40.img.avito.st/image/1/1.5H90Ara4SJZCtcqbMHWGCHKiSpDKo8qAQq5KlMSrQJzC._IKJxaADzhvStBfI9gcpxNu3hWUni67YBPGPcVN0kTc",
+      "https://30.img.avito.st/image/1/1.Ar_cZba4rlbq0ixb1AFQz9rFrFBixCxA6smsVGzMplxq.bb1ltzJQsaIuvaV_PvfG5Eik6C7aKane5antn7Z0bDg?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://c70.img.avito.st/image/1/1.xq0ixra4akQUcehJIsGV3SRmaEKcZ-hSFGpoRpJvYk6U.-9HOwaJiRYWnOshIUReLbgdSW7v2awe87KR4YiIF7mo",
+      "https://b00.img.avito.st/image/1/1.jqfZxra4Ik7vcaBDyayK199mIEhnZ6BY72ogTGlvKkRv.1OVxvegqN6vmf8eeLZ1JCnR2U_FQTrZ3kY6mmPmiT2w?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://c90.img.avito.st/image/1/1.GTkEDLa4tdAyuzfdOkwDSAKst9a6rTfGMqC30rSlvdqy.a7Cb7bpwjvYjKeR1FNlfc_T-RJ4dUP04clFzwij5PLI",
+      "https://c70.img.avito.st/image/1/1.mLwvura4NFUZDbZYE_yMzSkaNlORG7ZDGRY2V58TPF-Z.Ehr9WChx1912E_uBlU_j7oEj4ikveMhYzsr4wSLfzIc",
+      "https://30.img.avito.st/image/1/1.402Pj7a4T6S5OM2pxfyKOokvTaIxLs2yuSNNpj8mR645.PN8jGrfOKqVIt-JXLnkQheSTEvipiyCvEWwqxXh_Z_I?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://b00.img.avito.st/image/1/1.vEYiRLa4EK8U85KiVj6UMSTkEqmc5ZK5FOgSrZLtGKWU.g7DDMf9NedeXz2NP_WadnG1nXGhCTOKC0zlXwtBnbQY?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://c70.img.avito.st/image/1/1.0XcFEba4fZ4zpv-TK1r9AAOxf5i7sP-IM71_nLW4dZSz.UArVbfKRtARj2_jeAYTSIQm6DUzS8i2c6JgRLbOyLEg",
+      "https://20.img.avito.st/image/1/1.j1Qoaba4I70e3qGwOgOWJS7JIbuWyKGrHsUhv5jAK7ee.r0I5azA3OqWPRi7uApFVhcPXj87rl4ivCC9I9ptTorc?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://b00.img.avito.st/image/1/1.JVCfJba4ibmpkgu02S1EJ5mFi78hhAuvqYmLuy-MgbMp.-zDCLU_tNghdFScEZcHeNUkgdaV5tT-kl4Ev8HohM70?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://c70.img.avito.st/image/1/1.YtoA9ba4zjM2Qkw-SMwdqAZVzDW-VEwlNlnMMbBcxjm2.6NGwDR4NDpJi40khEzFWB5lFKrCoFjEOBKcz_6A_m88",
+      "https://c90.img.avito.st/image/1/1.Zqfbxra4yk7tcUhDm6di191myEhlZ0hY7WrITGtvwkRt.6te01pkwtGzKH2TXRrxeECjXim0OtF4G0iaR7YLypqA",
+      "https://20.img.avito.st/image/1/1.qri8Bba4BlGKsoRc5HvIz7qlBFcCpIRHiqkEUwysDlsK.w-R0KrLOFqKdSYVt3gbb-QDk2MknG2MOdiNxKgnzaro?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://20.img.avito.st/image/1/1.HNkbNra4sDAtgTI9L04eqR2WsjallzImLZqyMqufuDqt.-hkB4hQ1NZ-zjjPKJH_Q8_82MMMNztAV12vpRnfVyYg?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://c90.img.avito.st/image/1/1.wKLv7ba4bEvZWu5G467u1elNbk1RTO5d2UFuSV9EZEFZ.yM3I82XGz_GXIK7XCKKqNGNvL3aXYkwk8sSEUipOF8A",
+      "https://20.img.avito.st/image/1/1.QLLuu7a47FvYDG5W4uokwOgb7l1QGm5N2BfuWV4S5FFY.7DNLlY9VmRRbDqOXQzkPLO4-wEVjTfLUlXhXPW8Hy4M?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ==",
+      "https://c90.img.avito.st/image/1/1.kxa6CLa4P_-Mv73ykH6LZ7yoPfkEqb3pjKQ9_QqhN_UM.BuSSqqBKn7tQy7Z-l2my-CRkl2F3Lnr5E2Nqz-tTKRA",
+      "https://c70.img.avito.st/image/1/1.2VkHPLa4dbAxi_e9ORenKwGcd7a5nfemMZB3sreVfbqx.68JNwi3bX8E8STISGd4e41jeo2lVWGygIW5kgwUfjZc"
+    ],
+    "photoCount": 28,
+    "publication": {
+      "display": "сегодня в 01:26",
+      "sourcePath": "window.__staticRouterHydrationData.loaderData['catalog-or-main-or-item'].buyerItem.item.sortFormatedDate",
+      "statusId": 4,
+      "isActive": true,
+      "isArchived": false,
+      "isBlocked": false,
+      "isClosed": false,
+      "isDeleted": false,
+      "isExpired": false,
+      "isFinished": false,
+      "isRejected": false,
+      "isInModeration": false,
+      "finishTimeUnix": 1796622484,
+      "finishTimeUtc": "2026-12-07T05:48:04.000Z",
+      "removalSignalObserved": false
+    },
+    "visibleHouseSection": [
+      "О доме",
+      "Количество комнат: 2",
+      "Площадь дома: 59.2 м²",
+      "Площадь участка: 6 сот.",
+      "Этажей в доме: 1",
+      "Категория земель: индивидуальное жилищное строительство (ИЖС)",
+      "Год постройки: 2026",
+      "Материал стен: пеноблоки",
+      "Санузел: в доме",
+      "Ремонт: требует ремонта",
+      "Электричество: есть",
+      "Водоснабжение: скважина",
+      "Газ: по границе участка",
+      "Канализация: септик",
+      "Интернет и ТВ: Wi-Fi, телевидение",
+      "Парковка: парковочное место",
+      "Транспортная доступность: асфальтированная дорога, остановка общественного транспорта, железнодорожная станция",
+      "Инфраструктура: магазин, аптека, детский сад, школа",
+      "Условия продажи: Возможна ипотека",
+      "Расстояние до центра города: 22 км"
+    ]
+  },
+  "priceHistory": {
+    "endpoint": "/web/1/realty/price/history/8457143068?categoryID=25&microcatID=3809&offset=0&limit=40",
+    "httpStatus": 200,
+    "items": [
+      {
+        "date": 1790823560,
+        "diff": 150000,
+        "price": 6250000,
+        "dateUtc": "2026-10-01T02:59:20.000Z"
+      },
+      {
+        "date": 1790662101,
+        "diff": 0,
+        "price": 6100000,
+        "dateUtc": "2026-09-29T06:08:21.000Z"
+      }
+    ]
+  },
+  "mapping": {
+    "authoritative_mapping": "../AVITO-CONTRACT-AUDIT.md",
+    "properties": {
+      "region_id": "Resolve Самарская обл. from address to existing local region directory",
+      "address": "listing.address",
+      "area_m2": "59.20",
+      "rooms": 2,
+      "floor": null,
+      "floors_total": 1,
+      "land_area_m2": "600.00 (6 соток × 100)",
+      "property_type_id": "Existing local Дом directory FK, resolved from observed house category",
+      "latitude/longitude": "listing.geo.coords"
+    },
+    "ads": {
+      "source_code": "avito (our constant)",
+      "external_id": "8457143068 from item.id, not item.externalId",
+      "url": "Observed public card URL",
+      "deal_type": "sale",
+      "market_segment": null,
+      "description": "Observed current published description",
+      "photos": "28 published URLs only",
+      "is_active": true
+    },
+    "price_history": {
+      "price_rub": "6250000.00 current offer price",
+      "price_kind": "listed",
+      "observed_at": "Our observation time, not source historical dates",
+      "source_history": "Observed source history is evidence only; import is not approved; no diff column"
+    }
+  },
+  "evidenceFiles": [
+    "proxy-listing.png",
+    "proxy-listing-snapshot.yml",
+    "proxy-house.png",
+    "proxy-house-snapshot.yml"
+  ],
+  "browser_closure": {
+    "closed": true,
+    "evidence": "pi-proxy-events.jsonl browser_close result: No open tabs. Navigate to a URL to create one."
+  }
+}

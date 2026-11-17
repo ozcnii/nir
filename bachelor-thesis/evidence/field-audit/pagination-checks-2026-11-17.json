@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-17",
+  "method": "Own IAB, actual navigation from observed listing next links. Read-only DOM. No collector implementation or error-injection test.",
+  "cian": {
+    "page1": "https://samara.cian.ru/kupit-3-komnatnuyu-kvartiru/",
+    "nextLabel": "Дальше",
+    "page2": "https://samara.cian.ru/cat.php?deal_type=sale&engine_version=2&offer_type=flat&p=2&region=4966&room3=1",
+    "firstIDs1": [
+      "334827900",
+      "334227181",
+      "330631068",
+      "320688429"
+    ],
+    "firstIDs2": [
+      "331531873",
+      "333529331",
+      "329944435",
+      "331529971"
+    ],
+    "page2Next": "https://samara.cian.ru/cat.php?deal_type=sale&engine_version=2&offer_type=flat&p=3&region=4966&room3=1"
+  },
+  "domclick": {
+    "page1": "https://samara.domclick.ru/pokupka/kvartiry/trekhkomnatnaja",
+    "nextLabel": "Следующая",
+    "page2": "https://samara.domclick.ru/pokupka/kvartiry/trekhkomnatnaja?page=2",
+    "firstIDs1": [
+      "sale__new_flat__2079210146",
+      "sale__flat__2080269220",
+      "sale__new_flat__2077308513",
+      "sale__flat__2079646944"
+    ],
+    "firstIDs2": [
+      "sale__new_flat__2069607908",
+      "sale__flat__2079659170",
+      "sale__new_flat__2079210145",
+      "sale__flat__2081859393"
+    ],
+    "page2Next": "https://samara.domclick.ru/pokupka/kvartiry/trekhkomnatnaja?page=3",
+    "warning": "Numeric link text2 had aria-label Страница1 on first page; actual href advances to page2."
+  },
+  "limits": [
+    "Only one listing family per site; no complete crawl",
+    "Grouped offers observed, inner groups not fully traversed",
+    "No error, retry, stop or actual runner tests",
+    "Partner daily listing traversal not tested"
+  ]
+}

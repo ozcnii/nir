@@ -1,0 +1,69 @@
+{
+  "capturedAt": "2026-11-17T18:21:26.627Z",
+  "method": "Exact substrings of existing local published JS files, no new requests; offsets are UTF-16 code units",
+  "files": [
+    {
+      "path": "/tmp/dc24geo-main_14966f6679bd565a371d.js",
+      "sourceUrl": "https://statics.dmclk.ru/confer/static/3662/1558678/28b4413/js/main_14966f6679bd565a371d.js",
+      "sourceUrlProvenance": "DOMCLICK64-FINAL-PRIMARY-SUPPLEMENT.md published script source URLs",
+      "bytes": 308074,
+      "sha256": "7a43ac5c42d9d65ea15c569f6f0e243ab073c9592af6cfcd920761047288e0ef",
+      "fragments": [
+        {
+          "purpose": "route",
+          "start": 189128,
+          "end": 189394,
+          "text": "use strict\";a.d(t,[\"b\",0,{MAIN:\"/\",TECHNICAL_LOGIN:\"/technical/login\",SEARCH:\"/search\",SEARCH_ON_MAP:\"/search/on-map\",CARD:\"/card/:id\",EVENT_REGISTRATION:\"/event/:id/registration\",FAVORITE:\"/favorite\",FEEDBACK:\"/feedback\",GUEST_BOOKING:\"/booking/:id\",GUEST_ORDER:\"/m"
+        },
+        {
+          "purpose": "query parser",
+          "start": 84915,
+          "end": 85408,
+          "text": "des(e))?a:void 0},Hr=e=>{const{location_id:t,date_start:a,date_end:s,adt:r,chd:i,pets:o,source_id:n,page:c,disable_sutochno:l,metro_distance:d,rooms:u,categories:m,entertainment:h,facilities:p,kitchen:g,bathroom:f,min_price:v,max_price:y,deposit:S,bbox:I,sorting:b,fast_booking:N,eventid:E,distr_test:A,partial_payment:P,recommended:O}=e,k=(0,Lr.Bu)(i),j=(0,Lr.J7)(r),_=(0,Lr.yG)(o),x=(0,Lr.GM)(n),C=(0,Lr.d)(a,s),T=(e=>{if(!e)return;const t=Number(e);return isNaN(t)||t<1?1:t})(c),R=(e=>{if(e"
+        },
+        {
+          "purpose": "geoObject",
+          "start": 10886,
+          "end": 11135,
+          "text": "a(45864);const i=(0,s.j)((e,t)=>{const a={guid:t.guid,address:t.address};return{name:\"getGeoObject\",serviceName:r.m,method:\"GET\",params:a,url:\"/api/geo/geoObject/v1\",onSuccess:e=>e}})},7755(e,t,a){\"use strict\";a.d(t,{mf:()=>s.m,Wx:()=>o,qC:()=>n,e3:"
+        },
+        {
+          "purpose": "autocomplete",
+          "start": 15602,
+          "end": 15867,
+          "text": "ss:e=>e})),O=(0,r.j)((e,t)=>({name:\"autocompleteCities\",serviceName:s.m,method:\"GET\",params:t,url:\"/api/autocomplete/cities/v2\",onSuccess:e=>e,onError:()=>[]})),k=(0,r.j)((e,t)=>({name:\"getAdOffer\",serviceName:s.m,method:\"GET\",url:\"/api/offers/details/ad/v1\",timeou"
+        }
+      ]
+    },
+    {
+      "path": "/tmp/dc24geo-755_ce3b0c9edce3f6117e6b.js",
+      "sourceUrl": "https://statics.dmclk.ru/confer/static/3662/1558678/28b4413/js/755_ce3b0c9edce3f6117e6b.js",
+      "sourceUrlProvenance": "DOMCLICK64-FINAL-PRIMARY-SUPPLEMENT.md published script source URLs",
+      "bytes": 8881,
+      "sha256": "9d3cd93f140d66241c3564c20a5f6bbf4291e8778e32f2b12e6fb88e57ae1fbe",
+      "fragments": [
+        {
+          "purpose": "search parameters",
+          "start": 8015,
+          "end": 8513,
+          "text": "8),a=r(66332);r.d(e,[\"Q\",0,t=>{const e={location_id:t.guid,adt:t.adults.toString(),date_start:t.startDate,date_end:t.endDate};return t.children.length&&(e.chd=t.children.join(\",\")),t.withPet&&(e.pets=\"true\"),t.disableSutochno&&(e.disable_sutochno=\"true\"),t.sourceId&&(e.source_id=t.sourceId),t.eventid&&(e.eventid=t.eventid),t.bbox&&(e.bbox=(0,n.Wr)(t.bbox)),t.filters&&(0,a.Q)((0,o.o)(t.filters)).forEach(([t,r])=>{void 0!==r&&(e[t]=r)}),e}])}}]);\n//# debugId=e3e6cf23-6708-58ee-bfcc-fb9586357643\n"
+        }
+      ]
+    },
+    {
+      "path": "/tmp/dc24geo-902_f1105bef85547f9dff96.js",
+      "sourceUrl": "https://statics.dmclk.ru/confer/static/3662/1558678/28b4413/js/902_f1105bef85547f9dff96.js",
+      "sourceUrlProvenance": "DOMCLICK64-FINAL-PRIMARY-SUPPLEMENT.md published script source URLs",
+      "bytes": 54900,
+      "sha256": "3c39375d319ef2005ae1740e543bca358173ab69179fc3a9dfff6886f7c59f8a",
+      "fragments": [
+        {
+          "purpose": "autocomplete invocation",
+          "start": 6133,
+          "end": 6329,
+          "text": "p.current?v(p.current[e]):(e=>(0,P.e3)((0,_.pP)(),{name:e,limit:6}).catch(()=>[]))(e).then(t=>{p.current[e]=t,v(t),b()}).catch(N()))},[b]),C=(0,a.useMemo)(()=>y()(w,k.Zu),[w]),S=(0,a.useCallback)("
+        }
+      ]
+    }
+  ]
+}

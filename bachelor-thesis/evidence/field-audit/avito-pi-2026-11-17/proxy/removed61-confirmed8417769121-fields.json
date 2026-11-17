@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\n  \"url\": \"https://www.avito.ru/krasnodar/kvartiry/1-k._kvartira_316_m_49_et._8417769121\",\n  \"title\": \"Ошибка 404. Страница не найдена\",\n  \"heading\": \"Объявление не посмотреть\",\n  \"status\": [\n    \"Объявление не посмотреть\",\n    \"Объявление закрыто.\"\n  ],\n  \"hydrationPresent\": true,\n  \"loaderKeys\": [\n    \"0\",\n    \"catalog-or-main-or-item\"\n  ],\n  \"routeDataKeys\": [\n    \"type\",\n    \"message\",\n    \"isGone\",\n    \"location\"\n  ],\n  \"buyerItemPresent\": false,\n  \"itemPresent\": false,\n  \"errorTypes\": null\n}"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 15
+}

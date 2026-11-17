@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-17",
+  "method": "Own IAB, read-only parsing of textContent of inline script DOM elements; no hidden window state, no eval, no network interception. Selected public property fields only; no credentials retained.",
+  "cian": {
+    "card_url": "https://samara.cian.ru/sale/flat/333842107/",
+    "location": "inline script window._cianConfig['frontend-offer-card']; JSON array passed to concat; entry key=defaultState, value.offerData.offer",
+    "data": {
+      "id": 333842107,
+      "totalArea": "110.0",
+      "roomsCount": 3,
+      "floorNumber": 12,
+      "bargainTerms.price": 24999000,
+      "geo.coordinates": {
+        "lat": 53.19803,
+        "lng": 50.123792
+      },
+      "geo.address.subject": "Самарская область",
+      "description_length": 2270,
+      "photos_count": 24
+    },
+    "api_config": {
+      "offerCard.browserUrl": "https://api.cian.ru/offer-card/",
+      "pythonOfferCardPublicApi": "https://api.cian.ru/offer-card/"
+    },
+    "limitation": "Config base URL is not proof of an arbitrary-offer read endpoint. Examined main JS contains archive/delete APIs, not invoked. Official get-my-offers is a separate own-listings service."
+  },
+  "domclick": {
+    "card_url": "https://samara.domclick.ru/card/sale__flat__2080269220",
+    "location": "inline script window.__SSR_STATE__; productCard and productCard.originalProduct",
+    "format": "Serialized JavaScript object contains undefined and further assignments; not pure JSON document. Root object isolated structurally, standalone undefined temporarily mapped to null for read-only inspection. Source null vs undefined must not be conflated in future extraction.",
+    "data": {
+      "id": 2080269220,
+      "dealType": "sale",
+      "offerType": "flat",
+      "objectInfo.area": 110,
+      "objectInfo.rooms": 3,
+      "objectInfo.floor": 12,
+      "objectInfo.flatNumber": null,
+      "priceInfo.price": 24999000,
+      "priceInfo.currency": "RUB",
+      "address.position": {
+        "lat": 53.198325,
+        "lon": 50.124039
+      },
+      "address.parents.subject": {
+        "kind": "province",
+        "subkind": "region",
+        "name": "Самарская область"
+      },
+      "description_present": true,
+      "photos_count": 24
+    },
+    "asset_url": "https://statics.dmclk.ru/confer/static/3207/1560283/52075da/js/main_5dce017f1d80c8a37eb5.js",
+    "api_derivation": "getProductCard: GET /v6/offers/${deal}/${typePlural}/${id}; TYPE_FLAT -> flats; service OFFER_CARD_API -> https://offer-card.domclick.ru/api",
+    "api_url": "https://offer-card.domclick.ru/api/v6/offers/sale/flats/2080269220"
+  },
+  "limits": [
+    "No actual Playwright collector implemented or run",
+    "Browser-session API replay not tested; direct API failure does not prove browser requests cannot work",
+    "Only two resale-flat cards inspected for embedded state this pass; rent/room/new-flat schemas not proven equal",
+    "No bulk crawl or API stability guarantee",
+    "Avito deferred"
+  ]
+}

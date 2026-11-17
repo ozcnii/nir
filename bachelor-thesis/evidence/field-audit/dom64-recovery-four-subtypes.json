@@ -1,0 +1,372 @@
+[
+  {
+    "case": "sale-townhouse",
+    "status": 200,
+    "data": {
+      "url": "https://samara.domclick.ru/search?deal_type=sale&category=living&offer_type=townhouse&aids=4987&offset=0",
+      "title": "Домклик - поиск, проверка и безопасная сделка с недвижимостью! 219 объявлений",
+      "heading": "Самара\nПартнёрам\nРазместить объявление\nВойти\nСамара\nИзменить\nПокупка\nАренда\nНовостройки\nПостроить дом\nИпотека\nУслуги\nЖурнал\nРиелторы\nПомощь\nСкачать приложение\nСкачать\nПокупка\nАренда\nНовостройки\nПостроить дом\nИпотека\nУслуги\nЖурнал\nРиелторы\nФильтры\nКупить\nТаунхаус\nЦена\nШоссе\nМетро\nРайон\nСохранить поиск\nКоттеджные посёлки\nКупите дом или участок от застройщика\nПривилегии Домклик\nОбъекты со сниженным первым взносом по ипотеке и скидками на услуги\nУзнайте ваш ипотечный лимит\nПо Сбер ID\n219 объявлений\nРекомендуемые\nНа карте\n2-эт. таунхаус\n394,1 м²\n4 сот.\nИЖС\nСамара, Безымянка м-н, Сарапульский переулок, 38\nПобеда\n  ~10 мин.\nПродается здание общежития площадью 394,1 кв.м. Два этажа, 22 комнаты, 5 санузлов, душ, 2 кухни. Все коммуникации: свет, газ, вода, канализация (договора заключены). Статус Общежитие - возможна регистрация. Ранее в здании было 8 квартир: 4 квартиры с 3 раздельными комнатами,",
+      "tail": null,
+      "cards": [
+        "https://samara.domclick.ru/card/sale__townhouse__1695973117",
+        "https://samara.domclick.ru/card/sale__townhouse__2080868633",
+        "https://samara.domclick.ru/card/sale__townhouse__2082104095",
+        "https://samara.domclick.ru/card/sale__townhouse__2067153605",
+        "https://samara.domclick.ru/card/sale__townhouse__2067153617",
+        "https://samara.domclick.ru/card/sale__townhouse__2073095471",
+        "https://samara.domclick.ru/card/sale__townhouse__2082092279",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807192",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807733",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807763",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807566",
+        "https://samara.domclick.ru/card/sale__townhouse__2082250033",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807268",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807306",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807643",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807328",
+        "https://samara.domclick.ru/card/sale__townhouse__2081806631",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807368",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807394",
+        "https://samara.domclick.ru/card/sale__townhouse__2081807412"
+      ],
+      "state": {
+        "filters": {
+          "applied": {
+            "deal_type": "sale",
+            "category": "living",
+            "offer_type": [
+              "townhouse"
+            ],
+            "aids": [
+              4987
+            ],
+            "complex_ids": [],
+            "routing_ids": [],
+            "village_uuids": []
+          },
+          "appliedVirtual": {
+            "monthly_payment__lte": "",
+            "monthly_payment__gte": "",
+            "deposit": ""
+          },
+          "draft": {
+            "deal_type": "sale",
+            "category": "living",
+            "offer_type": [
+              "townhouse"
+            ],
+            "aids": [
+              4987
+            ],
+            "complex_ids": [],
+            "routing_ids": [],
+            "village_uuids": []
+          },
+          "draftVirtual": {
+            "monthly_payment__lte": "",
+            "monthly_payment__gte": "",
+            "deposit": ""
+          }
+        },
+        "query": {
+          "address": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+          "offset": 0,
+          "limit": 20,
+          "sort": "qi",
+          "sort_dir": "desc",
+          "deal_type": "sale",
+          "category": "living",
+          "offer_type": [
+            "townhouse"
+          ],
+          "aids": [
+            4987
+          ],
+          "complex_ids": [],
+          "routing_ids": [],
+          "village_uuids": [],
+          "experiment": "default_control"
+        },
+        "status": "loaded",
+        "countStatus": "idle",
+        "offersCount": 219,
+        "snippetsCount": 219,
+        "pagination": {
+          "limit": 20,
+          "offset": 0
+        },
+        "pageKeys": [
+          "0"
+        ]
+      }
+    }
+  },
+  {
+    "case": "sale-house_part",
+    "status": 200,
+    "data": {
+      "url": "https://samara.domclick.ru/search?deal_type=sale&category=living&offer_type=house_part&aids=4987&offset=0",
+      "title": "Домклик - поиск, проверка и безопасная сделка с недвижимостью! 158 объявлений",
+      "heading": "Самара\nПартнёрам\nРазместить объявление\nВойти\nСамара\nИзменить\nПокупка\nАренда\nНовостройки\nПостроить дом\nИпотека\nУслуги\nЖурнал\nРиелторы\nПомощь\nСкачать приложение\nСкачать\nПокупка\nАренда\nНовостройки\nПостроить дом\nИпотека\nУслуги\nЖурнал\nРиелторы\nФильтры\nКупить\nЧасть дома\nЦена\nШоссе\nМетро\nРайон\nСохранить поиск\nСамарская область\nОчистить\nКоттеджные посёлки\nКупите дом или участок от застройщика\nПривилегии Домклик\nОбъекты со сниженным первым взносом по ипотеке и скидками на услуги\nУзнайте ваш ипотечный лимит\nПо Сбер ID\n158 объявлений\nРекомендуемые\nНа карте\nЧасть дома\n69 м²\n2,7 сот.\nИЖС\nСамарская область, Тольятти, 5а квартал м-н, Рабочий проезд\nКрасноглинское шоссе\n~ 90 км\nПродам драм в центре\nПоказать телефон\nНаписать\n\n2 750 000 ₽\n\n39 855 ₽/м²\n\nСкидка на ипотеку до 1,7%\n8 дней назад\nЧасть дома\n45 м²\n3,2 сот.\nИЖС\nСамара, 6-я Радиальная улица, 19\nПродаю ПОЛОВИНУ ДОМА С ЗЕМЛЕЙ!!! Или меняю на дом в с",
+      "tail": null,
+      "cards": [
+        "https://tolyatti.domclick.ru/card/sale__house_part__1525510020",
+        "https://samara.domclick.ru/card/sale__house_part__2070060028",
+        "https://samara.domclick.ru/card/sale__house_part__2082022650",
+        "https://samara.domclick.ru/card/sale__house_part__1894453589",
+        "https://domclick.ru/card/sale__house_part__1737501967",
+        "https://domclick.ru/card/sale__house_part__1447614703",
+        "https://domclick.ru/card/sale__house_part__1460607611",
+        "https://samara.domclick.ru/card/sale__house_part__2058296077",
+        "https://tolyatti.domclick.ru/card/sale__house_part__2077141146",
+        "https://samara.domclick.ru/card/sale__house_part__2066063148",
+        "https://samara.domclick.ru/card/sale__house_part__1834606173",
+        "https://samara.domclick.ru/card/sale__house_part__2081768081",
+        "https://samara.domclick.ru/card/sale__house_part__2076508457",
+        "https://samara.domclick.ru/card/sale__house_part__1456742608",
+        "https://samara.domclick.ru/card/sale__house_part__2057014285",
+        "https://samara.domclick.ru/card/sale__house_part__2055872476",
+        "https://samara.domclick.ru/card/sale__house_part__2076764088",
+        "https://samara.domclick.ru/card/sale__house_part__2058403815",
+        "https://samara.domclick.ru/card/sale__house_part__2060252155",
+        "https://domclick.ru/card/sale__house_part__2058812984"
+      ],
+      "state": {
+        "filters": {
+          "applied": {
+            "deal_type": "sale",
+            "category": "living",
+            "offer_type": [
+              "house_part"
+            ],
+            "aids": [
+              4987
+            ],
+            "complex_ids": [],
+            "routing_ids": [],
+            "village_uuids": []
+          },
+          "appliedVirtual": {
+            "monthly_payment__lte": "",
+            "monthly_payment__gte": "",
+            "deposit": ""
+          },
+          "draft": {
+            "deal_type": "sale",
+            "category": "living",
+            "offer_type": [
+              "house_part"
+            ],
+            "aids": [
+              4987
+            ],
+            "complex_ids": [],
+            "routing_ids": [],
+            "village_uuids": []
+          },
+          "draftVirtual": {
+            "monthly_payment__lte": "",
+            "monthly_payment__gte": "",
+            "deposit": ""
+          }
+        },
+        "query": {
+          "address": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+          "offset": 0,
+          "limit": 20,
+          "sort": "qi",
+          "sort_dir": "desc",
+          "deal_type": "sale",
+          "category": "living",
+          "offer_type": [
+            "house_part"
+          ],
+          "aids": [
+            4987
+          ],
+          "complex_ids": [],
+          "routing_ids": [],
+          "village_uuids": [],
+          "experiment": "default_control"
+        },
+        "status": "loaded",
+        "countStatus": "idle",
+        "offersCount": 158,
+        "snippetsCount": 158,
+        "pagination": {
+          "limit": 20,
+          "offset": 0
+        },
+        "pageKeys": [
+          "0"
+        ]
+      }
+    }
+  },
+  {
+    "case": "rent-house_part",
+    "status": 200,
+    "data": {
+      "url": "https://samara.domclick.ru/search?deal_type=rent&category=living&offer_type=house_part&aids=4987&offset=0",
+      "title": "Домклик - поиск, проверка и безопасная сделка с недвижимостью! 1 объявление",
+      "heading": "Самара\nПартнёрам\nРазместить объявление\nВойти\nСамара\nИзменить\nПокупка\nАренда\nНовостройки\nПостроить дом\nИпотека\nУслуги\nЖурнал\nРиелторы\nПомощь\nСкачать приложение\nСкачать\nПокупка\nАренда\nНовостройки\nПостроить дом\nИпотека\nУслуги\nЖурнал\nРиелторы\nФильтры\nСнять\nЧасть дома\nЦена\nШоссе\nМетро\nРайон\nСохранить поиск\nСамарская область\nОчистить\nПокажите собственнику свою надежность\nПройдите бесплатную проверку арендатора\nПодробнее\n1 объявление\nРекомендуемые\nНа карте\nЧасть дома\n250 м²\n1 сот.\nИЖС\nПосёлок Чайка\nСамарская область, Тольятти, коттеджный посёлок КП Чайка, 23а\nКрасноглинское шоссе\n~ 93 км\nПлюс счетчики. Закрытая территория, о Чайка в лесной зоне недалеко от отеля Лада-резорт. Охрана, сосновый бор, свой берег Волги, детские площадки, прогулочные аллеи. Половина большого бревенчатого дома, интерьер в экостиле. ; 4 спальни, 2 санузла, гостиная и кухня, кабинет, гардероб, 2 балкона. Окна на 3 сторон",
+      "tail": null,
+      "cards": [
+        "https://tolyatti.domclick.ru/card/rent__house_part__2081525526"
+      ],
+      "state": {
+        "filters": {
+          "applied": {
+            "deal_type": "rent",
+            "category": "living",
+            "offer_type": [
+              "house_part"
+            ],
+            "aids": [
+              4987
+            ],
+            "complex_ids": [],
+            "routing_ids": [],
+            "village_uuids": []
+          },
+          "appliedVirtual": {
+            "monthly_payment__lte": "",
+            "monthly_payment__gte": "",
+            "deposit": ""
+          },
+          "draft": {
+            "deal_type": "rent",
+            "category": "living",
+            "offer_type": [
+              "house_part"
+            ],
+            "aids": [
+              4987
+            ],
+            "complex_ids": [],
+            "routing_ids": [],
+            "village_uuids": []
+          },
+          "draftVirtual": {
+            "monthly_payment__lte": "",
+            "monthly_payment__gte": "",
+            "deposit": ""
+          }
+        },
+        "query": {
+          "address": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+          "offset": 0,
+          "limit": 20,
+          "sort": "qi",
+          "sort_dir": "desc",
+          "deal_type": "rent",
+          "category": "living",
+          "offer_type": [
+            "house_part"
+          ],
+          "aids": [
+            4987
+          ],
+          "complex_ids": [],
+          "routing_ids": [],
+          "village_uuids": [],
+          "experiment": "default_control"
+        },
+        "status": "loaded",
+        "countStatus": "idle",
+        "offersCount": 1,
+        "snippetsCount": 1,
+        "pagination": {
+          "limit": 20,
+          "offset": 0
+        },
+        "pageKeys": [
+          "0"
+        ]
+      }
+    }
+  },
+  {
+    "case": "rent-townhouse",
+    "status": 200,
+    "data": {
+      "url": "https://samara.domclick.ru/search?deal_type=rent&category=living&offer_type=townhouse&aids=4987&offset=0",
+      "title": "Домклик - поиск, проверка и безопасная сделка с недвижимостью! 1 объявление",
+      "heading": "Самара\nПартнёрам\nРазместить объявление\nВойти\nСамара\nИзменить\nПокупка\nАренда\nНовостройки\nПостроить дом\nИпотека\nУслуги\nЖурнал\n15\nРиелторы\nПомощь\nСкачать приложение\nСкачать\nПокупка\nАренда\nНовостройки\nПостроить дом\nИпотека\nУслуги\nЖурнал\n15\nРиелторы\nФильтры\nСнять\nТаунхаус\nЦена\nШоссе\nМетро\nРайон\nСохранить поиск\nСамарская область\nОчистить\nПокажите собственнику свою надежность\nПройдите бесплатную проверку арендатора\nПодробнее\n1 объявление\nРекомендуемые\nНа карте\n2-эт. таунхаус\n140 м²\n100 сот.\nИЖС\nСамарская область, Чапаевск, Херсонская улица, 7/2\nСдается дом, рядом в шаговой доступности магазин, все необходимое есть, два санузла, на первом этаже ванная, на втором душевая кабина, спальных мест 8, два телевизора, стиральная машинка, микроволновка, холодильник и т.д. В приоритете сдача под вахту\nПоказать телефон\nНаписать\n\n50 000 ₽/мес\n\nСкидка на ипотеку до 1,7%\nЭлектричество\nГаз\nРядом лес\n23 дня наз",
+      "tail": null,
+      "cards": [
+        "https://samara.domclick.ru/card/rent__townhouse__1885120006"
+      ],
+      "state": {
+        "filters": {
+          "applied": {
+            "deal_type": "rent",
+            "category": "living",
+            "offer_type": [
+              "townhouse"
+            ],
+            "aids": [
+              4987
+            ],
+            "complex_ids": [],
+            "routing_ids": [],
+            "village_uuids": []
+          },
+          "appliedVirtual": {
+            "monthly_payment__lte": "",
+            "monthly_payment__gte": "",
+            "deposit": ""
+          },
+          "draft": {
+            "deal_type": "rent",
+            "category": "living",
+            "offer_type": [
+              "townhouse"
+            ],
+            "aids": [
+              4987
+            ],
+            "complex_ids": [],
+            "routing_ids": [],
+            "village_uuids": []
+          },
+          "draftVirtual": {
+            "monthly_payment__lte": "",
+            "monthly_payment__gte": "",
+            "deposit": ""
+          }
+        },
+        "query": {
+          "address": "6369cbfc-1f06-4574-adba-82f4dc42c0f7",
+          "offset": 0,
+          "limit": 20,
+          "sort": "qi",
+          "sort_dir": "desc",
+          "deal_type": "rent",
+          "category": "living",
+          "offer_type": [
+            "townhouse"
+          ],
+          "aids": [
+            4987
+          ],
+          "complex_ids": [],
+          "routing_ids": [],
+          "village_uuids": [],
+          "experiment": "default_control"
+        },
+        "status": "loaded",
+        "countStatus": "idle",
+        "offersCount": 1,
+        "snippetsCount": 1,
+        "pagination": {
+          "limit": 20,
+          "offset": 0
+        },
+        "pageKeys": [
+          "0"
+        ]
+      }
+    }
+  }
+]

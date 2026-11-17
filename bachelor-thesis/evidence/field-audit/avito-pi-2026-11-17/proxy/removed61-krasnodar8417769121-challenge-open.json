@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Page\n- Page URL: https://www.avito.ru/krasnodar/kvartiry/1-k._kvartira_316_m_49_et._8417769121\n- Page Title: Доступ ограничен: проблема с IP\n- HTTP status: 429\n- Console: 1 errors, 0 warnings\n### Snapshot\n- [Snapshot](browser-output/page-2026-11-17T08-40-27-262Z.yml)"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 15
+}

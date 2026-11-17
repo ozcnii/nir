@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-17",
+  "method": "Direct unauthenticated HTTP GET. Domclick endpoint derived from current site JavaScript, Cian endpoint from official documentation. No cookies/tokens supplied.",
+  "results": [
+    {
+      "label": "domclick_card_api",
+      "url": "https://offer-card.domclick.ru/api/v6/offers/sale/flats/2080269220",
+      "status": 403,
+      "content_type": "text/html",
+      "bytes_read": 27175,
+      "not_json": true
+    },
+    {
+      "label": "cian_official_api",
+      "url": "https://public-api.cian.ru/v1/get-my-offers",
+      "status": 401,
+      "content_type": "application/json",
+      "bytes_read": 106,
+      "json_type": "dict",
+      "keys": [
+        "operationId",
+        "result"
+      ],
+      "message": "{}"
+    }
+  ]
+}

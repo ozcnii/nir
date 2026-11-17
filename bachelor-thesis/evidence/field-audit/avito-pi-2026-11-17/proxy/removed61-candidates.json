@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-17",
+  "discovery_note": "Public web search only supplies candidate URLs; actual Avito status is verified using Playwright over configured SOCKS5. No seller contacts collected.",
+  "candidates": [
+    {
+      "url": "https://www.avito.ru/tula/kvartiry/2-k_kvartira_46_m_22_et._475328375",
+      "provenance": "https://gist.github.com/McKenlly/ad3f8a4deb172f0d196284af936136e2",
+      "result": "Redirected to /tula/kvartiry, no removal proved"
+    },
+    {
+      "url": "https://www.avito.ru/pokrov/kvartiry/1-k._kvartira_478_m_45_et._4555141509",
+      "provenance": "https://prlog.ru/analysis/link.avito.ru",
+      "result": "Redirected to category; no removal proved"
+    },
+    {
+      "url": "https://www.avito.ru/moskva/kvartiry/2-k._apartamenty_118_m_4597_et._7497852601",
+      "provenance": "https://apify.com/topapi/avito-scraper",
+      "observation_provenance": "Author documents real sample row dated2026-10-14; not yet source-status proof",
+      "result": "Headless429 despite verification; headed browser reached actual card, isActive=true (not closed)."
+    },
+    {
+      "url": "https://www.avito.ru/krasnodar/kvartiry/1-k._kvartira_316_m_49_et._8417769121",
+      "provenance": "https://apify.com/amitaviv/avito-scraper",
+      "observation_provenance": "Author documents real sample run2026-10-20",
+      "result": "CONFIRMED closed: explicit visible message and published route-state message; documentHTTP200, title404; buyerItem absent."
+    },
+    {
+      "url": "https://www.avito.ru/moskva/kvartiry/kvartira-studiya_265_m_1214_et._8426673033",
+      "provenance": "https://apify.com/neverempty/avito-listings-monitor",
+      "observation_provenance": "Author documents sample row2026-10-06",
+      "result": "Headless429; after headed verification landed on homepage; not used as closure proof."
+    }
+  ]
+}

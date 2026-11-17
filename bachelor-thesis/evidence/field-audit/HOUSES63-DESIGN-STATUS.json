@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-17",
+  "status": "owner_accepted_point63_closed_design_only",
+  "previous_point62": {
+    "status": "accepted_closed_design",
+    "variant": "strict_S",
+    "H_selected": false
+  },
+  "critic": {
+    "name": "blank_houses63_critic",
+    "fork_turns": "none",
+    "score": 9,
+    "scope": "Proposal readiness for owner choice, not measured accuracy/recall",
+    "remaining_substantive_defects_reported": false
+  },
+  "evidence_basis": [
+    "additional-browser-observations.json",
+    "embedded-card-matrix-2026-11-17.json",
+    "avito-pi-2026-11-17/proxy/proxy-result.json"
+  ],
+  "real_positive_house_pair_verified": false,
+  "application_code_written": false,
+  "schema_changed": false,
+  "owner_acceptance": {
+    "date": "2026-11-17",
+    "accepted": "Proposed house rules and stated residual limits",
+    "real_positive_pair_still_unverified": true
+  },
+  "proposal": "../../HOUSE-MATCHING-6.3-PROPOSAL.md",
+  "review": "../../reviews/HOUSES63-FRESH-CRITIC-REVIEW.md",
+  "accepted_document": "../../HOUSE-MATCHING-6.3-ACCEPTED.md"
+}

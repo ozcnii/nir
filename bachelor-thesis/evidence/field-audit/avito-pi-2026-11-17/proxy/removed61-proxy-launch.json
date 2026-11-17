@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-17",
+  "pid": 95193,
+  "command": "npx",
+  "args": [
+    "--offline",
+    "@playwright/mcp@0.0.85",
+    "--isolated",
+    "--headless",
+    "--codegen",
+    "none",
+    "--proxy-server",
+    "socks5://127.0.0.1:10808",
+    "--timeout-navigation",
+    "30000",
+    "--output-dir",
+    "/Users/qq/Documents/ssau/bachelor-thesis/evidence/field-audit/avito-pi-2026-11-17/proxy/browser-output"
+  ],
+  "note": "Same proxy configuration; egress IP not measured"
+}

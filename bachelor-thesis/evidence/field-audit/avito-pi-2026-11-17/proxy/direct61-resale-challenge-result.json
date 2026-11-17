@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Result\n{\"url\":\"https://www.avito.ru/samara/kvartiry/prodam/vtorichka-ASgBAgICAkSSA8YQ5geMUg?cd=1\",\"title\":\"Доступ ограничен: проблема с IP\",\"visibleMessage\":\"Страница не загрузилась из-за проблем с IP\\n\\nПроверка пройдена, перенаправление...\\n\\nЧто делать, если проблема повторяется\\n— Отключить VPN\\n— Отключить AdBlock или другие блокировщики рекламы, если они есть\\n— Перезагрузить роутер\\n\\nЕсли и это не сработает, напишите в поддержку. В обращении укажите город\"}\n### Events\n- New console entries: browser-output/console-2026-11-17T08-19-39-726Z.log#L3-L5"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 7
+}

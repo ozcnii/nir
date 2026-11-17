@@ -1,0 +1,124 @@
+{
+  "parentUrl": "https://samara.domclick.ru/card/sale__new_flat__2072470664?to_flats=true",
+  "unitId": 2072470664,
+  "units": [
+    {
+      "flatId": 2072470552,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 2,
+      "flatNumber": "122",
+      "price": 6648180
+    },
+    {
+      "flatId": 2072470567,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 4,
+      "flatNumber": "138",
+      "price": 6864030
+    },
+    {
+      "flatId": 2072470580,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 5,
+      "flatNumber": "146",
+      "price": 6907200
+    },
+    {
+      "flatId": 2072470620,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 8,
+      "flatNumber": "170",
+      "price": 6907200
+    },
+    {
+      "flatId": 2072470627,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 9,
+      "flatNumber": "178",
+      "price": 6907200
+    },
+    {
+      "flatId": 2072470629,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 4,
+      "flatNumber": "18",
+      "price": 6864030
+    },
+    {
+      "flatId": 2072470651,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 10,
+      "flatNumber": "186",
+      "price": 6907200
+    },
+    {
+      "flatId": 2072470659,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 11,
+      "flatNumber": "194",
+      "price": 6950370
+    },
+    {
+      "flatId": 2072470683,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 14,
+      "flatNumber": "218",
+      "price": 7036710
+    },
+    {
+      "flatId": 2072470733,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 9,
+      "flatNumber": "58",
+      "price": 6907200
+    },
+    {
+      "flatId": 2072470767,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 12,
+      "flatNumber": "82",
+      "price": 6950370
+    },
+    {
+      "flatId": 2072470775,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 13,
+      "flatNumber": "90",
+      "price": 6993540
+    },
+    {
+      "flatId": 2072470782,
+      "buildingId": 183762,
+      "rooms": 1,
+      "area": 43.17,
+      "floorNumber": 14,
+      "flatNumber": "98",
+      "price": 7036710
+    }
+  ],
+  "visibleRows": 13
+}

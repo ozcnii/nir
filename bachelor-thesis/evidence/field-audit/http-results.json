@@ -1,0 +1,35 @@
+[
+  {
+    "name": "cian-list",
+    "requested_url": "https://samara.cian.ru/kupit-kvartiru/",
+    "checked_at": "2026-11-16T12:27:40.391296+00:00",
+    "cookies": false,
+    "status": 200,
+    "url": "https://samara.cian.ru/kupit-kvartiru/",
+    "content_type": "text/html",
+    "bytes": 2209,
+    "sha256": "08acfb98956163a46fadaaa15ded49dba4008cb2c0a8357301d1b4291260b6aa"
+  },
+  {
+    "name": "cian-card",
+    "requested_url": "https://samara.cian.ru/sale/flat/330631159/",
+    "checked_at": "2026-11-16T12:27:40.391600+00:00",
+    "cookies": false,
+    "status": 200,
+    "url": "https://samara.cian.ru/sale/flat/330631159/",
+    "content_type": "text/html",
+    "bytes": 2218,
+    "sha256": "41b33310a6a1c2e4ecd80c4a70531c0ce1dbd2c562cce9b999e20d1a950168bd"
+  },
+  {
+    "name": "domclick-list",
+    "requested_url": "https://samara.domclick.ru/pokupka/kvartiry",
+    "checked_at": "2026-11-16T12:27:40.391670+00:00",
+    "cookies": false,
+    "status": 401,
+    "url": "https://samara.domclick.ru/pokupka/kvartiry",
+    "content_type": "text/html",
+    "bytes": 279,
+    "sha256": "d9675d1562a3132e944d2304b4787c562c52bc4b990f92a3e016a509b47dfed5"
+  }
+]
