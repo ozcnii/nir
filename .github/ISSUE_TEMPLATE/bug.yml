@@ -1,0 +1,33 @@
+name: Ошибка или невыполненный критерий
+description: Воспроизводимый дефект с привязкой к принятому поведению
+title: "[BUG] "
+labels: [bug]
+body:
+  - type: textarea
+    id: authority
+    attributes:
+      label: Исходная задача и ожидаемое поведение
+      description: Номер issue, критерий AC/Fxx или принятый контракт.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Воспроизведение
+      description: SHA, среда, безопасные исходные данные и точные шаги.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Ожидаемый и фактический результат
+      description: Что получилось, что должно было получиться и влияние ошибки.
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: Приёмка исправления
+      description: Как подтвердить исправление исходного случая и затронутой границы; приложить безопасные доказательства.
+    validations:
+      required: true

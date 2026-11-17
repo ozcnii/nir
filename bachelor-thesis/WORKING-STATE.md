@@ -1,3 +1,9 @@
+## Работа агентов и GitHub-доска настроены
+
+18 ноября 2026 владелец принял GitHubIssues/Projects-процесс и поручил реальную настройку, максимум3итерации ревью до>=9/10, безкода приложения. Созданы privateProject1 (https://github.com/users/ozcnii/projects/1),8этапов (#1–8),38задач (#9–46),native sub-issues/blocked-by,7статусов иполеЭтап. Всеopen/Backlog; приложениеещёнеразрешено. Введены AGENTS/CODING/CONTRIBUTING,маршрутCLAUDE/README,IssueForms/PRtemplate иуказательIMPLEMENTATION-TRACKER.
+
+Два новых чистыхкритика: задачи9,2/10; процесс8,8→9,4послеP2bootstrapgate. Использованы2итерациииз3,единственноеP2устранено,открытыхзамечанийнет. BootstrapT01 проверяеттолькосуществующее; fullCI—T13, mainprotection—T36. Подтверждены38parent/76deps/DAG,46Backlog,реальныйstatusroundtripнаудалённомпослетестаdraft. ApplicationCI/сервисы/коднесозданы. Итог reviews/AGENT-WORKFLOW-SETUP-REVIEW.md,снимокevidence/AGENT-WORKFLOW-SETUP-VERIFICATION.json. Статусысами собойнеявляютсяатомарнойблокировкой/приёмкой;координаторпроверяетдоказательства/SHA. Чужойnavyki.txtне тронут.
+
 ## Пункт 9 принят и закрыт; проектирование 1–9 завершено
 
 18 ноября 2026 владелец прямо принял итоговый комплект и web-профиль, поручил закрыть9 и сделать commit/push. FINAL9-RECONCILIATION-PROPOSAL.md и CONSOLIDATED-DESIGN-9.md теперь принятые спецификации; имяPROPOSAL не отменяет принятия. Приняты локальный runserver--noreload--insecure, DEBUGfalse, обычный StaticFilesStorage/STATIC_URL, localhost/127.0.0.1 и устойчивый SECRET_KEY вне Git, вместе с комплектом документов.

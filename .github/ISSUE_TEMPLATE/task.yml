@@ -1,0 +1,62 @@
+name: Задача реализации или документов
+description: Проверяемая подзадача принятого проекта ВКР
+title: "[TASK] "
+labels: [task]
+body:
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Этап
+      options:
+        - "1 — Правила и каркас"
+        - "2 — БД и первый запуск"
+        - "3 — Жизненный цикл"
+        - "4 — Первый сквозной проход"
+        - "5 — Полный сбор и сопоставление"
+        - "6 — Интерфейс и JSON"
+        - "7 — Приёмка и исследование"
+        - "8 — Итоговые материалы"
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Результат и границы
+      description: Что пользователь или следующий модуль сможет сделать; что сюда не входит.
+    validations:
+      required: true
+  - type: textarea
+    id: authority
+    attributes:
+      label: Основание и разрешение
+      description: Ссылки на принятые спецификации; разрешение исполнения либо «пока не разрешено — Backlog».
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Зависимости
+      description: Номера issues или обоснованное «нет». Координатор также ставит native blocked-by/sub-issue связи.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Критерии приёмки
+      description: "AC1, AC2... Для каждого: условия → действие → конкретный ожидаемый результат."
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: План проверок и доказательства
+      description: Сценарии/данные/среда, применимые F01–F25, что представить для PASS; непроверенное указать отдельно.
+    validations:
+      required: true
+  - type: checkboxes
+    id: readiness
+    attributes:
+      label: Перед передачей координатору
+      options:
+        - label: Карточка не подменяет разрешение писать код и не меняет принятый проект молча.
+          required: true

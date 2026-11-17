@@ -1,0 +1,47 @@
+{
+  "checked_at": "2026-11-17T23:37:45+00:00",
+  "project_url": "https://github.com/users/ozcnii/projects/1",
+  "project_private": true,
+  "stages": 8,
+  "work_tasks": 38,
+  "project_items": 46,
+  "all_open": true,
+  "all_backlog": true,
+  "native_parent_links": 38,
+  "native_dependency_links": 76,
+  "native_validation": "REST bodies, parent links, dependencies, exact body/native match and DAG assertions completed in first verification pass; project GraphQL syntax corrected and this project-only check completed separately. No application was run.",
+  "dependency_graph_acyclic": true,
+  "required_sections_and_unchecked_criteria": true,
+  "board_layout": "BOARD_LAYOUT",
+  "board_columns": "Status",
+  "table_stage_field_visible": true,
+  "linked_repository": "ozcnii/nir",
+  "status_transition_check": {
+    "artifact": "temporary draft, not implementation issue",
+    "verified_statuses": [
+      "Backlog",
+      "Ready",
+      "In progress",
+      "Verification",
+      "Review",
+      "Blocked",
+      "Done",
+      "Backlog"
+    ],
+    "draft_removed": true,
+    "application_tasks_changed": false
+  },
+  "application_tests_run": false,
+  "ci_configured": false,
+  "scope": "Live GitHub task metadata and local documentation only.",
+  "review": {
+    "iterations_used": 2,
+    "iteration_limit": 3,
+    "task_quality_score": 9.2,
+    "controls_initial_score": 8.8,
+    "controls_final_score": 9.4,
+    "open_findings": 0,
+    "fixed_finding": "Bootstrap CI gate: T01 current checks; T13 full current contour; T36 main protection."
+  },
+  "publication_check": "Performed after final commit/push; see review release note. This snapshot does not claim application CI or GitHub Forms UI execution."
+}
