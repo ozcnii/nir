@@ -1,6 +1,6 @@
 # 8.4 — локальные проверки, hooks и CI
 
-**ПРЕДЛОЖЕНИЕ, НЕ ПРИНЯТО.** 18 ноября 2026. 8.1–8.3 приняты и закрыты. Здесь проект автоматизации, а не созданные workflow/hooks/config. Новая dev-зависимость pre-commit и GitHub Actions предлагаются явно; установки, рабочие файлы и настройки репозитория не выполняются. Версии Python/Django/PostgreSQL/uv/actions и совместимые пакеты фиксируются отдельным решением до реализации.
+**ПРИНЯТО, 8.4 ЗАКРЫТ.** 18 ноября 2026. Владелец принял 8.4; 8.1–8.3 также приняты и закрыты. Здесь проект автоматизации, а не созданные workflow/hooks/config. pre-commit как dev-зависимость и GitHub Actions приняты владельцем; установки, рабочие файлы и настройки репозитория не выполняются. Версии Python/Django/PostgreSQL/uv/actions и совместимые пакеты фиксируются отдельным решением до реализации.
 
 ## 1. Основа и существующие механизмы
 
@@ -54,4 +54,4 @@ CI проверяет проект на фиксированных локаль�
 
 Это проект порядка запуска и состава проверок. pre-commit, workflow, ruleset и команды пока не установлены/не испытаны. Их первый реальный проход должен проверить staged/unstaged, ошибочный код, миграцию, отрицательный тест, документы-only, удаление/rename, отказ classify, skipped/failed/cancelled dependencies и сохранность LFS hook. Испытания автоматики не заменяют 7.1–7.4 или ревью архитектуры 8.3.
 
-Первичные факты: [QUALITY84-PRIMARY-SOURCES.md](evidence/QUALITY84-PRIMARY-SOURCES.md), [pre-commit](https://pre-commit.com/), [uv lock/sync](https://docs.astral.sh/uv/concepts/projects/sync/), [GitHub required checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks), [Playwright CI](https://playwright.dev/python/docs/ci). Состав/момент запуска, три jobs и выбор Chromium — новые предложения проекта, не обязательные требования университета. 8.4 НЕ ПРИНЯТ до ответа владельца.
+Первичные факты: [QUALITY84-PRIMARY-SOURCES.md](evidence/QUALITY84-PRIMARY-SOURCES.md), [pre-commit](https://pre-commit.com/), [uv lock/sync](https://docs.astral.sh/uv/concepts/projects/sync/), [GitHub required checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks), [Playwright CI](https://playwright.dev/python/docs/ci). Состав/момент запуска, pre-commit, три jobs и выбор Chromium приняты владельцем в составе 8.4; это правила проекта, не требования университета. 8.4 закрыт 18 ноября 2026. Исторические слова «предлагаем» описывают теперь принятый вариант; установки и рабочие конфигурации по-прежнему не выполнялись.

@@ -17,7 +17,7 @@
 |Интерфейс|[сценарии](SCENARIOS-SCREENS-PROPOSAL.md), [JSON](JSON-5.5-CONTRACT-DETAILS.md)|
 |Проверки источников|[POINT6-REMAINING-DESIGN.md](POINT6-REMAINING-DESIGN.md), [итог Домклик](evidence/field-audit/DOMCLICK64-REMAINING-CHECKS-COMPLETED.md)|
 |Приемка/исследование|[7.1](ACCEPTANCE-7.1-PROPOSAL.md), [7.2](RESEARCH-DATASET-7.2-PROPOSAL.md), [7.3](RESEARCH-METRICS-7.3-PROPOSAL.md), [7.4](USER-TIME-STUDY-7.4-PROPOSAL.md)|
-|Качество кода|[8.1 инструменты — принято](QUALITY-8.1-PROPOSAL.md), [8.2 профиль — принято](QUALITY-8.2-PROPOSAL.md), [8.3 кодинг/слои/тесты/агенты — принято](QUALITY-8.3-PROPOSAL.md), [8.4 проверки/hooks/CI — предложение](QUALITY-8.4-PROPOSAL.md)|
+|Качество кода|[8.1 инструменты — принято](QUALITY-8.1-PROPOSAL.md), [8.2 профиль — принято](QUALITY-8.2-PROPOSAL.md), [8.3 кодинг/слои/тесты/агенты — принято](QUALITY-8.3-PROPOSAL.md), [8.4 проверки/hooks/CI — принято](QUALITY-8.4-PROPOSAL.md), [8.5 версии — предложение](QUALITY-8.5-PROPOSAL.md)|
 
 В7.4 окончательно приняты4участника, без жесткого временного лимита и дополнительных людей. Фото приложения — толькоURL, без загрузки для анализа/хешей. Подробности определяются перечисленными спецификациями, а не устаревшими вариантами структуры/схемы.
 
