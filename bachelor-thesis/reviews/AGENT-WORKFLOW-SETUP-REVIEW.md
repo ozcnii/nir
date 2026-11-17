@@ -1,6 +1,6 @@
 # Настройка работы агентов: независимое ревью и проверка
 
-18 ноября 2026. Работа разрешена пользователем: доска, задачи восьми этапов с зависимостями/AC/проверками, AGENTS и шаблоны, commit/push. Код приложения запрещён. Baseline:283886040df51c51a20d91e18e48fd0dcd57bf60. Использован code-review skill. Максимум три итерации, фактически две.
+18 ноября 2026. Работа разрешена пользователем: доска, задачи восьми этапов с зависимостями/AC/проверками, AGENTS и шаблоны, commit/push. Код приложения запрещён. Baseline:283886040df51c51a20d91e18e48fd0dcd57bf60. Использован code-review skill. Максимум три итерации, фактически три (последняя — только публикация/CLI).
 
 ## Результат
 
@@ -22,6 +22,12 @@
 
 Точечная перепроверка тем же вторым критиком, не второйновыйполныйобзор. CONTRIBUTING/AGENTS/liveREADMEпроекта теперь явноразделяют T01(толькоегоAC/начальныепроверки), T13(полныйнынешнийконтур/negative/migrations/classifier/fail/cancel) и T36(защитаmainпослеT13). Начальныйworkflow не считаетсяfullCI; будущиефункции не требуютсядлязакрытияT01 и не объявляютсяпроверенными. F1закрыт; новых findings нет, оценка9,4/10. Прежниеуспешныепроверкинеповторялись.
 
+### Итерация 3: публикация и CLI
+
+После commit/push c4ff871 подтверждены remote main и все16allowlistblobs. GitHubAPIпоказываетфайлыобеихформ/config/PRtemplate иAGENTS/CONTRIBUTING. Repository.issueTemplatesвернул[]дляYAMLформ; поэтому добавлен явный маршрут ghissuecreate--body-file с title/labels/nativeсвязями/Project иreadback, безнадеждына--template. Тот же критик точечно подтвердил правильностьCLIабзаца и наличиеremoteфайлов, сохранил9,4/10; новых findingsнет. Большеитерацийне проводилось.
+
+Важноеограничение: isBlankIssuesEnabled=trueдлятекущеговладельца при опубликованномblank_issues_enabled:false. ЭтонеиспользуетсякакдоказательствоотключённогоblankUI. Рендерchooser/формвбраузеренепроверен, фактическоеUIотключениеblankнеутверждается. Формыструктурнопроверены/опубликованы; рабочийCLIмаршрутявноописан. НовыйCLIабзацпубликуетсяфинальнымfollow-upcommit иегоremoteblobпроверяетсяотдельно. Это releaseпроверка, нетестприложения.
+
 ## Реальные проверки главного агента
 
 [Машинный снимок](../evidence/AGENT-WORKFLOW-SETUP-VERIFICATION.json):
@@ -38,7 +44,7 @@
 
 - AGENTS.md: 5767ba51b6ff19b834585ddaf3ed3f1e1951e1bba77b20419fe33b7d5d2a1027
 - CODING.md: 6dd76e525382dbc0f3cb9533c51d1876462237151125610ffc3f3c41fa2f08ad
-- CONTRIBUTING.md: 2f95aa94389fecb5e7f14e794f9effd0891d00c7c6bf818ddd4af21d9658be71
+- CONTRIBUTING.md: 37e29da5da68b870c88ba7f9cd1301434ecf94222a2c0266707f85f273a521e9
 - CLAUDE.md: f70052dac4680bea90e3eb6662e3adf216756a0099fe1b99e7710584bde98b7f
 - README.md: 7829c219e202d748dc4a30ad617abd1fd6ecbd62d87ac00ab0cafc13986d7775
 - .github/ISSUE_TEMPLATE/task.yml: cecd7fb571ba6ff9c320e2c66edf2bce7cd5871b84e2dd0f66badcc35e15bbb1

@@ -35,13 +35,25 @@
   "ci_configured": false,
   "scope": "Live GitHub task metadata and local documentation only.",
   "review": {
-    "iterations_used": 2,
+    "iterations_used": 3,
     "iteration_limit": 3,
     "task_quality_score": 9.2,
     "controls_initial_score": 8.8,
     "controls_final_score": 9.4,
     "open_findings": 0,
-    "fixed_finding": "Bootstrap CI gate: T01 current checks; T13 full current contour; T36 main protection."
+    "fixed_finding": "Bootstrap CI gate: T01 current checks; T13 full current contour; T36 main protection.",
+    "final_iteration_scope": "Targeted publication and CLI-body-file clarification; no full repeated board audit; controls score remains9.4."
   },
-  "publication_check": "Performed after final commit/push; see review release note. This snapshot does not claim application CI or GitHub Forms UI execution."
+  "publication_check": {
+    "initial_verified_commit": "c4ff8711cbeb1d73d824945beadd7eb5c5265314",
+    "published_allowlist_files": 16,
+    "remote_blobs_match_initial_commit": true,
+    "yaml_forms_files_available": true,
+    "forms_ui_render_tested": false,
+    "graphql_issue_templates": [],
+    "graphql_viewer_can_create_blank_issue": true,
+    "blank_issue_ui_disabled_confirmed": false,
+    "cli_body_file_path_reviewed": true,
+    "final_cli_paragraph_publication": "Not part of initial c4 snapshot; verify final follow-up commit separately."
+  }
 }
