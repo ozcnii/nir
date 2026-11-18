@@ -410,3 +410,35 @@ class RoomClaimsTests(TestCase):
 
                         # Assert
                         self.assertEqual(result, (1, Decimal("9")))
+
+    def test_predicate_negation_only_disputes_the_named_holder(self) -> None:
+        for holder, negation, compatible in (
+            ("долей соседа", "не ", True),
+            ("этой долей", "не ", False),
+            ("долей соседа", "", False),
+        ):
+            room = "комната № 2 в квартире № 25"
+            for contrast in (
+                f"По соглашению закреплена {room} за этой долей, "
+                f"а за {holder} {negation}закреплена {room}.",
+                f"{room.capitalize()} {negation}закреплена за {holder}, "
+                f"а за этой долей закреплена {room}.",
+            ):
+                with self.subTest(contrast=contrast):
+                    # Arrange
+                    description = "Продаётся 1/2 доля в квартире. " + contrast
+
+                    if compatible:
+                        # Act
+                        result = room_facts(1, Decimal("9"), description)
+
+                        # Assert
+                        self.assertEqual(result, (1, Decimal("9")))
+                    else:
+                        # Act
+                        with self.assertRaisesRegex(
+                            RejectedCard, "^unconfirmed_room_unit$"
+                        ):
+                            room_facts(1, Decimal("9"), description)
+
+                        # Assert: the rejection reason is checked above.
