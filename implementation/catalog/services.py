@@ -19,8 +19,17 @@ from catalog.contracts import (
     is_database_text,
     is_http_url,
 )
+from catalog.matching import (
+    FLAT_ID,
+    Match,
+    PropertyFacts,
+    choose_flat,
+    repeated_flat_patch,
+)
+from catalog.matching_address import parse_address
 from catalog.models import DealType, MarketSegment, PriceKind, PropertyType, Region
-from catalog.reference_data_v1 import SOURCE_CODES
+from catalog.queries import flat_candidates, property_for_update
+from catalog.reference_data_v1 import REGIONS, SOURCE_CODES
 from config.collection_lock import try_delete_lock
 from config.control import CONTROL_PATH, ControlError, request
 
@@ -71,6 +80,7 @@ Outcome = Literal[
     "unavailable",
 ]
 _CATALOG_WRITE_KEY = (0x4E4952, 2)
+_REGION_NAMES = dict(REGIONS)
 
 
 @dataclass(frozen=True)
@@ -243,29 +253,74 @@ def accept_snapshot(
         ).fetchone()
         if references != (True,):
             return Receipt("rejected", reason="unknown_reference")
-        return _store_active(connection, active_data, previous)
+        match: Match | None = None
+        region = _REGION_NAMES.get(active_data["region_id"])
+        if previous is not None:
+            property_id = cast(int, previous[1])
+            saved = property_for_update(connection, property_id)
+            if (
+                saved["property_type_id"] == FLAT_ID
+                or active_data["property_type_id"] == FLAT_ID
+            ):
+                if (
+                    saved["region_id"] != active_data["region_id"]
+                    or saved["property_type_id"] != active_data["property_type_id"]
+                ):
+                    return Receipt(
+                        "conflict",
+                        previous[0],
+                        property_id,
+                        reason="property_scope_changed",
+                    )
+                if region is not None:
+                    patch = repeated_flat_patch(saved, active_data, region)
+                    if patch is None:
+                        return Receipt(
+                            "conflict",
+                            previous[0],
+                            property_id,
+                            reason="apartment_address_changed",
+                        )
+                    match = Match(property_id, patch)
+        elif active_data["property_type_id"] == FLAT_ID and region is not None:
+            address = parse_address(active_data["address"], region)
+            if address is not None:
+                match = choose_flat(
+                    active_data,
+                    address,
+                    flat_candidates(connection, active_data["region_id"]),
+                    region,
+                )
+        return _store_active(connection, active_data, previous, match)
 
 
 def _store_active(
-    connection: Connection[TupleRow], data: ActiveSnapshot, previous: TupleRow | None
+    connection: Connection[TupleRow],
+    data: ActiveSnapshot,
+    previous: TupleRow | None,
+    match: Match | None,
 ) -> Receipt:
     photo_state = data["photos"]
     known_photos = photo_state["status"] == "known"
     photos = photo_state["urls"] if photo_state["status"] == "known" else []
     photo_time = data["observed_at"] if known_photos else None
     if previous is None:
-        property_row = connection.execute(
-            """
-            INSERT INTO properties (region_id, property_type_id, address, latitude,
-                                    longitude, area_m2, rooms, floor, floors_total, land_area_m2)
-            VALUES (%(region_id)s, %(property_type_id)s, %(address)s, %(latitude)s,
-                    %(longitude)s, %(area_m2)s, %(rooms)s, %(floor)s,
-                    %(floors_total)s, %(land_area_m2)s) RETURNING id
-            """,
-            data,
-        ).fetchone()
-        assert property_row is not None
-        property_id = cast(int, property_row[0])
+        if match is not None:
+            property_id = match.property_id
+            _apply_property_patch(connection, property_id, match.patch)
+        else:
+            property_row = connection.execute(
+                """
+                INSERT INTO properties (region_id, property_type_id, address, latitude,
+                                        longitude, area_m2, rooms, floor, floors_total, land_area_m2)
+                VALUES (%(region_id)s, %(property_type_id)s, %(address)s, %(latitude)s,
+                        %(longitude)s, %(area_m2)s, %(rooms)s, %(floor)s,
+                        %(floors_total)s, %(land_area_m2)s) RETURNING id
+                """,
+                data,
+            ).fetchone()
+            assert property_row is not None
+            property_id = cast(int, property_row[0])
         ad = connection.execute(
             """
             INSERT INTO ads (property_id, source_code, external_id, url, deal_type, market_segment,
@@ -293,6 +348,8 @@ def _store_active(
             data["description"],
         ) != previous[4:8]
         changed |= known_photos and photos != previous[8]
+        if match is not None:
+            changed |= _apply_property_patch(connection, match.property_id, match.patch)
         connection.execute(
             """
             UPDATE ads SET url=%(url)s, market_segment=%(market_segment)s,
@@ -320,6 +377,29 @@ def _store_active(
         else "unchanged"
     )
     return Receipt(outcome, ad_id, property_id, price_changed)
+
+
+def _apply_property_patch(
+    connection: Connection[TupleRow], property_id: int, patch: PropertyFacts
+) -> bool:
+    if all(value is None for value in patch.values()):
+        return False
+    connection.execute(
+        """
+        UPDATE properties SET
+            address=COALESCE(%(address)s, address),
+            latitude=COALESCE(%(latitude)s, latitude),
+            longitude=COALESCE(%(longitude)s, longitude),
+            area_m2=COALESCE(%(area_m2)s, area_m2),
+            rooms=COALESCE(%(rooms)s, rooms),
+            floor=COALESCE(%(floor)s, floor),
+            floors_total=COALESCE(%(floors_total)s, floors_total),
+            land_area_m2=COALESCE(%(land_area_m2)s, land_area_m2)
+        WHERE id=%(id)s
+        """,
+        {**patch, "id": property_id},
+    )
+    return True
 
 
 def _record_price(
