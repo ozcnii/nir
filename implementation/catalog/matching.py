@@ -29,7 +29,8 @@ _LAYOUT_ITEM = re.compile(
 )
 _LIST_SEPARATOR = re.compile(r"\s*(?:[,;]\s*(?:и\s+)?|и\s+)|\s+")
 _FOREIGN_HEADING = re.compile(
-    r"(?:(?:на )?фото |планировка )?соседн\w*\s+квартир\w*\b\s*[:–-]?\s*"
+    r"(?:(?:на )?фото |планировка )?соседн\w*\s+квартир\w*\b"
+    r"\s*[,;:-]?\s*(?:а\s+)?"
 )
 _OTHER_UNIT = re.compile(
     r"\b(?:соседн\w*|друг\w*|аналогичн\w*|типов\w*)\s+(?:квартир\w*|кв\b)"
@@ -40,6 +41,12 @@ _OFFERED_UNIT = re.compile(
     r"(?:в (?:продаваемой|предлагаемой|сдаваемой) квартире"
     r"|планировка (?:продаваемой|предлагаемой|сдаваемой) квартиры)\b\s*[:–-]?\s*"
 )
+_LAYOUT_HEADING = re.compile(r"(?:планировка:|в (?:этой )?квартире\b)\s*")
+_BACK_REFERENCE = re.compile(
+    r"(?:(?:эти|указанные|названные|это)\s+(?:размеры|площади|помещения|комнаты)"
+    r"|оба|обе)\b\s*"
+)
+_DENIAL = re.compile(r"\b(?:отсутству\w*|не\s+(?:предусмотрен\w*|относят\w*))\b")
 _SENTENCE_END = re.compile(r"[.!?](?![0-9])")
 _SQUARE_METERS = re.compile(r"\bкв\.\s*м\b")
 _TYPOGRAPHY = str.maketrans(
@@ -113,27 +120,43 @@ def _layout_assertions(
 
 
 def _has_layout(text: str) -> bool:
-    rooms: dict[tuple[str, str | None], set[Decimal]] = {}
+    confirmed: list[tuple[tuple[str, str | None], Decimal]] = []
+    pending: list[tuple[tuple[str, str | None], Decimal]] = []
     on_offer = True
     for sentence in _SENTENCE_END.split(_SQUARE_METERS.sub("м²", text)):
         sentence = sentence.strip()
+        if reference := _BACK_REFERENCE.match(sentence):
+            claim = sentence[reference.end() :]
+            if _OTHER_UNIT.search(claim) or _DENIAL.search(claim):
+                pending.clear()
+
         if heading := _FOREIGN_HEADING.match(sentence):
+            confirmed.extend(pending)
+            pending.clear()
             on_offer = False
             sentence = sentence[heading.end() :]
         if _OTHER_UNIT.search(sentence):
             on_offer = False
             continue
         if heading := _OFFERED_UNIT.match(sentence):
+            confirmed.extend(pending)
+            pending.clear()
             on_offer = True
             sentence = sentence[heading.end() :]
-        if not on_offer:
-            continue
-        for room, area in _layout_assertions(sentence) or ():
-            rooms.setdefault(room, set()).add(area)
+        if on_offer:
+            claims = _LAYOUT_HEADING.sub("", sentence, count=1)
+            pending.extend(_layout_assertions(claims) or ())
 
-    if ("кухня-гостиная", None) in rooms:
-        rooms.pop(("кухня", None), None)
-        rooms.pop(("гостиная", None), None)
+    rooms: dict[tuple[str, str | None], set[Decimal]] = {}
+    for room, area in (*confirmed, *pending):
+        rooms.setdefault(room, set()).add(area)
+    combined = {ordinal for kind, ordinal in rooms if kind == "кухня-гостиная"}
+    if combined:
+        for kind, ordinal in tuple(rooms):
+            if kind in ("кухня", "гостиная") and (
+                ordinal is None or None in combined or ordinal in combined
+            ):
+                del rooms[kind, ordinal]
     numbered_kinds = {kind for kind, ordinal in rooms if ordinal is not None}
     return (
         sum(
