@@ -4,21 +4,24 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from decimal import Decimal
+from itertools import combinations
 from typing import TypedDict
 
 from catalog.contracts import ActiveSnapshot
 from catalog.matching_address import (
+    Address,
     address_patch,
     apartment_address_conflicts,
     mentions_unit,
     parse_address,
+    same_house,
 )
 
 FLAT_ID = 1
 _ROOMS = re.compile(
     r"(?<!\w)(кухня-гостиная|кухня|гостиная|спальня|комната|прихожая|"
     r"коридор|санузел|ванная|гардеробная|кабинет|детская)"
-    r"(?:\s*№\s*([1-9][0-9]*))?\s*[:=–-]?\s*"
+    r"(?:\s*№\s*([1-9][0-9]*))?\s*(?:[:=]\s*|-\s+)?"
     r"([0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.?\s*м)\b"
 )
 _OTHER_UNIT = re.compile(
@@ -29,9 +32,14 @@ _OTHER_UNIT = re.compile(
 _OFFERED_UNIT = re.compile(r"\b(?:продаваем\w*|предлагаем\w*|сдаваем\w*)\s+квартир\w*")
 _UNASSERTED = re.compile(
     r"\b(?:не\s+(?:предусмотр\w*|выдел\w*|буд\w*|име\w*|существ\w*)"
-    r"|возможн\w*|планиру\w*|проектиру\w*)\b"
+    r"|возможно|отсутству\w*"
+    r"|(?:можно|планируется)\s+(?:сделать|выделить|устроить)\w*"
+    r"|нет\s+(?:(?:таких|указанных)\s+)?помещени\w*)\b"
 )
-_CLAUSE_END = re.compile(r"[.!?,](?![0-9])|;")
+_SENTENCE_END = re.compile(
+    rf"[.!?](?![0-9])|\n(?=[^\n]*(?:{_OTHER_UNIT.pattern}|{_OFFERED_UNIT.pattern}))"
+)
+_CLAUSE_END = re.compile(r",(?![0-9])|;")
 _SQUARE_METERS = re.compile(r"\bкв\.\s*м\b")
 _TYPOGRAPHY = str.maketrans(
     {
@@ -80,26 +88,25 @@ class Match:
 
 
 def _seller(value: str | None) -> str:
-    if not value:
-        return ""
-    normalized = unicodedata.normalize("NFC", value).lower().translate(_TYPOGRAPHY)
-    return " ".join(_EMOJI.sub(" ", normalized).split())
+    normalized = unicodedata.normalize("NFC", value or "").lower()
+    return _EMOJI.sub(" ", normalized.translate(_TYPOGRAPHY))
 
 
 def _has_layout(text: str) -> bool:
     rooms: set[tuple[str, str]] = set()
     on_offer = True
-    for clause in _CLAUSE_END.split(_SQUARE_METERS.sub("м²", text)):
-        other = _OTHER_UNIT.search(clause)
-        offered = _OFFERED_UNIT.search(clause)
-        if other or offered:
-            on_offer = not other
-        if on_offer and not _UNASSERTED.search(clause):
-            rooms.update(
-                (name, ordinal)
-                for name, ordinal, size in _ROOMS.findall(clause)
-                if Decimal(size.replace(",", ".")) > 0
-            )
+    for sentence in _SENTENCE_END.split(_SQUARE_METERS.sub("м²", text)):
+        denied = _UNASSERTED.search(sentence)
+        for clause in _CLAUSE_END.split(sentence):
+            other = _OTHER_UNIT.search(clause)
+            if other or _OFFERED_UNIT.search(clause):
+                on_offer = not other
+            if on_offer and not denied:
+                rooms.update(
+                    (name, ordinal)
+                    for name, ordinal, size in _ROOMS.findall(clause)
+                    if Decimal(size.replace(",", ".")) > 0
+                )
 
     if ("кухня-гостиная", "") in rooms:
         rooms.difference_update({("кухня", ""), ("гостиная", "")})
@@ -171,20 +178,29 @@ def choose_flat(
     if address is None:
         return None
     seller = _seller(incoming["description"])
+    description = " ".join(seller.split())
     detailed = _has_layout(seller)
     unit = address.detail("квартира")
-    seen_units = {unit} if unit is not None else set()
+    numbered: list[tuple[Address, str]] = []
+    if unit is not None:
+        numbered.append((address, unit))
     choices: list[tuple[Match, bool]] = []
     for candidate in candidates:
         other = parse_address(candidate.facts["address"], region)
-        if other is None or address.house != other.house:
+        if other is None or not same_house(address, other):
             continue
         other_unit = other.detail("квартира")
-        same_text = detailed and any(
-            _seller(text) == seller for text in candidate.descriptions
+        equal_texts = (
+            [
+                formatted
+                for formatted in map(_seller, candidate.descriptions)
+                if " ".join(formatted.split()) == description
+            ]
+            if detailed
+            else []
         )
-        if same_text and other_unit is not None:
-            seen_units.add(other_unit)
+        if equal_texts and other_unit is not None:
+            numbered.append((other, other_unit))
         if apartment_address_conflicts(address, other):
             continue
         common = [
@@ -200,7 +216,7 @@ def choose_flat(
             continue
         by_number = unit is not None and other_unit is not None
         if by_number or (
-            same_text
+            any(map(_has_layout, equal_texts))
             and incoming["area_m2"] is not None
             and incoming["area_m2"] == candidate.facts["area_m2"]
             and incoming["floor"] is not None
@@ -213,5 +229,9 @@ def choose_flat(
             )
             choices.append((Match(candidate.property_id, patch), by_number))
 
-    valid = [item for item, by_number in choices if by_number or len(seen_units) < 2]
+    template = any(
+        first_unit != second_unit and same_house(first, second)
+        for (first, first_unit), (second, second_unit) in combinations(numbered, 2)
+    )
+    valid = [item for item, by_number in choices if by_number or not template]
     return valid[0] if len(valid) == 1 else None

@@ -60,11 +60,12 @@ _STREET_AND_NUMBER = re.compile(
 )
 _ADDRESS_TOKEN = re.compile(r"[а-я][а-я0-9 .’'-]*\Z")
 _UNIT_NUMBER = re.compile(rf"{_NUMBER}\Z")
+_ADDRESS_FORMAT = str.maketrans("ё–—", "е--")
 
 
 def _plain(value: str) -> str:
     return " ".join(
-        unicodedata.normalize("NFC", value).lower().replace("ё", "е").split()
+        unicodedata.normalize("NFC", value).lower().translate(_ADDRESS_FORMAT).split()
     )
 
 
@@ -74,16 +75,18 @@ def _component(value: str) -> str:
 
 
 def _address_role(component: str) -> str:
-    words = component.replace("–", "-").split()
+    words = component.split()
     terms = {word.strip(".") for word in words}
     ends = {words[0].strip("."), words[-1].strip(".")}
+    if words[:2] == ["жилой", "комплекс"]:
+        return "territory"
     if ends & _SETTLEMENT_TYPES:
         return "settlement"
     if ends.intersection(_STREET_TYPES):
         return "street"
     if ends & _DISTRICTS:
         return "district"
-    if terms & (_TERRITORIES | _DISTRICTS) or component.startswith("жилой комплекс "):
+    if terms & (_TERRITORIES | _DISTRICTS):
         return "territory"
     if ends.intersection((*_TAGS.values(), "дом")):
         return "other"
@@ -103,20 +106,15 @@ class Address:
     district_text: str | None
 
     @property
-    def house(self) -> tuple[object, ...]:
-        return (
-            self.locality,
-            self.street,
-            self.number,
-            self.detail("корпус"),
-            self.detail("строение"),
-        )
+    def building_parts(self) -> tuple[str | None, str | None]:
+        return self.detail("корпус"), self.detail("строение")
 
     def detail(self, name: str) -> str | None:
         item = self.details.get(name)
         return item[0] if item is not None else None
 
-    def base(self) -> tuple[object, ...]:
+    @property
+    def location(self) -> tuple[tuple[str, ...], str, str]:
         return (self.locality, self.street, self.number)
 
 
@@ -214,24 +212,26 @@ def parse_address(value: str | None, region: str) -> Address | None:
     )
 
 
-def apartment_address_conflicts(previous: Address, incoming: Address) -> bool:
-    district_conflict = (
-        previous.district is not None
-        and incoming.district is not None
-        and previous.district != incoming.district
+def _location_conflicts(left: Address, right: Address) -> bool:
+    return left.location != right.location or any(
+        first is not None and second is not None and first != second
+        for first, second in (
+            (left.district, right.district),
+            (left.settlement_kind, right.settlement_kind),
+        )
     )
-    return (
-        district_conflict
-        or (
-            previous.settlement_kind is not None
-            and incoming.settlement_kind is not None
-            and previous.settlement_kind != incoming.settlement_kind
-        )
-        or previous.base() != incoming.base()
-        or any(
-            previous.details[name][0] != incoming.details[name][0]
-            for name in previous.details.keys() & incoming.details.keys()
-        )
+
+
+def same_house(left: Address, right: Address) -> bool:
+    return left.building_parts == right.building_parts and not _location_conflicts(
+        left, right
+    )
+
+
+def apartment_address_conflicts(previous: Address, incoming: Address) -> bool:
+    return _location_conflicts(previous, incoming) or any(
+        previous.details[name][0] != incoming.details[name][0]
+        for name in previous.details.keys() & incoming.details.keys()
     )
 
 

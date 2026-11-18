@@ -201,6 +201,49 @@ class SnapshotTests(TestCase):
             self.assertNotEqual(separate.property_id, original.property_id)
             self.assertEqual(saved, (qualified,))
 
+    def test_template_filter_checks_the_same_house_before_comparing_unit_numbers(
+        self,
+    ) -> None:
+        cases = (
+            ("с. Лесное", "пос. Лесное", "ул. Молодежная", True),
+            ("Самара, Кировский район", "Самара, Ленинский район", "ул. Лесная", True),
+            ("с. Лесное", "с. Лесное", "ул. Садовая", False),
+        )
+        seller = "Кухня 28 м²; спальня 24 м²; без комиссии."
+        with as_app() as connection:
+            for index, (locality, other, street, should_attach) in enumerate(cases):
+                with self.subTest(locality=locality, other=other, street=street):
+                    # Arrange: the numbered competitor differs in floor;
+                    # it can only affect the test through the template rule.
+                    house = f"{locality}, {street}, 17"
+                    first = {
+                        **card(f"95000400{index}"),
+                        "address": f"{house}, кв. 25",
+                        "description": seller,
+                    }
+                    competitor = {
+                        **first,
+                        "external_id": f"95000401{index}",
+                        "address": f"{other}, {street}, 17, кв. 26",
+                        "floor": 3,
+                    }
+                    incoming = {
+                        **first,
+                        "external_id": f"95000402{index}",
+                        "source_code": "domclick",
+                        "address": house,
+                    }
+
+                    # Act
+                    known = self.accept(connection, first)
+                    self.accept(connection, competitor)
+                    matched = self.accept(connection, incoming)
+
+                    # Assert
+                    self.assertEqual(
+                        matched.property_id == known.property_id, should_attach
+                    )
+
     def test_matching_description_patch_and_preserved_originals(self) -> None:
         # Arrange: published address/measurements of the F07 pair, with synthetic
         # seller wording. The optional city district is present on only one side.

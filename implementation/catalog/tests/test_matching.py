@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from catalog.matching import _has_layout
+from catalog.matching import _has_layout, _seller
 from catalog.matching_address import parse_address
 
 
@@ -13,6 +13,7 @@ class MatchingTests(TestCase):
             "Самара, Ленинский район, 17, кв. 25",
             "Самарская область, Кировский р-н, ул. Садовая, 17, кв. 25",
             "Самара, Советский р-н, 17",
+            "Самарская область, жилой комплекс, ул. Садовая, 17, кв. 25",
             "Самарская область, Кировский р-н., ул. Садовая, 17, кв. 25",
             "Самара, ул. Гагарина, ул. Садовая, 17, кв. 25",
             "Самарская область, городской округ Самара, улица Садовая, 17",
@@ -51,11 +52,15 @@ class MatchingTests(TestCase):
             "планировка соседей: кухня 28 м², спальня 24 м².",
             "кухня-гостиная 28 м². кухня 28 м².",
             "в доме общая площадь 80 м². кухня 28 м².",
+            "Кухня 28 м² и спальня 24 м² отсутствуют.",
+            "В квартире нет таких помещений: кухня 28 м² и спальня 24 м².",
+            "Кухня 28 м², спальня 24 м², не предусмотрены.",
+            "Кухня -28 м², спальня 24 м².",
         ):
             with self.subTest(text=text):
                 # Arrange: two measurements without two asserted rooms.
                 # Act
-                result = _has_layout(text)
+                result = _has_layout(_seller(text))
 
                 # Assert
                 self.assertFalse(result)
@@ -66,13 +71,16 @@ class MatchingTests(TestCase):
             "кухня 28 м²; спальня 24 м²; без комиссии.",
             "кухня 28 м², спальня 24 м², без комиссии.",
             "кухня 28 м² спальня 24 м² без комиссии.",
+            "Кухня 28 м², спальня 24 м², возможна ипотека.",
+            "Кухня\n28 м²; спальня 24 м².",
+            "Фото соседней квартиры\nВ предлагаемой квартире кухня 16 м² и спальня 19 м².",
             "кухня 28 м². спальня 24 м². фото соседней квартиры.",
             "на фото соседняя квартира. кухня 28 м², спальня 24 м². "
             "в предлагаемой квартире кухня 16 м², спальня 19 м².",
         )
 
         # Act
-        results = [_has_layout(text) for text in texts]
+        results = [_has_layout(_seller(text)) for text in texts]
 
         # Assert
         self.assertEqual(results, [True] * len(texts))
@@ -83,7 +91,7 @@ class MatchingTests(TestCase):
         street = "ул. Садовая, 17, кв. 25"
 
         # Act
-        city = parse_address(f"{region}, Самара, Кировский р-н., {street}", region)
+        city = parse_address(f"{region}, Самара, Кировский р–н., {street}", region)
         village = parse_address(
             f"{region}, Кировский р-н., с. Лесное, {street}", region
         )
