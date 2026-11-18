@@ -53,6 +53,7 @@ _ROOM_FIRST_ALLOCATION = re.compile(
 _HOLDER_TERM = re.compile(r"^[ ,—–-]*(?P<negated>не +)?(?:за|принадлежит) +")
 _SOLD_HOLDER = re.compile(r"^(?:(?:этой|предлагаемой) долей|ней|продавц(?:ом|у))\b")
 _ALTERNATIVE = re.compile(r" *,? +а +")
+_ALTERNATIVE_ROOM = re.compile(rf"{_PAUSE}(?:(?:{_ALLOCATION_VERB}) +)?(?={_ROOM}\b)")
 _ALLOCATION_OWNER = re.compile(r"^[ ,—–-]*(?:не +)?принадлежит\b")
 _NOT_ALLOCATED = re.compile(r"\b(?:без выделения|не выделен[ао]?)\b")
 _OTHER_SCOPE = re.compile(
@@ -222,21 +223,34 @@ def _claim_fields(claim: str) -> RoomClaim:
     return RoomClaim(1, room=_room_ref(first)) if known_single else RoomClaim()
 
 
-def _holder_polarities(text: str) -> set[bool] | None:
+def _holder_facts(
+    text: str, evidence: RoomClaim
+) -> list[tuple[RoomClaim, bool]] | None:
     if not _HOLDER_TERM.match(text):
         return None
-    polarities = set()
+    facts = []
     for term in _ALTERNATIVE.split(text):
+        if member := _ROOM_FRAGMENT.match(term):
+            evidence = _claim_fields(term)
+            term = term[member.end() :]
+            if predicate := _ROOM_FIRST_ALLOCATION.match(term):
+                if predicate["negated"]:
+                    facts.append((evidence, False))
+                    continue
+                term = term[predicate.end() :]
         if holder := _HOLDER_TERM.match(term):
-            sold_holder = _SOLD_HOLDER.match(term[holder.end() :]) is not None
+            holder_text = term[holder.end() :]
+            sold_holder = _SOLD_HOLDER.match(holder_text) is not None
+            if alternative := _ALTERNATIVE_ROOM.search(holder_text):
+                evidence = _claim_fields(holder_text[alternative.end() :])
             if sold_holder or not holder["negated"]:
-                polarities.add(sold_holder and not holder["negated"])
-    return polarities
+                facts.append((evidence, sold_holder and not holder["negated"]))
+    return facts
 
 
 def _share_allocation(
     claim: str, *, share_heading: bool
-) -> tuple[RoomClaim, bool | None] | None:
+) -> list[tuple[RoomClaim, bool]] | None:
     prefix = (_ALLOCATED if share_heading else _RELATED_ALLOCATION).match(claim)
     if prefix is not None:
         claim = claim[prefix.end() :]
@@ -253,18 +267,15 @@ def _share_allocation(
     if evidence.rooms != 1 or (prefix is None and evidence.room is None):
         raise RejectedCard("unconfirmed_room_unit")
     if (prefix and prefix["negated"]) or (predicate and predicate["negated"]):
-        return evidence, False
+        return [(evidence, False)]
 
     before = prefix["holders"] if prefix and not share_heading else None
     after = tail[predicate.end() :] if predicate else tail
-    preceding = _holder_polarities(before) if before else None
-    following = _holder_polarities(after)
+    preceding = _holder_facts(before, evidence) if before else None
+    following = _holder_facts(after, evidence)
     if preceding is None and following is None:
-        return evidence, True if prefix else None
-    polarities = (preceding or set()) | (following or set())
-    if False in polarities:
-        return evidence, False
-    return evidence, True if True in polarities else None
+        return [(evidence, True)] if prefix else []
+    return [*(preceding or []), *(following or [])]
 
 
 def room_facts(
@@ -285,11 +296,20 @@ def room_facts(
     disputed_allocations: set[RoomRef | None] = set()
     headings = _statements(title)
     sources = [*headings, *_statements(_CARD_REFERENCE.sub("", description or ""))]
+    published = []
     for index, source in enumerate(sources):
         claim = " ".join(source.casefold().split())
         offer = _OFFER.match(claim)
         if offer:
             claim = claim[offer.end() :].removeprefix("только ")
+        share_claim = _SHARE.match(claim)
+        if share_claim and _OTHER_SCOPE.match(claim[share_claim.end() :]):
+            continue
+        share_heading = share_claim is not None
+        published.append((index, claim, offer is not None, share_heading))
+        share |= share_heading
+
+    for index, claim, offer_stated, share_heading in published:
         if measurement := _AREA_STATEMENT.match(claim):
             if not _outside_offer(claim[measurement.end() :]):
                 measurements.append(
@@ -301,46 +321,45 @@ def room_facts(
             if room := _separate_room(member, separate_sale):
                 separate.add(room)
             continue
-        if share_claim := _SHARE.match(claim):
-            if _OTHER_SCOPE.match(claim[share_claim.end() :]):
-                continue
-            share = True
-            if _NOT_ALLOCATED.search(claim):
-                raise RejectedCard("unconfirmed_room_unit")
+        if share_heading and _NOT_ALLOCATED.search(claim):
+            raise RejectedCard("unconfirmed_room_unit")
         allocation = (
-            _share_allocation(claim, share_heading=share_claim is not None)
-            if share
-            else None
+            _share_allocation(claim, share_heading=share_heading) if share else None
         )
-        if allocation is not None:
-            evidence, confirmed = allocation
-            if confirmed is not True:
-                if confirmed is False:
-                    disputed_allocations.add(evidence.room)
-                continue
-            allocations.add(evidence.room)
-        elif share_claim:
-            continue
-        elif not offer and index >= len(headings):
-            if index != len(headings):
-                continue
-            if claim.startswith("уютная "):
-                claim = claim.removeprefix("уютная ")
-            elif not (
-                (declared := _COUNT.match(claim))
-                and _listing_after_count(claim[declared.end() :])
-            ):
-                continue
         if allocation is None:
+            if share_heading:
+                continue
+            if not offer_stated and index >= len(headings):
+                if index != len(headings):
+                    continue
+                if claim.startswith("уютная "):
+                    claim = claim.removeprefix("уютная ")
+                elif not (
+                    (declared := _COUNT.match(claim))
+                    and _listing_after_count(claim[declared.end() :])
+                ):
+                    continue
             evidence = _claim_fields(claim)
             if evidence.room is not None:
                 offered.add(evidence.room)
-        if evidence.rooms is not None:
-            counts.add(evidence.rooms)
-        if evidence.area is not None:
-            measurements.append((evidence.room, evidence.area))
-        if evidence.total is not None:
-            totals.add(evidence.total)
+            accepted = [evidence]
+        else:
+            accepted = []
+            for evidence, confirmed in allocation:
+                if evidence.rooms != 1:
+                    raise RejectedCard("unconfirmed_room_unit")
+                if confirmed:
+                    allocations.add(evidence.room)
+                    accepted.append(evidence)
+                else:
+                    disputed_allocations.add(evidence.room)
+        for evidence in accepted:
+            if evidence.rooms is not None:
+                counts.add(evidence.rooms)
+            if evidence.area is not None:
+                measurements.append((evidence.room, evidence.area))
+            if evidence.total is not None:
+                totals.add(evidence.total)
 
     if share:
         if not allocations or any(

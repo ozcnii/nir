@@ -341,3 +341,45 @@ class RoomClaimsTests(TestCase):
 
                 # Assert
                 self.assertEqual(confirmed, (1, Decimal("9")))
+
+    def test_share_considers_allocations_before_and_after_the_sale(self) -> None:
+        for claims in (
+            (
+                "Комната № 2 закреплена не за этой долей, а за долей соседа.",
+                "Продаётся 1/2 доля в квартире.",
+                "По соглашению закреплена комната № 2 за этой долей.",
+            ),
+            (
+                "Продаётся 1/2 доля в квартире.",
+                "По соглашению закреплена комната № 2 за этой долей.",
+                "Комната № 2 закреплена не за этой долей, а за долей соседа.",
+            ),
+        ):
+            with self.subTest(claims=claims):
+                # Arrange
+                description = " ".join(claims)
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, "^unconfirmed_room_unit$"):
+                    room_facts(1, Decimal("9"), description)
+
+                # Assert: the rejection reason is checked above.
+
+    def test_contrast_can_name_a_different_room(self) -> None:
+        for contrast in (
+            "за долей соседа — комната № 3",
+            "комната № 3 закреплена за долей соседа",
+        ):
+            with self.subTest(contrast=contrast):
+                # Arrange
+                description = (
+                    "Продаётся 1/2 доля в квартире. По соглашению закреплена "
+                    f"комната № 2 за этой долей, а {contrast}. "
+                    "Комната № 3 продаётся отдельно."
+                )
+
+                # Act
+                result = room_facts(1, Decimal("9"), description)
+
+                # Assert
+                self.assertEqual(result, (1, Decimal("9")))
