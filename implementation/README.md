@@ -17,3 +17,13 @@ bash scripts/check-style.sh --types
 ```sh
 uv --project implementation run --no-sync pre-commit install --hook-type pre-commit
 ```
+
+Для задач с локальным стеком используется host runner. Из папки реализации:
+
+```sh
+uv run --locked python -m host_runner -- <команда задачи>
+uv run --locked python -m host_runner --db-only -- <команда задачи>
+```
+
+Первый режим арендует app и PostgreSQL, второй только PostgreSQL. Команда
+остаётся на переднем плане до окончания использования стека.
