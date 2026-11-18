@@ -24,6 +24,7 @@ from collection.normalization import (
     number,
     optional_integer,
 )
+from collection.room_claims import room_facts, room_heading
 
 _FLAT, _ROOM, _HOUSE = "kvartiry", "komnaty", "doma_dachi_kottedzhi"
 _TYPES = {_FLAT: 1, _ROOM: 2, _HOUSE: 3}
@@ -64,16 +65,6 @@ _HOTEL_UNIT = re.compile(
     r"\b(?:гостиничный номер|номер в (?:отеле|гостинице|апарт-отеле))\b"
     r"|^номер\s+.+\bв (?:отеле|гостинице|апарт-отеле)\b"
 )
-_ROOM_TITLE_AREA = re.compile(
-    r"^(?:доля: )?(?:(?:одна|1) )?комната ([0-9]+(?:[,.][0-9]+)?) м²(?: |,|$)"
-)
-_EXPLICIT_ONE_ROOM = re.compile(r"^(?:доля: )?(?:одна|1) комната\b")
-_SHARE_ROOM = re.compile(r"^доля: (?:(?:одна|1) комната\b|комната № ?[1-9][0-9]*\b)")
-_ROOM_COUNT = re.compile(r"^(?P<count>[1-9][0-9]*|две|три) комнат(?:а|ы)?\b")
-_PAIRED_ROOMS = re.compile(
-    r"^комната [0-9]+(?:[,.][0-9]+)? м² и комната [0-9]+(?:[,.][0-9]+)? м²$"
-)
-_OTHER_OFFERED_ROOM = re.compile(r"\bи (?:ещ[её] )?(?:(?:одна|1) )?комната\b")
 
 
 def _text(value: object) -> str:
@@ -250,12 +241,12 @@ def _classify(
                 return "day_rent", None
             raise RejectedCard("unconfirmed_rent_period")
     if not postfix and offer in (None, "Продам"):
-        if family == _ROOM and (
-            params.get("Условия продажи") == "Продажа доли"
-            or offer == "Продам"
-            or "на продажу" in page_title
-        ):
-            return "sale", None
+        if family == _ROOM:
+            share = params.get("Условия продажи") == "Продажа доли"
+            if (room_heading(item_title) or share) and (
+                share or offer == "Продам" or "на продажу" in page_title
+            ):
+                return "sale", None
         if (
             family == _HOUSE
             and item_title.startswith("дом ")
@@ -264,30 +255,6 @@ def _classify(
         ):
             return "sale", None
     raise RejectedCard("unconfirmed_avito_card_family")
-
-
-def _room_facts(
-    title: str, share: bool, area: Decimal | None
-) -> tuple[int | None, Decimal | None]:
-    single_area = _ROOM_TITLE_AREA.match(title)
-    single = bool(single_area or _EXPLICIT_ONE_ROOM.match(title))
-    another = _OTHER_OFFERED_ROOM.search(title)
-    if share and (not _SHARE_ROOM.match(title) or another):
-        raise RejectedCard("unconfirmed_room_unit")
-    if _PAIRED_ROOMS.fullmatch(title):
-        return 2, None
-    if count := _ROOM_COUNT.match(title):
-        digits = {"две": "2", "три": "3"}.get(count["count"], count["count"])
-        rooms = optional_integer(digits, minimum=1)
-        assert rooms is not None
-        if rooms > 1:
-            # «Площадь комнаты» does not describe the whole set.
-            return rooms, None
-    if another:
-        return None, None
-    if single_area and area is not None and number(single_area[1]) != area:
-        raise RejectedCard("conflicting_room_area")
-    return (1 if share or single else None), area
 
 
 def normalize_avito_card(
@@ -325,20 +292,22 @@ def normalize_avito_card(
         floors = optional_integer(pair[1], minimum=1)
         if floor is not None and floors is not None and floor > floors:
             raise RejectedCard("floor_above_building")
+    description = item.get("description")
+    if description is not None and not is_database_text(description):
+        raise RejectedCard("invalid_description")
     room_count = params.get("Количество комнат")
     if family == _ROOM:
-        rooms, area = _room_facts(
-            _text(item.get("title")).casefold(),
-            params.get("Условия продажи") == "Продажа доли",
+        rooms, area = room_facts(
+            None,
             area,
+            description,
+            title=_text(item.get("title")),
+            share=params.get("Условия продажи") == "Продажа доли",
         )
     elif family == _FLAT and room_count == "Студия":
         rooms = 0
     else:
         rooms = optional_integer(room_count, minimum=1)
-    description = item.get("description")
-    if description is not None and not is_database_text(description):
-        raise RejectedCard("invalid_description")
     return {
         **key,
         "state": "active",
