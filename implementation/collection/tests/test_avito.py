@@ -560,7 +560,7 @@ class AvitoCardTests(TestCase):
     def test_multiple_offered_rooms_do_not_become_one(self) -> None:
         # Arrange: the title explicitly mentions a second offered room.
         card = projection("room")
-        item_for(card)["title"] = "Комната 12,5 м² и комната 10 м²"
+        item_for(card)["title"] = "Комната 12,5 м² и ещё одна комната 10 м² одним лотом"
         card["title"] = "Комната 12,5 м² и комната 10 м² на продажу"
         params = as_object(as_object(card["route"]["buyerItem"])["paramsDto"])
         rows = cast(list[dict[str, object]], params["items"])
