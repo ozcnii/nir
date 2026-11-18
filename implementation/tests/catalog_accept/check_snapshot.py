@@ -176,6 +176,31 @@ class SnapshotTests(TestCase):
                     )
                     self.assertNotEqual(left.property_id, right.property_id)
 
+    def test_matching_preserves_the_first_supported_settlement_and_district(
+        self,
+    ) -> None:
+        # Arrange: the second source supplies qualifiers absent in the first.
+        first = {**card("950000030"), "address": "Самара, ул. Лесная, 17, кв. 25"}
+        qualified = "г. Самара, Кировский р-н., ул. Лесная, 17, кв. 25"
+        second = {**card("950000031"), "address": qualified, "source_code": "domclick"}
+        other = {
+            **card("950000032"),
+            "address": qualified.replace("Кировский р-н.", "Ленинский район"),
+        }
+        with as_app() as connection:
+            # Act
+            original = self.accept(connection, first)
+            attached = self.accept(connection, second)
+            separate = self.accept(connection, other)
+            saved = connection.execute(
+                "SELECT address FROM properties WHERE id=%s", (original.property_id,)
+            ).fetchone()
+
+            # Assert
+            self.assertEqual(attached.property_id, original.property_id)
+            self.assertNotEqual(separate.property_id, original.property_id)
+            self.assertEqual(saved, (qualified,))
+
     def test_matching_description_patch_and_preserved_originals(self) -> None:
         # Arrange: published address/measurements of the F07 pair, with synthetic
         # seller wording. The optional city district is present on only one side.
@@ -188,7 +213,7 @@ class SnapshotTests(TestCase):
             "rooms": None,
             "floor": 12,
             "floors_total": 20,
-            "description": "Кухня-гостиная 28 м²; спальня 24 м²; без комиссии.",
+            "description": "Кухня-гостиная 28 м², спальня 24 м², без комиссии.",
         }
         incoming: ActiveSnapshot = {
             **card("950000011"),
@@ -198,7 +223,7 @@ class SnapshotTests(TestCase):
             "rooms": 3,
             "floor": 12,
             "floors_total": 20,
-            "description": "⭐ КУХНЯ-ГОСТИНАЯ 28 м²;\n\nспальня 24 м²; без комиссии.",
+            "description": "⭐ КУХНЯ-ГОСТИНАЯ 28 м²,\n\nспальня 24 м², без комиссии.",
         }
         another = {
             **incoming,

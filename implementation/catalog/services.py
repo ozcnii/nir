@@ -24,9 +24,9 @@ from catalog.matching import (
     Match,
     PropertyFacts,
     choose_flat,
-    parse_address,
     repeated_flat_patch,
 )
+from catalog.matching_address import parse_address
 from catalog.models import DealType, MarketSegment, PriceKind, PropertyType, Region
 from catalog.queries import flat_candidates, property_for_update
 from catalog.reference_data_v1 import REGIONS, SOURCE_CODES
