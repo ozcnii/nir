@@ -12,6 +12,46 @@ class Migration(migrations.Migration):
     dependencies = []
 
     operations = [
+        migrations.RunSQL(
+            sql=r"""
+                CREATE FUNCTION public.catalog_photos_valid(photos pg_catalog.jsonb)
+                RETURNS boolean
+                LANGUAGE sql IMMUTABLE STRICT SECURITY INVOKER
+                SET search_path = pg_catalog
+                RETURN CASE
+                    WHEN jsonb_typeof(photos) <> 'array' THEN false
+                    ELSE NOT EXISTS (
+                        SELECT 1
+                        FROM jsonb_array_elements(photos) AS photo(item)
+                        -- Captures only a bracketed IPv6 host and an explicit port.
+                        LEFT JOIN LATERAL regexp_match(
+                            photo.item #>> '{}',
+                            $url$^https?://(?:[^@/?#[:space:]]+@)?$url$
+                            || $url$(?:\[([0-9a-f:.]*:[0-9a-f:.]*)\]|$url$
+                            || $url$[[:alnum:]](?:-*[[:alnum:]])*(?:\.[[:alnum:]](?:-*[[:alnum:]])*)*\.?)$url$
+                            || $url$(?::([0-9]+))?(?:[/?#][^[:space:]]*)?$$url$,
+                            'i'
+                        ) AS authority(parts) ON true
+                        WHERE jsonb_typeof(photo.item) <> 'string'
+                           OR authority.parts IS NULL
+                           OR (
+                               authority.parts[1] IS NOT NULL
+                               AND NOT pg_catalog.pg_input_is_valid(
+                                   authority.parts[1], 'pg_catalog.inet'
+                               )
+                           )
+                           OR CASE
+                               WHEN authority.parts[2] IS NULL THEN false
+                               WHEN NOT pg_catalog.pg_input_is_valid(
+                                   authority.parts[2], 'pg_catalog.int4'
+                               ) THEN true
+                               ELSE authority.parts[2]::integer NOT BETWEEN 0 AND 65535
+                           END
+                    )
+                END;
+            """,
+            reverse_sql="DROP FUNCTION public.catalog_photos_valid(pg_catalog.jsonb)",
+        ),
         migrations.CreateModel(
             name="PropertyType",
             fields=[
@@ -365,12 +405,8 @@ class Migration(migrations.Migration):
             constraint=models.CheckConstraint(
                 condition=models.Func(
                     models.F("photos"),
-                    models.Value(
-                        'strict $.type() == "array" && !(exists($[*] ? (@.type() != "string" || !(@ like_regex "^https?://([^@/?#[:space:]]+@)?(\\\\[[0-9a-f]*:[0-9a-f:.]+\\\\]|[[:alnum:]](-*[[:alnum:]])*(\\\\.[[:alnum:]](-*[[:alnum:]])*)*\\\\.?)(:[0-9]+)?([/?#][^[:space:]]*)?$" flag "i"))))'
-                    ),
-                    function="jsonb_path_match",
+                    function="public.catalog_photos_valid",
                     output_field=models.BooleanField(),
-                    template="%(function)s(%(expressions)s::jsonpath)",
                 ),
                 name="ad_photos_url_array",
             ),

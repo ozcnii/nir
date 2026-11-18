@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.db import models
-from django.db.models import F, Func, Q, Value
+from django.db.models import F, Func, Q
 
 
 class Source(models.Model):
@@ -155,16 +155,7 @@ class Ad(models.Model):
             models.CheckConstraint(
                 condition=Func(
                     F("photos"),
-                    Value(
-                        'strict $.type() == "array" && !(exists($[*] ? '
-                        '(@.type() != "string" || !(@ like_regex '
-                        '"^https?://([^@/?#[:space:]]+@)?'
-                        r"(\\[[0-9a-f]*:[0-9a-f:.]+\\]|"
-                        r"[[:alnum:]](-*[[:alnum:]])*(\\.[[:alnum:]](-*[[:alnum:]])*)*\\.?"
-                        ')(:[0-9]+)?([/?#][^[:space:]]*)?$" flag "i"))))'
-                    ),
-                    function="jsonb_path_match",
-                    template="%(function)s(%(expressions)s::jsonpath)",
+                    function="public.catalog_photos_valid",
                     output_field=models.BooleanField(),
                 ),
                 name="ad_photos_url_array",
