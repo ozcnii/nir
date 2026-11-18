@@ -89,6 +89,38 @@ class RoomClaimsTests(TestCase):
                 # Assert
                 self.assertEqual(result, (expected_count, expected_area))
 
+    def test_explicit_room_scope_survives_punctuation(self) -> None:
+        for separator in (" и ", ", ", ", и "):
+            with self.subTest(separator=separator):
+                # Arrange
+                title = (
+                    f"Комната 9 м²{separator}комната 10 м² и комната 11 м² одним лотом"
+                )
+
+                # Act
+                result = room_facts(None, None, None, title=title)
+
+                # Assert
+                self.assertEqual(result, (3, None))
+
+        for pause in (" ", " — ", " – ", ", "):
+            with self.subTest(pause=pause):
+                # Arrange
+                offer = "Продаётся комната № 2 в квартире № 25"
+                share = (
+                    f"Доля: комната № 2{pause}на фото, продаётся только 1/2 квартиры"
+                )
+
+                # Act
+                result = room_facts(1, Decimal("9.2"), f"{offer}{pause}площадью 9,2 м²")
+                with self.assertRaisesRegex(RejectedCard, "^unconfirmed_room_unit$"):
+                    room_facts(1, Decimal("9"), share)
+                with self.assertRaisesRegex(RejectedCard, "^conflicting_room_area$"):
+                    room_facts(1, Decimal("9"), f"{offer}{pause}площадью 9,2 м²")
+
+                # Assert
+                self.assertEqual(result, (1, Decimal("9.20")))
+
     def test_conflicting_or_unallocated_unit_stops_before_p3(self) -> None:
         cases = (
             (
