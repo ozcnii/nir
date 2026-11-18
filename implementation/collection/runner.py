@@ -4,22 +4,85 @@ import os
 import signal
 import sys
 from collections.abc import Callable
+from typing import Literal
 
 import django
 import psycopg
 from django.db import DatabaseError, connection
 from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Response
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
+from psycopg import Connection
+from psycopg.rows import TupleRow
 
 from collection.browser import (
     BrowserCleanupUnconfirmed,
     BrowserFailed,
-    BrowserWork,
-    Stopped,
-    browser_work,
+    BrowserPages,
+    browser_pages,
 )
 from collection.selection import Direction, InvalidSelection, Selection, parse, validate
 from config.collection_lock import LockBusy, LockLost, RunSession, run_session
 from config.control import ADMISSION_FD, ControlError, decode, encode
+
+TRANSPORT_ERRORS = (
+    "net::ERR_CONNECTION_CLOSED",
+    "net::ERR_CONNECTION_RESET",
+    "net::ERR_CONNECTION_REFUSED",
+    "net::ERR_CONNECTION_ABORTED",
+    "net::ERR_TIMED_OUT",
+    "net::ERR_NETWORK_CHANGED",
+)
+
+
+class Stopped(RuntimeError):
+    pass
+
+
+def check_stop(stopped: Callable[[], bool]) -> None:
+    if stopped():
+        raise Stopped
+
+
+class BrowserWork:
+    def __init__(
+        self, pages: BrowserPages, session: RunSession, stopped: Callable[[], bool]
+    ) -> None:
+        self.pages = pages
+        self._session = session
+        self._stopped = stopped
+
+    def checkpoint(self) -> None:
+        check_stop(self._stopped)
+        self._session.require_lock()
+        if not self.pages.connected():
+            raise BrowserFailed("browser_disconnected")
+        check_stop(self._stopped)
+
+    def navigate(self, page: Literal["listing", "card"], url: str) -> Response | None:
+        for retry in (False, True):
+            self.checkpoint()
+            try:
+                response = self.pages.goto(page, url)
+            except PlaywrightError as error:
+                transport_error = isinstance(error, PlaywrightTimeout) or any(
+                    candidate in str(error) for candidate in TRANSPORT_ERRORS
+                )
+                if retry or not transport_error:
+                    raise
+            else:
+                if retry or response is None or not 500 <= response.status < 600:
+                    self.checkpoint()
+                    return response
+        raise AssertionError("The second navigation always returns or raises")
+
+    def write[T](self, operation: Callable[[Connection[TupleRow]], T]) -> T:
+        self.checkpoint()
+        # This owns the transaction boundary. Catalog services supply the write.
+        with self._session.transaction() as connection:
+            check_stop(self._stopped)
+            return operation(connection)
+
 
 RunBody = Callable[
     [RunSession, Selection, Callable[[], bool], Callable[[], None]], None
@@ -63,7 +126,9 @@ def run(
     django.setup()
     ready = False
     try:
+        check_stop(stopped)
         with run_session() as session:
+            check_stop(stopped)
             try:
                 validate(selection, supported)
             finally:
@@ -72,17 +137,15 @@ def run(
 
             def initialized() -> None:
                 nonlocal ready
-                if stopped():
-                    raise Stopped
+                check_stop(stopped)
                 session.require_lock()
-                if stopped():
-                    raise Stopped
+                check_stop(stopped)
                 ready = True
                 emit("ready")
 
-            if not stopped():
-                body(session, selection, stopped, initialized)
-                session.require_lock()
+            check_stop(stopped)
+            body(session, selection, stopped, initialized)
+            session.require_lock()
     except Stopped:
         emit("finished", "stopped")
         return 0
@@ -129,7 +192,8 @@ def run_with_browser(
         stopped: Callable[[], bool],
         initialized: Callable[[], None],
     ) -> None:
-        with browser_work(session, stopped) as work:
+        with browser_pages(lambda: check_stop(stopped)) as pages:
+            work = BrowserWork(pages, session, stopped)
             initialized()
             work.checkpoint()
             body(work, snapshot)

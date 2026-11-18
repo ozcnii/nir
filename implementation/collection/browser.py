@@ -1,4 +1,4 @@
-"""Own a run's Chromium resources and check the boundaries between work steps."""
+"""Own a run's Chromium resources."""
 
 import ctypes
 import os
@@ -17,29 +17,10 @@ from playwright.sync_api import (
     Response,
     sync_playwright,
 )
-from playwright.sync_api import (
-    TimeoutError as PlaywrightTimeout,
-)
-from psycopg import Connection
-from psycopg.rows import TupleRow
-
-from config.collection_lock import RunSession
 
 NAVIGATION_TIMEOUT_MS = 30_000
 CHILD_CLEANUP_SECONDS = 3
 PR_SET_CHILD_SUBREAPER = 36
-TRANSPORT_ERRORS = (
-    "net::ERR_CONNECTION_CLOSED",
-    "net::ERR_CONNECTION_RESET",
-    "net::ERR_CONNECTION_REFUSED",
-    "net::ERR_CONNECTION_ABORTED",
-    "net::ERR_TIMED_OUT",
-    "net::ERR_NETWORK_CHANGED",
-)
-
-
-class Stopped(RuntimeError):
-    pass
 
 
 class BrowserFailed(RuntimeError):
@@ -50,56 +31,20 @@ class BrowserCleanupUnconfirmed(BrowserFailed):
     pass
 
 
-class BrowserWork:
-    def __init__(
-        self,
-        browser: Browser,
-        listing: Page,
-        card: Page,
-        session: RunSession,
-        stopped: Callable[[], bool],
-    ) -> None:
+class BrowserPages:
+    def __init__(self, browser: Browser, listing: Page, card: Page) -> None:
         self._browser = browser
         self.listing = listing
         self.card = card
-        self._session = session
-        self._stopped = stopped
 
-    def checkpoint(self) -> None:
-        if self._stopped():
-            raise Stopped
-        self._session.require_lock()
-        if not self._browser.is_connected():
-            raise BrowserFailed("browser_disconnected")
-        if self._stopped():
-            raise Stopped
+    def connected(self) -> bool:
+        return self._browser.is_connected()
 
-    def navigate(self, page: Literal["listing", "card"], url: str) -> Response | None:
+    def goto(self, page: Literal["listing", "card"], url: str) -> Response | None:
         target = self.listing if page == "listing" else self.card
-        for retry in (False, True):
-            self.checkpoint()
-            try:
-                response = target.goto(
-                    url, wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT_MS
-                )
-            except Error as error:
-                transport_error = isinstance(error, PlaywrightTimeout) or any(
-                    candidate in str(error) for candidate in TRANSPORT_ERRORS
-                )
-                if retry or not transport_error:
-                    raise
-            else:
-                if retry or response is None or not 500 <= response.status < 600:
-                    self.checkpoint()
-                    return response
-        raise AssertionError("The second navigation always returns or raises")
-
-    def write[T](self, operation: Callable[[Connection[TupleRow]], T]) -> T:
-        self.checkpoint()
-        with self._session.transaction() as connection:
-            if self._stopped():
-                raise Stopped
-            return operation(connection)
+        return target.goto(
+            url, wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT_MS
+        )
 
 
 def adopt_orphans() -> None:
@@ -125,11 +70,8 @@ def wait_for_children() -> None:
 
 
 @contextmanager
-def browser_work(
-    session: RunSession, stopped: Callable[[], bool]
-) -> Iterator[BrowserWork]:
-    if stopped():
-        raise Stopped
+def browser_pages(checkpoint: Callable[[], None]) -> Iterator[BrowserPages]:
+    checkpoint()
     try:
         adopt_orphans()
         profile = Path(tempfile.mkdtemp(prefix="nir-browser-"))
@@ -152,8 +94,7 @@ def browser_work(
             resources.callback(close, lambda: manager.__exit__(None, None, None))
             try:
                 playwright = manager.start()
-                if stopped():
-                    raise Stopped
+                checkpoint()
                 browser = playwright.chromium.launch(
                     channel="chromium",
                     headless=True,
@@ -163,21 +104,18 @@ def browser_work(
                     handle_sighup=False,
                 )
                 resources.callback(close, browser.close)
-                if stopped():
-                    raise Stopped
+                checkpoint()
                 context = browser.new_context(accept_downloads=False)
                 resources.callback(close, context.close)
-                if stopped():
-                    raise Stopped
+                checkpoint()
                 listing = context.new_page()
-                if stopped():
-                    raise Stopped
+                checkpoint()
                 card = context.new_page()
             except Error as error:
                 raise BrowserFailed("browser_initialization_failed") from error
 
             try:
-                yield BrowserWork(browser, listing, card, session, stopped)
+                yield BrowserPages(browser, listing, card)
             finally:
                 if not browser.is_connected():
                     failed_cleanup = True

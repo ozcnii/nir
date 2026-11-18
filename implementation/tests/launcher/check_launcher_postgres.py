@@ -11,6 +11,7 @@ import time
 import unittest
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import cast
 from unittest.mock import patch
@@ -18,7 +19,7 @@ from unittest.mock import patch
 import django
 from django.db import connection, transaction
 
-from config.collection_lock import RunSession, try_delete_lock
+from config.collection_lock import RunSession, run_session, try_delete_lock
 from config.control import MAX_MESSAGE, encode, receive, request
 
 SELECTION: dict[str, object] = {
@@ -48,6 +49,17 @@ def fixture_child(root: Path, snapshot: str) -> int:
         eventually((root / "continue-to-armed").exists)
 
     real_emit = runner.emit
+    real_setup = django.setup
+
+    def hold_setup() -> None:
+        real_setup()
+        if (root / "hold-django-setup").exists():
+            (root / "inside-django-setup").touch()
+            eventually((root / "continue-django-setup").exists)
+
+    def observe_session() -> AbstractContextManager[RunSession]:
+        (root / "pg-session-attempted").touch()
+        return run_session()
 
     def observe_armed(event: str, reason: str = "") -> None:
         real_emit(event, reason)
@@ -80,7 +92,11 @@ def fixture_child(root: Path, snapshot: str) -> int:
             session.require_lock()
             time.sleep(0.2)
 
-    with patch.object(runner, "emit", observe_armed):
+    with (
+        patch.object(runner, "emit", observe_armed),
+        patch.object(django, "setup", hold_setup),
+        patch.object(runner, "run_session", observe_session),
+    ):
         return runner.run(parse(json.loads(snapshot)), supported=supported, body=body)
 
 
@@ -258,6 +274,26 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(stopping["state"], "stopping")
         self.assertEqual(result["reason"], "stopped")
         self.assertIs(result["cleanup_confirmed"], True)
+        self.assertFalse((self.root / "direction-checked").exists())
+        self.assertFalse((self.root / "first-work").exists())
+
+    def test_stop_during_django_setup_does_not_open_pg_session(self) -> None:
+        # Arrange
+        (self.root / "hold-django-setup").touch()
+        self.start_fixture()
+        initial = self.control(START)
+        eventually((self.root / "inside-django-setup").exists)
+
+        # Act
+        stopping = self.control({"action": "stop", "run_id": initial["run_id"]})
+        (self.root / "continue-django-setup").touch()
+        result = self.status("finished")
+
+        # Assert
+        self.assertEqual(stopping["state"], "stopping")
+        self.assertEqual(result["reason"], "stopped")
+        self.assertIs(result["cleanup_confirmed"], True)
+        self.assertFalse((self.root / "pg-session-attempted").exists())
         self.assertFalse((self.root / "direction-checked").exists())
         self.assertFalse((self.root / "first-work").exists())
 

@@ -9,6 +9,7 @@ import tempfile
 import time
 import unittest
 from collections.abc import Callable
+from contextlib import suppress
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import cast
@@ -19,8 +20,7 @@ from django.db import connection, transaction
 from psycopg import Connection
 from psycopg.rows import TupleRow
 
-from collection.browser import BrowserWork
-from collection.runner import run_with_browser
+from collection.runner import BrowserWork, run_with_browser
 from collection.selection import Direction, Selection, parse
 from config.collection_lock import try_delete_lock
 from config.control import CONTROL_PATH, request
@@ -67,9 +67,10 @@ def fixture_web(root: Path) -> None:
                 os._exit(17)
             with (root / "requests").open("a") as output:
                 print(self.path, file=output)
-            if self.path in ("/slow", "/retry"):
+            if self.path in ("/slow", "/retry", "/hanging"):
                 (root / "http-entered").touch()
-                until((root / "http-release").exists)
+                timeout = 52 if self.path == "/hanging" else 12
+                until((root / "http-release").exists, timeout)
             status = 500 if self.path == "/retry" else 200
             html = f"<title>{self.path}</title><p>{self.path}</p>".encode()
             self.send_response(status)
@@ -110,7 +111,7 @@ def fixture_runner(root: Path, raw_selection: str) -> int:
         marker(root / "profile", os.environ["TMPDIR"])
 
         if mode == "smoke":
-            listing, card = work.listing, work.card
+            listing, card = work.pages.listing, work.pages.card
             work.navigate("listing", base + "/listing")
             work.navigate("card", base + "/card/1")
             first = card.title()
@@ -122,7 +123,7 @@ def fixture_runner(root: Path, raw_selection: str) -> int:
                 "identity": [os.getuid(), os.getgid()],
                 "command": command_line(browser),
                 "pages": len(card.context.pages),
-                "same_pages": listing is work.listing and card is work.card,
+                "same_pages": listing is work.pages.listing and card is work.pages.card,
                 "titles": [listing_title, first, second],
                 "sandbox": listing.locator("body").inner_text(),
             }
@@ -158,14 +159,12 @@ def fixture_runner(root: Path, raw_selection: str) -> int:
             return
 
         if mode == "hang":
-            until((root / "browser-stopped").exists)
-            (root / "hang-started").touch()
             work.navigate("listing", base + "/hanging")
             return
 
         while True:
             work.checkpoint()
-            work.listing.title()
+            work.pages.listing.title()
             time.sleep(0.05)
 
     result = run_with_browser(
@@ -310,13 +309,14 @@ class BrowserLifecycleTests(unittest.TestCase):
                 self.observed_cleanup(root, owned)
 
     def test_stop_before_write_or_finish_inflight_transaction(self) -> None:
-        for mode, expected in (
-            ("before-write", ()),
-            ("commit", (20,)),
-            ("rollback", (20,)),
-        ):
+        for mode, attempted in (("before-write", 10), ("commit", 20), ("rollback", 30)):
             with self.subTest(mode=mode):
                 # Arrange
+                sentinel = attempted + 1
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "INSERT INTO public.t10_probe (id) VALUES (%s)", (sentinel,)
+                    )
                 root, endpoint, _ = self.start_launcher(mode)
                 run = request(START, endpoint)
                 until(
@@ -335,11 +335,15 @@ class BrowserLifecycleTests(unittest.TestCase):
                 (root / "write-release").touch()
                 result = self.status(endpoint, "finished")
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT id FROM public.t10_probe ORDER BY id")
+                    cursor.execute(
+                        "SELECT id FROM public.t10_probe WHERE id IN (%s, %s) ORDER BY id",
+                        (attempted, sentinel),
+                    )
                     rows = tuple(row[0] for row in cursor.fetchall())
 
                 # Assert
                 self.assertEqual(result["reason"], "stopped")
+                expected = (attempted, sentinel) if mode == "commit" else (sentinel,)
                 self.assertEqual(rows, expected)
                 self.assertFalse((root / "requests").exists())
                 self.observed_cleanup(root, ())
@@ -411,12 +415,11 @@ class BrowserLifecycleTests(unittest.TestCase):
         until((root / "chromium").exists)
         chromium = self.owned_fd(root, "chromium")
         worker = self.owned_fd(root, "worker")
-        send_pidfd(chromium, signal.SIGSTOP)
-        (root / "browser-stopped").touch()
-        until((root / "hang-started").exists)
+        until((root / "http-entered").exists)
 
+        # Act
+        send_pidfd(chromium, signal.SIGSTOP)
         try:
-            # Act
             start = time.monotonic()
             response = request(
                 {"action": "stop", "run_id": initial["run_id"]}, endpoint
@@ -435,7 +438,9 @@ class BrowserLifecycleTests(unittest.TestCase):
                 send_pidfd(worker, 0)
             send_pidfd(chromium, 0)
         finally:
-            send_pidfd(chromium, signal.SIGCONT)
+            (root / "http-release").touch()
+            with suppress(ProcessLookupError):
+                send_pidfd(chromium, signal.SIGCONT)
 
     def test_web_exit_stops_and_waits_for_its_runner(self) -> None:
         # Arrange
