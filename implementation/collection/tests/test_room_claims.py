@@ -121,8 +121,40 @@ class RoomClaimsTests(TestCase):
                 # Assert
                 self.assertEqual(result, (1, Decimal("9.20")))
 
+    def test_published_room_list_is_checked_before_single_room_evidence(self) -> None:
+        cases = (
+            ("Продаётся комната № 2 и комнаты № 3 и № 4 одним лотом.", (3, None)),
+            ("Продаются комнаты № 2, № 3 и № 4.", (3, None)),
+            (
+                "Продаётся комната № 2 площадью 9 м² и ещё одна комната № 3, "
+                "которую можно купить отдельно.",
+                (1, Decimal("9")),
+            ),
+            ("Площадь продаваемой комнаты № 2 — 9,2 м².", (None, Decimal("9.20"))),
+        )
+        for description, expected in cases:
+            with self.subTest(description=description):
+                # Arrange
+                rooms = None
+
+                # Act
+                result = room_facts(rooms, None, description)
+
+                # Assert
+                self.assertEqual(result, expected)
+
     def test_conflicting_or_unallocated_unit_stops_before_p3(self) -> None:
         cases = (
+            (
+                "Доля: комната № 2 (на фото), продаётся только 1/2 квартиры.",
+                "unconfirmed_room_unit",
+            ),
+            (
+                "Продаются две комнаты: комната № 2, комната № 3 и комната № 4.",
+                "conflicting_room_count",
+            ),
+            ("Площадь продаваемой комнаты № 2 — 9,2 м².", "conflicting_room_area"),
+            ("Продаётся комната № 2 (площадью 9,2 м²).", "conflicting_room_area"),
             (
                 "Доля: комната № 2 на фото, продаётся только 1/2 квартиры.",
                 "unconfirmed_room_unit",
