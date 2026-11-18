@@ -173,11 +173,9 @@ class DomclickTests(TestCase):
         data = native_proposal()
         info = cast(dict[str, object], data["objectInfo"])
         info["description"] = "Площадь кухни 10 м²."
-        info["flatNumber"] = "25"
+        info["flatNumber"] = "№25"
         address = cast(dict[str, object], data["address"])
-        address["displayName"] = (
-            "Россия, Самара, Солнечная улица, 7, квартира 25, комната 2"
-        )
+        address["displayName"] = "Россия, Самара, Солнечная улица, 7, кв 25, комната 2"
 
         # Act
         single = read_native(ROOM, data)
@@ -187,7 +185,7 @@ class DomclickTests(TestCase):
         # Assert
         assert single["state"] == unknown["state"] == multiple["state"] == "active"
         self.assertEqual(single["rooms"], 1)
-        self.assertTrue((single["address"] or "").endswith("квартира 25, комната 2"))
+        self.assertTrue((single["address"] or "").endswith("кв 25, комната 2"))
         self.assertIsNone(unknown["rooms"])
         self.assertEqual(multiple["rooms"], 2)
         self.assertIsNone(multiple["area_m2"])

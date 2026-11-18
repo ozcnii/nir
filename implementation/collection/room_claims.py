@@ -9,32 +9,50 @@ _AMOUNT = r"[0-9]+(?:[.,][0-9]+)?"
 _UNIT = r"м[²2](?=\s|[.,;!?]|$)"
 _ROOM = r"комнат[ау]"
 _WORD_COUNTS = {"одна": "1", "одну": "1", "две": "2", "три": "3"}
-_OFFER = re.compile(r"^(?:прода[её]тся|продаются|продаю|сда[её]тся|сдаются|сдаю) +")
+_OFFER = re.compile(
+    r"^(?:прода[её]тся|продаются|продаю|продам|сда[её]тся|сдаются|сдаю|сдам) +"
+)
 _COUNT = re.compile(
     rf"^(?P<count>[1-9][0-9]*|{'|'.join(_WORD_COUNTS)}) +комнат(?:а|у|ы)?\b"
 )
-_SINGLE_AREA = re.compile(rf"^{_ROOM} +(площадью +)?(?P<area>{_AMOUNT}) *{_UNIT}")
+_NUMBERED_ROOM = re.compile(rf"^{_ROOM} +№ ?[1-9][0-9]*\b")
+_SINGLE_AREA = re.compile(
+    rf"^{_ROOM}(?: +№ ?[1-9][0-9]*\b)? +(?:площадью +)?(?P<area>{_AMOUNT}) *{_UNIT}"
+)
 _PAIRED = re.compile(rf"^{_ROOM} +{_AMOUNT} *{_UNIT} +и +{_ROOM} +{_AMOUNT} *{_UNIT}")
 _TOTAL = re.compile(rf"^ +общей площадью +({_AMOUNT}) *{_UNIT}")
 _SHARE = re.compile(r"^(?:[0-9]+/[0-9]+ +)?дол[яю]\b")
 _ALLOCATED = re.compile(
-    r"^(?:доля: (?:(?:одна|1) комната\b|комната № ?[1-9][0-9]*\b)"
-    r"|(?:[0-9]+/[0-9]+ +)?дол[яю], которо[йю] "
-    r"(?:по соглашению )?соответствует комната № ?[1-9][0-9]*\b)"
+    r"^(?:доля: |(?:[0-9]+/[0-9]+ +)?дол[яю], которо[йю] "
+    r"(?:по соглашению )?соответствует )"
+    r"(?=(?:комната +№ ?[1-9][0-9]*|(?:одна|1) комната)\b)"
 )
 _NOT_ALLOCATED = re.compile(r"\b(?:без выделения|не выделен[ао]?|на плане)\b")
 _OTHER_SCOPE = re.compile(
-    r"^[ ,—-]*(?:в соседне[йм]|в друго[йм]|у сосед|не прода|не сда)"
+    r"^[ ,—-]*(?:в соседне[йм]|в друго[йм]|у сосед|на плане|не прода|не сда)"
 )
-_SEPARATE = re.compile(r"\b(?:отдельно|не входит в (?:сделку|продажу|аренду))\b")
+_SEPARATE = re.compile(
+    r"^[ ,—-]*(?:(?:прода[её]тся|сда[её]тся) +)?(?:отдельно|не входит)\b"
+)
+_CARD_REFERENCE = re.compile(
+    r"^\s*(?:арт\.|артикул|объявление) *№? *[0-9]+[.\n]\s*", re.IGNORECASE
+)
 _CLAUSE_END = re.compile(r"[.!?;](?:\s+|$)|\n+")
 _SQUARE_METERS = re.compile(r"\bкв\.\s+м\b", re.IGNORECASE)
 
 
 def room_heading(title: str) -> bool:
     """Check the advertised heading independently of the route category."""
-    text = _OFFER.sub("", title).removeprefix("доля: ")
-    return _COUNT.match(text) is not None or text.startswith(("комната ", "комната,"))
+    text = _OFFER.sub("", title)
+    return (
+        _SHARE.match(text) is not None
+        or _COUNT.match(text) is not None
+        or text.startswith(("комната ", "комната,"))
+    )
+
+
+def _statements(value: str) -> list[str]:
+    return _CLAUSE_END.split(_SQUARE_METERS.sub("м²", value))
 
 
 def _claim_fields(claim: str) -> tuple[int | None, Decimal | None, Decimal | None]:
@@ -43,15 +61,23 @@ def _claim_fields(claim: str) -> tuple[int | None, Decimal | None, Decimal | Non
         rooms = optional_integer(_WORD_COUNTS.get(count[1], count[1]), minimum=1)
         tail = claim[count.end() :]
         total = _TOTAL.match(tail) if rooms != 1 else None
+        if _OTHER_SCOPE.match(tail[total.end() :] if total else tail):
+            return None, None, None
         if rooms != 1:
             return rooms, None, number(total[1]) if total else None
         claim = f"комната{tail}"
     area = _SINGLE_AREA.match(claim)
     if not area:
-        return (1 if count else None), None, None
+        room = _NUMBERED_ROOM.match(claim)
+        if room and _OTHER_SCOPE.match(claim[room.end() :]):
+            return None, None, None
+        return (1 if count or room else None), None, None
     if _OTHER_SCOPE.match(claim[area.end() :]):
         return None, None, None
-    if _PAIRED.match(claim) and not _SEPARATE.search(claim[area.end() :]):
+    pair = _PAIRED.match(claim)
+    if pair and not (
+        _OTHER_SCOPE.match(claim[pair.end() :]) or _SEPARATE.match(claim[pair.end() :])
+    ):
         return 2, None, None
     return 1, number(area["area"]), None
 
@@ -69,24 +95,26 @@ def room_facts(
     areas = set() if room_area is None else {room_area}
     totals: set[Decimal] = set()
     allocated = False
-    sources = (title, *(_CLAUSE_END.split(_SQUARE_METERS.sub("м²", description or ""))))
+    headings = _statements(title)
+    sources = [*headings, *_statements(_CARD_REFERENCE.sub("", description or ""))]
     for index, source in enumerate(sources):
         claim = " ".join(source.casefold().split())
         offer = _OFFER.match(claim)
         if offer:
             claim = claim[offer.end() :].removeprefix("только ")
-        if _SHARE.match(claim):
+        if share_claim := _SHARE.match(claim):
+            if _OTHER_SCOPE.match(claim[share_claim.end() :]):
+                continue
             share = True
             if _NOT_ALLOCATED.search(claim):
                 raise RejectedCard("unconfirmed_room_unit")
-            if not _ALLOCATED.match(claim):
+            allocation = _ALLOCATED.match(claim)
+            if not allocation:
                 continue
             allocated = True
-            if not claim.startswith("доля: "):
-                continue
-            claim = claim.removeprefix("доля: ")
-        if index and not offer:
-            if index != 1 or not claim.startswith("уютная "):
+            claim = claim[allocation.end() :]
+        elif not offer and index >= len(headings):
+            if index != len(headings) or not claim.startswith("уютная "):
                 continue
             claim = claim.removeprefix("уютная ")
         count, area, total = _claim_fields(claim)

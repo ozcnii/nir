@@ -147,9 +147,9 @@ def _with_flat_number(address: str | None, flat: str | None) -> str | None:
     if flat and address:
         for segment in address.split(","):
             published = re.fullmatch(
-                r"(?:квартира|кв\.) *№? *(.+)", segment.strip(), re.IGNORECASE
+                r"(?:квартира|кв\.?) *№? *(.+)", segment.strip(), re.IGNORECASE
             )
-            if published and published[1].casefold() == flat.casefold():
+            if published and published[1].casefold() == flat.lstrip("№ ").casefold():
                 return address
     return _address(address, f"кв. {flat}" if flat else None)
 
