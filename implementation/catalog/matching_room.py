@@ -21,6 +21,21 @@ def _unit(address: Address) -> tuple[str | None, str] | None:
     return (apartment, room) if apartment is not None and room is not None else None
 
 
+def _room_address_patch(
+    stored: str | None, previous: Address, incoming: Address
+) -> str | None:
+    """Keep a published chain when the next snapshot lacks known qualifiers."""
+    if (
+        _unit(incoming) is None
+        or not previous.details.keys() <= incoming.details.keys()
+        or details_conflict(previous, incoming)
+        or (previous.district is not None and incoming.district is None)
+        or (previous.settlement_kind is not None and incoming.settlement_kind is None)
+    ):
+        return None
+    return address_patch(previous, incoming, stored)
+
+
 def _compatible_facts(incoming: ActiveSnapshot, saved: PropertyFacts) -> bool:
     area, floor = incoming["area_m2"], incoming["floor"]
     if not (
@@ -65,7 +80,7 @@ def choose_room(
         property_patch(
             candidate.facts,
             incoming,
-            address_patch(other, address, candidate.facts["address"]),
+            _room_address_patch(candidate.facts["address"], other, address),
         ),
     )
 
@@ -93,13 +108,5 @@ def repeated_room_patch(
             return None
         if old_unit is not None and new_unit is not None and old_unit != new_unit:
             return None
-        # The incoming snapshot must publish the chain with the known qualifiers.
-        if (
-            new_unit is not None
-            and old.details.keys() <= new.details.keys()
-            and not details_conflict(old, new)
-            and (old.district is None or new.district is not None)
-            and (old.settlement_kind is None or new.settlement_kind is not None)
-        ):
-            address = address_patch(old, new, saved["address"])
+        address = _room_address_patch(saved["address"], old, new)
     return property_patch(saved, incoming, address)

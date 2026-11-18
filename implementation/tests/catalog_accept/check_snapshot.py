@@ -133,6 +133,39 @@ class SnapshotTests(TestCase):
             len(different) + 1,
         )
 
+    def test_matching_room_keeps_one_published_address(self) -> None:
+        # Arrange
+        unit = "улица Солнечная, дом 8, квартира 25, комната 2"
+        stored = f"Самара, Кировский район, {unit}"
+        first: ActiveSnapshot = {
+            **card("room-address-owner"),
+            "property_type_id": 2,
+            "address": stored,
+        }
+        other: ActiveSnapshot = {
+            **first,
+            "source_code": "domclick",
+            "external_id": "room-other-address",
+            "address": f"город Самара, {unit}",
+        }
+        confirmed_address = f"город Самара, Кировский район, {unit}"
+        with as_app() as connection:
+            # Act
+            created = self.accept(connection, first)
+            attached = self.accept(connection, other)
+            before = connection.execute(
+                "SELECT address FROM properties WHERE id=%s", (created.property_id,)
+            ).fetchone()
+            self.accept(connection, {**later(other, 1), "address": confirmed_address})
+            after = connection.execute(
+                "SELECT address FROM properties WHERE id=%s", (created.property_id,)
+            ).fetchone()
+
+        # Assert
+        self.assertEqual(attached.property_id, created.property_id)
+        self.assertEqual(before, (stored,))
+        self.assertEqual(after, (confirmed_address,))
+
     def test_repeated_room_does_not_change_unit_or_complete_partial_chain(self) -> None:
         # Arrange
         building = "Самара, улица Ставропольская, дом 130"
