@@ -130,6 +130,18 @@ class CianCardTests(TestCase):
                 # Assert
                 self.assertTrue(str(result.exception))
 
+    def test_invalid_seller_text_is_rejected_before_p3(self) -> None:
+        # Arrange: the Stage 4 first-pass fixture injects a NUL into seller text.
+        url, offer, product = projection()
+        offer["description"] = "reject\x00this"
+
+        with self.assertRaises(RejectedCard) as rejected:
+            # Act
+            parsed(url, offer, product)
+
+        # Assert
+        self.assertEqual(str(rejected.exception), "invalid_description")
+
     def test_partial_price_and_photos_are_explicit(self) -> None:
         # Arrange: synthetic foreign currency and missing gallery.
         url, offer, product = projection()
@@ -214,20 +226,31 @@ class CianCardTests(TestCase):
                 offer = cast(dict[str, object], case["offer"])
 
                 if name == "sale_room":
-                    # 319653899 publishes 9.0 in roomArea and explicitly
-                    # offers the room as 9.2 m² in the seller text.
-                    with self.assertRaises(RejectedCard) as rejected:
-                        # Act
-                        parse_card(
-                            url,
-                            OBSERVED_AT,
-                            [script(offer, case["offerPrice"])],
-                            [json.dumps(case["product"])],
-                            loaded_url=url,
-                        )
+                    # 319653899 publishes 9.0 in roomArea. Each form
+                    # explicitly describes the offered room as 9.2 m².
+                    for description in (
+                        offer["description"],
+                        "Уютная комната 9,2 м² с ремонтом — заезжай и живи!",
+                        "Продаётся комната площадью 9,2 м².",
+                        "Продаётся комната 9,2 кв. м.",
+                    ):
+                        with self.subTest(description=description):
+                            # Arrange
+                            case_offer = {**offer, "description": description}
+                            with self.assertRaises(RejectedCard) as rejected:
+                                # Act
+                                parse_card(
+                                    url,
+                                    OBSERVED_AT,
+                                    [script(case_offer, case["offerPrice"])],
+                                    [json.dumps(case["product"])],
+                                    loaded_url=url,
+                                )
 
-                    # Assert
-                    self.assertEqual(str(rejected.exception), "conflicting_room_area")
+                            # Assert
+                            self.assertEqual(
+                                str(rejected.exception), "conflicting_room_area"
+                            )
                     continue
 
                 # Act

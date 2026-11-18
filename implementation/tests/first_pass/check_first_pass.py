@@ -23,7 +23,7 @@ from config.run_events import RUN_ID_ENV
 from config.startup import preflight, web_command
 
 URL = "https://samara.cian.ru/sale/flat/330631159/"
-REJECT_NEXT = CONTROL_PATH.parent / "reject-next"
+INVALID_DESCRIPTION = CONTROL_PATH.parent / "invalid-description"
 TIMEOUT_FIRST = CONTROL_PATH.parent / "timeout-first"
 DIRECTION = Direction("cian", 68, "new_build", "sale")
 START: dict[str, object] = {
@@ -44,7 +44,7 @@ def proof_path(run_id: str) -> Path:
 def route_fixture(work: BrowserWork) -> list[tuple[str, datetime]]:
     url, offer, product = projection()
     assert url == URL
-    if REJECT_NEXT.exists():
+    if INVALID_DESCRIPTION.exists():
         offer["description"] = "reject\x00this"
     html = (
         f"<script>{script(offer, NEW_BUILD_PRICE_LABEL)}</script>"
@@ -191,8 +191,8 @@ def verify(mode: str) -> int:
         second = one()
         if mode == "fixture":
             # The third, synthetic run provokes rejection before a committed write.
-            REJECT_NEXT.touch()
-            one(expected_failure="catalog_rejected")
+            INVALID_DESCRIPTION.touch()
+            one(expected_failure="invalid_description")
         rows = connection.execute(
             """
             SELECT ads.id, property_id, external_id, observed_at, photos, area_m2
