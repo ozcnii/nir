@@ -3,6 +3,7 @@
 import json
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import cast
 from unittest import TestCase
 
 from playwright.sync_api import Route, sync_playwright
@@ -167,6 +168,38 @@ def read_native(
 
 
 class DomclickTests(TestCase):
+    def test_native_room_facts_keep_offered_count_and_reject_conflict(self) -> None:
+        # Arrange
+        data = native_proposal()
+        info = cast(dict[str, object], data["objectInfo"])
+        info["description"] = "Продаётся комната 9,2 м². Площадь кухни 10 м²."
+        address = cast(dict[str, object], data["address"])
+        address["displayName"] = (
+            "Россия, Самара, Солнечная улица, 7, квартира 25, комната 2"
+        )
+
+        # Act
+        single = read_native(ROOM, data)
+        unknown = read_native(ROOM, {**data, "roomsOffered": None})
+        multiple = read_native(ROOM, {**data, "roomsOffered": 2})
+
+        # Assert
+        assert single["state"] == unknown["state"] == multiple["state"] == "active"
+        self.assertEqual(single["rooms"], 1)
+        self.assertTrue((single["address"] or "").endswith("квартира 25, комната 2"))
+        self.assertIsNone(unknown["rooms"])
+        self.assertEqual(multiple["rooms"], 2)
+        self.assertIsNone(multiple["area_m2"])
+
+        # Arrange
+        info["roomArea"] = 9.0
+        with self.assertRaises(RejectedCard) as rejected:
+            # Act
+            read_native(ROOM, data)
+
+        # Assert
+        self.assertEqual(str(rejected.exception), "conflicting_room_area")
+
     def test_native_room_keeps_the_offered_room_and_seller_text(self) -> None:
         # Arrange
         data = native_proposal()

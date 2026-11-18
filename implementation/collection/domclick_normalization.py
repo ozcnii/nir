@@ -26,6 +26,7 @@ from collection.normalization import (
     number,
     optional_integer,
 )
+from collection.room_claims import validate_room_claims
 
 _REGIONS = {name.casefold(): ident for ident, name in REGIONS}
 TYPE_IDS = {
@@ -266,8 +267,16 @@ def normalize_native_card(
     )
     flat = _text(info.get("flatNumber"))
     area = _area(info.get("roomArea" if is_room else "area"))
-    rooms = data.get("roomsOffered") if is_room else info.get("rooms")
+    rooms = (
+        optional_integer(_optional(data.get("roomsOffered")), minimum=1)
+        if is_room
+        else _rooms(info.get("rooms"), page_title if native_type == "flat" else "")
+    )
     description = _text(info.get("description"), problem="invalid_description")
+    if is_room:
+        validate_room_claims(description, rooms, area)
+        if rooms is not None and rooms > 1:
+            area = None
     if is_house:
         _check_native_house_unit(
             native_type, formatted, has_locality, description, area
@@ -287,7 +296,7 @@ def normalize_native_card(
         "latitude": lat,
         "longitude": lon,
         "area_m2": area,
-        "rooms": _rooms(rooms, page_title if native_type == "flat" else ""),
+        "rooms": rooms,
         "floor": floor,
         "floors_total": floors,
         "land_area_m2": _land(_record(data.get("land"))) if is_house else None,
