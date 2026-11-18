@@ -180,15 +180,18 @@ jobs:
       CLASSIFY: ${{ needs.classify.result }}
       APP_NEEDED: ${{ needs.classify.outputs.app }}
       APP_RESULT: ${{ needs.app-checks.result }}
-      CANCELLED: ${{ cancelled() }}
     steps:
-      - if: always()
+      - name: Evaluate required job results
+        if: always() && !cancelled()
         shell: bash
         run: |
-          echo "classify=$CLASSIFY app_required=$APP_NEEDED app_checks=$APP_RESULT cancelled=$CANCELLED"
-          [[ "$CANCELLED" == false && "$CLASSIFY" == success ]] || exit 1
+          echo "classify=$CLASSIFY app_required=$APP_NEEDED app_checks=$APP_RESULT"
+          [[ "$CLASSIFY" == success ]] || exit 1
           case "$APP_NEEDED:$APP_RESULT" in
             true:success) echo 'Current application checks passed.' ;;
             false:skipped) echo 'Application checks were not needed.' ;;
             *) exit 1 ;;
           esac
+      - name: Reject cancellation
+        if: cancelled()
+        run: exit 1
