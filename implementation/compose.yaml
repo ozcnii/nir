@@ -46,6 +46,8 @@ services:
       interval: 2s
       timeout: 3s
       retries: 15
+    logging:
+      driver: local
     volumes:
       - db:/var/lib/postgresql/data
     labels:
