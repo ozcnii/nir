@@ -50,5 +50,11 @@ if [[ -n ${NIR_TEST_SECCOMP_PATH:-} ]]; then
     compose_args+=(-f "$override")
 fi
 
-# Act and Assert
-docker compose "${compose_args[@]}" run --rm --no-deps -T     -v "$PWD/tests/launcher:/test-suite:ro"     -e PYTHONPATH=/app app python /test-suite/check_launcher_postgres.py
+# Act
+suite_result=0
+docker compose "${compose_args[@]}" run --rm --no-deps -T \
+    -v "$PWD/tests/launcher:/test-suite:ro" \
+    -e PYTHONPATH=/app app python /test-suite/check_launcher_postgres.py || suite_result=$?
+
+# Assert
+test "$suite_result" = 0

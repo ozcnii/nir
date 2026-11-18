@@ -13,12 +13,13 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import cast
+from unittest.mock import patch
 
 import django
 from django.db import connection, transaction
 
 from config.collection_lock import RunSession, try_delete_lock
-from config.control import request
+from config.control import MAX_MESSAGE, encode, receive, request
 
 SELECTION: dict[str, object] = {
     "sources": ["cian"],
@@ -41,6 +42,10 @@ def fixture_child(root: Path, snapshot: str) -> int:
     from collection.runner import idle_run, run
     from collection.selection import Direction, Selection, parse
 
+    (root / "child-executed").touch()
+    if (root / "wait-before-armed").exists():
+        (root / "before-armed").touch()
+        eventually((root / "continue-to-armed").exists)
     django.setup()
 
     def supported(direction: Direction) -> bool:
@@ -65,7 +70,14 @@ def fixture_child(root: Path, snapshot: str) -> int:
 
 
 def fixture_launcher(root: Path) -> int:
-    from config.launcher import serve
+    from config import launcher
+
+    def monitored_receive(
+        connection: socket.socket, deadline: float
+    ) -> dict[str, object]:
+        if (root / "observe-receive").exists():
+            (root / "receiving").touch()
+        return receive(connection, deadline)
 
     web = [
         sys.executable,
@@ -75,7 +87,8 @@ def fixture_launcher(root: Path) -> int:
         str(root / "web-parent"),
     ]
     runner = [sys.executable, __file__, "child", str(root)]
-    return serve(root / "control.sock", web, runner)
+    with patch.object(launcher, "receive", monitored_receive):
+        return launcher.serve(root / "control.sock", web, runner)
 
 
 class LauncherTests(unittest.TestCase):
@@ -122,6 +135,105 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         return rows[0][0]
 
+    def test_missing_pidfd_keeps_executable_behind_the_gate(self) -> None:
+        from config.launcher import Child
+
+        # Arrange
+        marker = self.root / "executed"
+        command = [
+            sys.executable,
+            "-c",
+            f"from pathlib import Path; Path({str(marker)!r}).touch()",
+        ]
+
+        # Act
+        with patch(
+            "config.launcher.open_pidfd", side_effect=OSError("fixture pidfd failure")
+        ):
+            child = Child.spawn(command, permitted=lambda: True)
+        try:
+            code = child.process.wait(timeout=4)
+        finally:
+            child.close()
+
+        # Assert
+        self.assertEqual(code, 125)
+        self.assertFalse(marker.exists())
+
+    def test_shutdown_refuses_start_already_partial_on_the_socket(self) -> None:
+        # Arrange
+        (self.root / "observe-receive").touch()
+        launcher = self.start_fixture()
+        raw = encode(START)
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.connect(str(self.endpoint))
+            client.sendall(raw[:8])
+            eventually((self.root / "receiving").exists)
+
+            # Act
+            launcher.send_signal(signal.SIGTERM)
+            client.sendall(raw[8:])
+            answer = receive(client, time.monotonic() + 3)
+        code = launcher.wait(timeout=4)
+
+        # Assert
+        self.assertEqual(code, 0)
+        self.assertIs(answer["ok"], False)
+        self.assertFalse((self.root / "child-executed").exists())
+
+    def test_invalid_output_is_discarded_without_preventing_reap(self) -> None:
+        from config.launcher import Supervisor
+
+        # Arrange
+        marker = self.root / "wrote-all-output"
+        command = [
+            sys.executable,
+            "-c",
+            "import sys; from pathlib import Path; "
+            "sys.stdout.buffer.write(b'x' * 65536); sys.stdout.buffer.flush(); "
+            f"Path({str(marker)!r}).touch()",
+        ]
+        supervisor = Supervisor(command)
+        peak = 0
+
+        def reaped() -> bool:
+            nonlocal peak
+            supervisor.tick()
+            if supervisor.current is None:
+                return True
+            peak = max(peak, len(supervisor.current.buffer))
+            return False
+
+        # Act
+        supervisor.dispatch(START)
+        eventually(reaped)
+        result = supervisor.status()
+
+        # Assert
+        self.assertLess(peak, MAX_MESSAGE)
+        self.assertTrue(marker.exists())
+        self.assertEqual(result["state"], "unknown")
+        self.assertEqual(result["reason"], "invalid_runner_event")
+
+    def test_stop_during_pre_armed_initialization_waits_for_signal_handler(
+        self,
+    ) -> None:
+        # Arrange
+        (self.root / "wait-before-armed").touch()
+        self.start_fixture()
+        initial = self.control(START)
+        eventually((self.root / "before-armed").exists)
+
+        # Act
+        stopping = self.control({"action": "stop", "run_id": initial["run_id"]})
+        (self.root / "continue-to-armed").touch()
+        result = self.status("finished")
+
+        # Assert
+        self.assertEqual(stopping["state"], "stopping")
+        self.assertEqual(result["reason"], "stopped")
+        self.assertIs(result["cleanup_confirmed"], True)
+
     def test_concurrent_start_pending_ready_and_stop(self) -> None:
         from catalog.services import ReferenceDeleteBlocked, delete_references
 
@@ -134,16 +246,10 @@ class LauncherTests(unittest.TestCase):
                 and (self.root / "web-parent").stat().st_size > 0
             )
         )
+        # Act
         with ThreadPoolExecutor(max_workers=2) as requests:
-            # Act
             answers = list(requests.map(self.control, (START, START)))
-
-        # Assert
-        self.assertEqual(int((self.root / "web-parent").read_text()), launcher.pid)
-        self.assertEqual(self.endpoint.stat().st_mode & 0o777, 0o600)
-        self.assertEqual(sum(answer["ok"] is True for answer in answers), 1)
         pending = self.status("starting")
-        self.assertIs(pending["cleanup_confirmed"], False)
         try:
             eventually((self.root / "initializing").exists)
             self.backend()
@@ -152,21 +258,21 @@ class LauncherTests(unittest.TestCase):
         finally:
             (self.root / "continue-initialization").touch()
         running = self.status("running")
-        self.assertEqual(running["run_id"], pending["run_id"])
-        self.assertIs(
-            self.control({"action": "stop", "run_id": "not-the-current-run"})["ok"],
-            False,
-        )
-        self.assertIs(
-            self.control({"action": "status", "pid": launcher.pid})["ok"], False
-        )
-
-        # Act
+        stale_stop = self.control({"action": "stop", "run_id": "not-the-current-run"})
+        unsupported_command = self.control({"action": "status", "pid": launcher.pid})
         stopped = self.control({"action": "stop", "run_id": running["run_id"]})
+        finished = self.status("finished")
 
         # Assert
+        self.assertEqual(int((self.root / "web-parent").read_text()), launcher.pid)
+        self.assertEqual(self.endpoint.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(sum(answer["ok"] is True for answer in answers), 1)
+        self.assertIs(pending["cleanup_confirmed"], False)
+        self.assertEqual(running["run_id"], pending["run_id"])
+        self.assertIs(stale_stop["ok"], False)
+        self.assertIs(unsupported_command["ok"], False)
         self.assertEqual(stopped["state"], "stopping")
-        self.assertIs(self.status("finished")["cleanup_confirmed"], True)
+        self.assertIs(finished["cleanup_confirmed"], True)
 
     def test_delete_winner_prevents_start_and_missing_region_is_revalidated(
         self,
@@ -184,24 +290,22 @@ class LauncherTests(unittest.TestCase):
 
         # Act
         with transaction.atomic():
-            self.assertEqual(
-                delete_references("regions", (68,), socket_path=self.endpoint), 1
-            )
+            deleted = delete_references("regions", (68,), socket_path=self.endpoint)
             first = self.control(START)
             refused = self.status("finished")
 
         # Assert
+        self.assertEqual(deleted, 1)
         self.assertEqual(first["state"], "starting")
         self.assertEqual(refused["reason"], "lock_busy")
         self.assertFalse(Region.objects.filter(pk=68).exists())
 
         # Act
         self.control(START)
+        missing = self.status("finished")
 
         # Assert
-        self.assertEqual(
-            self.status("finished")["reason"], "unsupported_or_missing_region"
-        )
+        self.assertEqual(missing["reason"], "unsupported_or_missing_region")
 
     def test_lock_loss_stops_write_and_fences_start_and_delete(self) -> None:
         from catalog.services import ReferenceDeleteBlocked, delete_references
@@ -217,23 +321,27 @@ class LauncherTests(unittest.TestCase):
         # Act
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_terminate_backend(%s, 5000)", (backend,))
-            self.assertEqual(cursor.fetchone(), (True,))
+            termination = cast(tuple[bool] | None, cursor.fetchone())
         (self.root / "attempt-write").touch()
         result = self.status("unknown")
-
-        # Assert
-        self.assertEqual(result["reason"], "lock_lost")
-        self.assertIs(result["cleanup_confirmed"], False)
-        self.assertTrue((self.root / "attempted-write").exists())
-        self.assertFalse((self.root / "write-completed").exists())
-        self.assertIs(self.control(START)["ok"], False)
+        second_start = self.control(START)
         with transaction.atomic():
-            self.assertTrue(try_delete_lock())
+            key_is_free = try_delete_lock()
         with self.assertRaises(ReferenceDeleteBlocked):
             delete_references("regions", (68,), socket_path=self.endpoint)
         with connection.cursor() as cursor:
             cursor.execute("SELECT count(*) FROM public.t09_probe")
-            self.assertEqual(cursor.fetchone(), (0,))
+            writes = cast(tuple[int] | None, cursor.fetchone())
+
+        # Assert
+        self.assertEqual(termination, (True,))
+        self.assertEqual(result["reason"], "lock_lost")
+        self.assertIs(result["cleanup_confirmed"], False)
+        self.assertTrue((self.root / "attempted-write").exists())
+        self.assertFalse((self.root / "write-completed").exists())
+        self.assertIs(second_start["ok"], False)
+        self.assertTrue(key_is_free)
+        self.assertEqual(writes, (0,))
 
     def test_unavailable_or_unresponsive_socket_refuses_deletion(self) -> None:
         from catalog.models import Region
@@ -270,9 +378,10 @@ class LauncherTests(unittest.TestCase):
 
         # Act
         self.control({"action": "start", "selection": unsupported})
+        invalid_route = self.status("finished")
 
         # Assert
-        self.assertEqual(self.status("finished")["reason"], "unsupported_direction")
+        self.assertEqual(invalid_route["reason"], "unsupported_direction")
 
         # Arrange
         label = PropertyType.objects.get(pk=1).name
@@ -281,15 +390,13 @@ class LauncherTests(unittest.TestCase):
         )
 
         # Act
-        self.assertEqual(
-            delete_references("property_types", (1,), socket_path=self.endpoint), 1
-        )
+        deleted = delete_references("property_types", (1,), socket_path=self.endpoint)
         self.control(START)
+        invalid_type = self.status("finished")
 
         # Assert
-        self.assertEqual(
-            self.status("finished")["reason"], "unsupported_or_missing_property_type"
-        )
+        self.assertEqual(deleted, 1)
+        self.assertEqual(invalid_type["reason"], "unsupported_or_missing_property_type")
 
         # Arrange
         PropertyType.objects.create(pk=1, name=label)
@@ -298,11 +405,10 @@ class LauncherTests(unittest.TestCase):
 
         # Act
         self.control(START)
+        disabled = self.status("finished")
 
         # Assert
-        self.assertEqual(
-            self.status("finished")["reason"], "unsupported_or_disabled_source"
-        )
+        self.assertEqual(disabled["reason"], "unsupported_or_disabled_source")
 
 
 if __name__ == "__main__":

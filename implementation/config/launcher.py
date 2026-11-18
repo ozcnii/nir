@@ -32,6 +32,21 @@ STOP_TIMEOUT = 40.0
 REAP_TIMEOUT = 5.0
 
 
+# The bootstrap cannot reach the web or worker executable before its pidfd
+# exists. Closing the only writer cancels the gated child without signalling it.
+EXEC_AFTER_PIDFD = """
+import os
+import sys
+
+gate = int(sys.argv[1])
+permission = os.read(gate, 1)
+os.close(gate)
+if permission != b"1":
+    raise SystemExit(125)
+os.execvp(sys.argv[2], sys.argv[2:])
+"""
+
+
 def open_pidfd(pid: int) -> int:
     open_fd = cast(Callable[[int], int] | None, getattr(os, "pidfd_open", None))
     if open_fd is None:
@@ -54,18 +69,43 @@ class Child:
     pidfd: int | None
 
     @classmethod
-    def spawn(cls, command: list[str], *, events: bool = False) -> "Child":
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE if events else None,
-            close_fds=True,
-        )
-        try:
-            pidfd = open_pidfd(process.pid)
-        except OSError:
-            # Without the descriptor the child can only be observed/reaped.
+    def spawn(
+        cls,
+        command: list[str],
+        *,
+        permitted: Callable[[], bool],
+        events: bool = False,
+    ) -> "Child":
+        if not permitted():
+            raise ControlError("launcher is shutting down")
+        reader, writer = os.pipe()
+        with os.fdopen(reader, "rb"), os.fdopen(writer, "wb"):
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    "-c",
+                    EXEC_AFTER_PIDFD,
+                    str(reader),
+                    *command,
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE if events else None,
+                pass_fds=(reader,),
+            )
             pidfd = None
+            try:
+                pidfd = open_pidfd(process.pid)
+                if permitted():
+                    os.write(writer, b"1")
+                else:
+                    os.close(pidfd)
+                    pidfd = None
+            except OSError:
+                if pidfd is not None:
+                    os.close(pidfd)
+                    pidfd = None
         if process.stdout is not None:
             os.set_blocking(process.stdout.fileno(), False)
         return cls(process, pidfd)
@@ -95,6 +135,8 @@ class CurrentRun:
     deadline: float
     buffer: bytearray = field(default_factory=bytearray)
     result: str | None = None
+    armed: bool = False
+    events_valid: bool = True
     stop_at: float | None = None
     kill_at: float | None = None
 
@@ -113,7 +155,8 @@ class Supervisor:
             "ok": ok,
             "state": self.state,
             "run_id": self.run_id,
-            "cleanup_confirmed": self.state in ("idle", "finished"),
+            "cleanup_confirmed": not self.shutting_down
+            and self.state in ("idle", "finished"),
             "reason": error or self.reason,
         }
 
@@ -142,7 +185,11 @@ class Supervisor:
             snapshot = (
                 encode(cast(dict[str, object], message["selection"])).decode().strip()
             )
-            child = Child.spawn([*self.runner, snapshot], events=True)
+            child = Child.spawn(
+                [*self.runner, snapshot],
+                permitted=lambda: not self.shutting_down,
+                events=True,
+            )
         except (ControlError, OSError):
             self.state = "unknown"
             return self.status(ok=False, error="spawn_failed")
@@ -159,6 +206,10 @@ class Supervisor:
         run.stop_at = time.monotonic()
         if self.state != "unknown":
             self.state = "stopping"
+        if run.armed:
+            self.send_term(run)
+
+    def send_term(self, run: CurrentRun) -> None:
         if not run.child.send(signal.SIGTERM):
             self.state = "unknown"
             self.reason = "stop_not_confirmed"
@@ -168,33 +219,37 @@ class Supervisor:
         self.reason = reason
         self.stop()
 
+    def reject_events(self, run: CurrentRun, reason: str) -> None:
+        run.events_valid = False
+        run.buffer.clear()
+        self.fault(reason)
+
     def read_events(self, run: CurrentRun) -> None:
         output = run.child.process.stdout
         if output is None:
-            self.fault("missing_runner_events")
+            self.reject_events(run, "missing_runner_events")
             return
         try:
-            chunk = os.read(output.fileno(), MAX_MESSAGE)
+            chunk = os.read(output.fileno(), MAX_MESSAGE - len(run.buffer))
         except BlockingIOError:
             return
         except OSError:
-            self.fault("runner_pipe_error")
+            self.reject_events(run, "runner_pipe_error")
+            return
+        if not run.events_valid:
+            # Discard after a protocol violation, so output cannot prevent reaping.
             return
         run.buffer.extend(chunk)
         while (end := run.buffer.find(b"\n")) >= 0:
-            if end >= MAX_MESSAGE:
-                self.fault("invalid_runner_event")
-                return
             line = bytes(run.buffer[:end])
             del run.buffer[: end + 1]
             try:
-                message = decode(line)
-                self.event(run, message)
+                self.event(run, decode(line))
             except ControlError:
-                self.fault("invalid_runner_event")
+                self.reject_events(run, "invalid_runner_event")
                 return
         if len(run.buffer) >= MAX_MESSAGE:
-            self.fault("invalid_runner_event")
+            self.reject_events(run, "invalid_runner_event")
 
     def event(self, run: CurrentRun, message: dict[str, object]) -> None:
         event = message.get("event")
@@ -206,12 +261,16 @@ class Supervisor:
             or run.result is not None
         ):
             raise ControlError("invalid runner event")
-        if event == "ready" and self.state == "starting":
+        if event == "armed" and not run.armed:
+            run.armed = True
+            if run.stop_at is not None:
+                self.send_term(run)
+        elif event == "ready" and run.armed and self.state == "starting":
             self.state = "running"
-        elif event == "ready" and self.state == "stopping":
+        elif event == "ready" and run.armed and self.state == "stopping":
             # A ready event may already be queued when stop is requested.
             return
-        elif event == "finished":
+        elif event == "finished" and run.armed:
             run.result = reason
         elif event == "fault":
             self.fault(reason)
@@ -303,26 +362,32 @@ def serve(path: Path, web_command: list[str], runner_command: list[str]) -> int:
         os.close(fd)
 
     supervisor = Supervisor(runner_command)
-    shutdown_requested = False
 
     def shutdown(_signum: int, _frame: object) -> None:
-        nonlocal shutdown_requested
-        shutdown_requested = True
+        supervisor.shutting_down = True
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, shutdown)
 
+    def can_spawn() -> bool:
+        return not supervisor.shutting_down
+
     with ControlServer(path, supervisor) as server:
-        web = Child.spawn(web_command)
+        if not can_spawn():
+            return 0
+        web = Child.spawn(web_command, permitted=can_spawn)
         if web.pidfd is None:
+            web.process.wait(timeout=REAP_TIMEOUT)
             web.close()
+            if supervisor.shutting_down:
+                return 0
             raise ControlError("cannot supervise web without its pidfd")
         result = 0
         try:
-            while not shutdown_requested and web.process.poll() is None:
+            while not supervisor.shutting_down and web.process.poll() is None:
                 supervisor.tick()
                 server.handle_request()
-            if not shutdown_requested:
+            if not supervisor.shutting_down:
                 result = 1
         finally:
             supervisor.shutting_down = True

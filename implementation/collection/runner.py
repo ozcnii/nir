@@ -39,6 +39,7 @@ def run(
 
     for signum in (signal.SIGINT, signal.SIGTERM):
         signal.signal(signum, stop)
+    emit("armed")
 
     ready = False
     try:
