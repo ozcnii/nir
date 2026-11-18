@@ -46,7 +46,11 @@ _BACK_REFERENCE = re.compile(
     r"(?:(?:эти|указанные|названные|это)\s+(?:размеры|площади|помещения|комнаты)"
     r"|оба|обе)\b\s*"
 )
-_DENIAL = re.compile(r"\b(?:отсутству\w*|не\s+(?:предусмотрен\w*|относят\w*))\b")
+_DENIAL = re.compile(
+    r"(?:отсутству\w*|не предусмотрен\w*"
+    r"|не относятся к (?:этой|предлагаемой|продаваемой|сдаваемой) квартире)\b"
+)
+_PREDICATE_END = re.compile(r"[,;]")
 _SENTENCE_END = re.compile(r"[.!?](?![0-9])")
 _SQUARE_METERS = re.compile(r"\bкв\.\s*м\b")
 _TYPOGRAPHY = str.maketrans(
@@ -125,27 +129,35 @@ def _has_layout(text: str) -> bool:
     on_offer = True
     for sentence in _SENTENCE_END.split(_SQUARE_METERS.sub("м²", text)):
         sentence = sentence.strip()
-        if reference := _BACK_REFERENCE.match(sentence):
-            claim = sentence[reference.end() :]
-            if _OTHER_UNIT.search(claim) or _DENIAL.search(claim):
-                pending.clear()
+        foreign = _FOREIGN_HEADING.match(sentence)
+        if foreign:
+            sentence = sentence[foreign.end() :]
+        offered = _OFFERED_UNIT.match(sentence)
+        if offered:
+            sentence = sentence[offered.end() :]
+        sentence = _LAYOUT_HEADING.sub("", sentence, count=1)
 
-        if heading := _FOREIGN_HEADING.match(sentence):
+        if reference := _BACK_REFERENCE.match(sentence):
+            claim = _PREDICATE_END.split(sentence[reference.end() :], maxsplit=1)[0]
+            if (
+                not foreign
+                and (on_offer or offered)
+                and (
+                    _DENIAL.match(claim)
+                    or _OTHER_UNIT.match(claim.removeprefix("относятся к "))
+                )
+            ):
+                pending.clear()
+            continue
+
+        if foreign or offered:
             confirmed.extend(pending)
             pending.clear()
-            on_offer = False
-            sentence = sentence[heading.end() :]
+            on_offer = bool(offered)
         if _OTHER_UNIT.search(sentence):
             on_offer = False
-            continue
-        if heading := _OFFERED_UNIT.match(sentence):
-            confirmed.extend(pending)
-            pending.clear()
-            on_offer = True
-            sentence = sentence[heading.end() :]
-        if on_offer:
-            claims = _LAYOUT_HEADING.sub("", sentence, count=1)
-            pending.extend(_layout_assertions(claims) or ())
+        elif on_offer:
+            pending.extend(_layout_assertions(sentence) or ())
 
     rooms: dict[tuple[str, str | None], set[Decimal]] = {}
     for room, area in (*confirmed, *pending):
