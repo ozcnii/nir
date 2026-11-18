@@ -1,0 +1,71 @@
+{
+  "url": "https://samara.cian.ru/sale/flat/330631159/",
+  "offer": {
+    "id": 330631159,
+    "cianId": 330631159,
+    "dealType": "sale",
+    "offerType": "flat",
+    "status": "published",
+    "geo": {
+      "address": [
+        {
+          "id": 4608,
+          "fullName": "Самарская область",
+          "name": "Самарская",
+          "type": "location",
+          "locationTypeId": 2
+        },
+        {
+          "id": 4966,
+          "fullName": "Самара",
+          "name": "Самара",
+          "type": "location",
+          "locationTypeId": 1
+        },
+        {
+          "id": 232,
+          "fullName": "район Советский",
+          "name": "Советский",
+          "type": "raion",
+          "locationTypeId": -1
+        }
+      ],
+      "coordinates": {
+        "lat": 53.21006234864254,
+        "lng": 50.21075200404231
+      }
+    },
+    "totalArea": "47.21",
+    "roomsCount": 1,
+    "floorNumber": 2,
+    "category": "newBuildingFlatSale",
+    "building": {
+      "floorsCount": 18
+    },
+    "bargainTerms": {
+      "price": 7246735
+    }
+  },
+  "product": {
+    "@type": "Product",
+    "sku": 330631159,
+    "image": [
+      "https://images.cdn-cian.ru/images/2981595376-1.jpg",
+      "https://images.cdn-cian.ru/images/2895448231-1.jpg",
+      "https://images.cdn-cian.ru/images/2895448242-1.jpg",
+      "https://images.cdn-cian.ru/images/2895448261-1.jpg",
+      "https://images.cdn-cian.ru/images/2895448274-1.jpg",
+      "https://images.cdn-cian.ru/images/2895448285-1.jpg",
+      "https://images.cdn-cian.ru/images/2895448301-1.jpg",
+      "https://images.cdn-cian.ru/images/2895448318-1.jpg",
+      "https://images.cdn-cian.ru/images/2895448330-1.jpg"
+    ],
+    "offers": {
+      "@type": "Offer",
+      "url": "https://samara.cian.ru/sale/flat/330631159/",
+      "priceCurrency": "RUB",
+      "availability": "https://schema.org/InStock",
+      "price": 7246735
+    }
+  }
+}

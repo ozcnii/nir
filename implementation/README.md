@@ -202,3 +202,20 @@ ACL/F25 под ролью `app`, первого запуска, лаунчера
 PostgreSQL с `config.settings_test` и заранее установите Chromium из
 зафиксированного окружения командой
 `uv run --no-sync playwright install --no-shell chromium`.
+
+### Один сохранённый маршрут Циан
+
+`collection.collectors.cian.read_card(page, observed_at)` читает встроенное
+состояние карточки продажи новостройки в Самарской области. Время снимка передаёт
+вызывающий код перед навигацией. Нормализация формирует P3 из простых данных,
+галерея содержит опубликованные URL. Для рублёвой цены используется связанный
+с тем же ключом JSON-LD Offer. При расхождении с опубликованным `bargainTerms.price`
+цена недоступна.
+
+Тестовая проекция `collection/tests/fixtures/cian-330631159.json` основана на
+[сохранённых полях](../bachelor-thesis/evidence/field-audit/cian-parsed-fields.json),
+[матрице карточек](../bachelor-thesis/evidence/field-audit/embedded-card-matrix-2026-11-17.json)
+и [наблюдении JSON-LD](../bachelor-thesis/evidence/2026-11-16/cian-card-observation.json).
+В тесте Playwright открывает локально воспроизведённую оболочку проекции через
+перехват маршрута. Текст описания исключён из проекции. Живой запуск и запись
+в PostgreSQL проверяются в задачах #23 и #24.
