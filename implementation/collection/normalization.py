@@ -18,9 +18,8 @@ class RejectedCard(ValueError):
     """A recognized card has invalid required or structural data."""
 
 
-_NUMBER = re.compile(
-    r"[+-]?(?:[0-9]+(?:[.,][0-9]+)?|[0-9]{1,3}(?: [0-9]{3})+(?:[.,][0-9]+)?)"
-)
+# The integer part is either space-grouped in thousands or ungrouped.
+_NUMBER = re.compile(r"[+-]?(?:[0-9]{1,3}(?: [0-9]{3})+|[0-9]+)(?:[.,][0-9]+)?")
 
 
 def number(value: object) -> Decimal:

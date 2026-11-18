@@ -12,7 +12,7 @@ from psycopg.rows import TupleRow
 
 from catalog.contracts import ActiveSnapshot
 from collection.browser import BrowserFailed
-from collection.collectors.cian import capture_page, card_key, parse_card
+from collection.collectors.cian import capture_page, card_key, parse_captured_card
 from collection.normalization import RejectedCard
 from collection.runner import BrowserWork
 
@@ -57,13 +57,7 @@ def collect_cian_card(work: BrowserWork, url: str) -> tuple[ActiveSnapshot, "Rec
         if card_key(data["url"]) != expected_key:
             raise CardReadFailed("unexpected_redirect", response.status)
         try:
-            snapshot = parse_card(
-                url,
-                observed_at,
-                data["config"],
-                data["products"],
-                loaded_url=data["url"],
-            )
+            snapshot = parse_captured_card(url, observed_at, data)
         except RejectedCard as error:
             raise CardReadFailed(str(error), response.status) from error
         if snapshot["state"] != "active":
