@@ -8,6 +8,16 @@ from collection.room_claims import room_facts
 class RoomClaimsTests(TestCase):
     def test_only_published_room_scope_contributes(self) -> None:
         cases = (
+            (None, "Комната 9 м² и комната 10 м², санузел отдельно", None, 2, None),
+            (None, "Комната № 2 в квартире № 25", None, 1, None),
+            (
+                1,
+                "",
+                "Продаётся комната 9 м². Долю в соседней квартире можно купить отдельно.",
+                1,
+                Decimal("9"),
+            ),
+            (1, "", "Продаются две комнаты в соседней квартире.", 1, Decimal("9")),
             (None, "Две комнаты общей площадью 23,5 м²", None, 2, Decimal("23.50")),
             (None, "Комната 9 м² и комната 10 м² в одной квартире", None, 2, None),
             (None, "Комната 9 м². Вторую можно купить отдельно", None, 1, Decimal("9")),
@@ -39,6 +49,11 @@ class RoomClaimsTests(TestCase):
 
     def test_conflicting_or_unallocated_unit_stops_before_p3(self) -> None:
         cases = (
+            ("Арт. 537953. Уютная комната 9,2 м².", "conflicting_room_area"),
+            (
+                "Продаётся 1/2 доля, которой по соглашению соответствует комната № 2 площадью 9,2 м²",
+                "conflicting_room_area",
+            ),
             (
                 "В квартире ремонт. Продаётся 1/2 доля в квартире",
                 "unconfirmed_room_unit",
