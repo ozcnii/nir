@@ -30,5 +30,4 @@ COPY collection/ collection/
 ENV HOME=/home/app
 USER 10001:10001
 
-# T08 adds the startup preflight. Until then the image is used for one-off commands.
-CMD ["python", "-c", "raise SystemExit('Runtime startup is available after database preflight (T08).')"]
+CMD ["python", "-m", "config.startup"]

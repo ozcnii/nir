@@ -21,7 +21,7 @@ def check_postgres(repeat: bool) -> None:
     # Arrange
     if os.environ["DB_NAME"] != "t06_acl_test":
         raise ValueError("F25 requires the dedicated fixture database")
-    marker = "nir-f25:" + os.environ["NIR_T06_FIXTURE_TOKEN"]
+    marker = "nir-f25:" + os.environ["NIR_PG_FIXTURE_TOKEN"]
     credentials = make_conninfo(
         dbname=os.environ["DB_NAME"],
         host=os.environ["DB_HOST"],

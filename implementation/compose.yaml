@@ -18,6 +18,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=2).close()"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
     security_opt:
       - seccomp=./docker/playwright-seccomp.json
     tmpfs:

@@ -566,7 +566,7 @@ raise SystemExit(child.wait())
                         else "False",
                     }
                 },
-                "State": {"Running": True},
+                "State": {"Running": True, "Health": {"Status": "healthy"}},
                 "NetworkSettings": {
                     "Ports": {
                         "8000/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8001"}],
@@ -577,6 +577,19 @@ raise SystemExit(child.wait())
             }
             for name in ("app", "db", "one-off")
         }
+        app_state = cast(dict[str, object], containers["app"]["State"])
+        app_state["Health"] = {"Status": "starting"}
+        self.registry.write_text(json.dumps(containers))
+
+        # Act
+        starting = self.start("preflight")
+        # Assert
+        self.assertEqual(starting.wait(timeout=10), 1)
+        self.assertFalse((self.root / "preflight.ready").exists())
+        self.assertNotIn("container stop", self.events.read_text())
+
+        # Arrange
+        app_state["Health"] = {"Status": "healthy"}
         self.registry.write_text(json.dumps(containers))
 
         # Act
