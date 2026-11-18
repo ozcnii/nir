@@ -61,15 +61,20 @@ def check_postgres(repeat: bool) -> None:
                 app.execute(
                     "UPDATE sources SET enabled = false WHERE code = %s", (SOURCE,)
                 )
-                app.execute("INSERT INTO regions (name) VALUES ('Initial region')")
                 app.execute("UPDATE regions SET name = 'Renamed region' WHERE id = 1")
                 app.execute("INSERT INTO regions (name) VALUES ('Unused region')")
                 app.execute("DELETE FROM regions WHERE name = 'Unused region'")
-                app.execute("INSERT INTO property_types (name) VALUES ('Type')")
-                app.execute("""
+                test_type = app.execute(
+                    "INSERT INTO property_types (name) VALUES ('Type') RETURNING id"
+                ).fetchone()
+                assert test_type is not None
+                app.execute(
+                    """
                     INSERT INTO properties (region_id, property_type_id, rooms, floor)
-                    VALUES (1, 1, 0, -1)
-                """)
+                    VALUES (1, %s, 0, -1)
+                    """,
+                    test_type,
+                )
                 app.execute("UPDATE properties SET floor = 0 WHERE id = 1")
                 app.execute(INSERT_AD)
                 app.execute(

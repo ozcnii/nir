@@ -25,11 +25,11 @@ OBSERVED_AT = datetime(2026, 1, 1, tzinfo=UTC)
 class CatalogSchemaTests(TransactionTestCase):
     def setUp(self) -> None:
         self.region = Region.objects.create(name="Тестовый регион")
-        self.property_type = PropertyType.objects.create(name="Квартира")
+        self.property_type = PropertyType.objects.create(name="Тестовый вид")
         self.property = Property.objects.create(
             region=self.region, property_type=self.property_type
         )
-        self.source = Source.objects.create(code="cian", enabled=True)
+        self.source = Source.objects.create(code="schema-fixture", enabled=True)
         self.ad = Ad.objects.create(
             property=self.property,
             source=self.source,
@@ -226,7 +226,7 @@ class CatalogSchemaTests(TransactionTestCase):
         # Arrange
         other = Ad.objects.create(
             property=self.property,
-            source=Source.objects.create(code="domclick", enabled=True),
+            source=Source.objects.create(code="schema-other-fixture", enabled=True),
             external_id=self.ad.external_id,
             url="https://example.net/ad/12345",
             deal_type=DealType.MONTH_RENT,

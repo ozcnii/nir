@@ -61,6 +61,25 @@ uv run --locked python -m host_runner --db-only -- bash -ec '
 метаданные под ролью `app`. Первый запуск администратора сайта и preflight
 перед web входят в T08.
 
+### Восстановление стандартных записей
+
+Начальная миграция заполняет справочники один раз. Восстановить выбранные
+отсутствующие записи можно под ролью `migrator` из выделенного Compose-проекта.
+Каждый параметр можно указать несколько раз.
+
+```sh
+uv run --locked python -m host_runner --db-only -- docker compose run --rm --no-deps -T \
+    -e DB_MIGRATOR_PASSWORD -e DB_APP_PASSWORD= -e DJANGO_SECRET_KEY= app \
+    python manage.py restore_reference_data --settings=config.settings_migrator \
+    --source cian --property-type 1 --region 68
+```
+
+Команда сохраняет существующие значения и отменяет весь запрос, если подпись
+восстанавливаемой записи уже занята другим ID. Конфликт можно устранить штатным
+переименованием, затем повторить команду.
+
+### Проверка прав PostgreSQL
+
 Негативные SQL-проверки F25 запускаются только в отдельном worktree с новым
 проверочным томом. Используйте отдельные временные пароли:
 
