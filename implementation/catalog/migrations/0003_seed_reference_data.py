@@ -1,6 +1,6 @@
-from django.apps.registry import Apps
 from django.db import migrations
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
+from django.db.migrations.state import StateApps
 
 from catalog.reference_data_v1 import (
     PROPERTY_TYPES,
@@ -10,7 +10,9 @@ from catalog.reference_data_v1 import (
 )
 
 
-def seed_reference_data(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
+def seed_reference_data(
+    apps: StateApps, schema_editor: BaseDatabaseSchemaEditor
+) -> None:
     db = schema_editor.connection.alias
     sources = apps.get_model("catalog", "Source")
     property_types = apps.get_model("catalog", "PropertyType")
