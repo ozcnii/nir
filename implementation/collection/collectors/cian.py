@@ -14,13 +14,12 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from catalog.contracts import Deal, Snapshot, SnapshotKey, is_http_url
 from collection.browser import NAVIGATION_TIMEOUT_MS
-from collection.normalization import (
-    RejectedCard,
-    as_object,
+from collection.cian_normalization import (
     cian_partner_property_type,
     normalize_cian_card,
     normalize_cian_partner,
 )
+from collection.normalization import RejectedCard, as_object
 
 _NATIVE_HOSTS = {
     "cian.ru",
