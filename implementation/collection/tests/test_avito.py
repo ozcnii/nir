@@ -86,20 +86,6 @@ class AvitoCardTests(TestCase):
                 "listed",
                 28,
             ),
-            "room": (
-                "7697142163",
-                2,
-                "sale",
-                None,
-                "12.50",
-                None,
-                1,
-                3,
-                None,
-                "752777.00",
-                "listed",
-                None,
-            ),
             "month_rent": (
                 "4977842672",
                 1,
@@ -129,7 +115,7 @@ class AvitoCardTests(TestCase):
                 None,
             ),
         }
-        cards = {label: projection(label) for label in [*cases, "closed"]}
+        cards = {label: projection(label) for label in [*cases, "closed", "room"]}
         by_url = {card["url"]: card for card in cards.values()}
         requests: list[str] = []
 
@@ -159,6 +145,13 @@ class AvitoCardTests(TestCase):
             page = context.new_page()
             for label, card in cards.items():
                 page.goto(card["url"], wait_until="domcontentloaded")
+                if label == "room":
+                    # The saved card gives the area of a room but sells an unscoped share.
+                    with self.assertRaisesRegex(
+                        RejectedCard, "^unconfirmed_room_unit$"
+                    ):
+                        read_card(page, card["url"], OBSERVED_AT)
+                    continue
                 results[label] = read_card(
                     page,
                     card["url"],
@@ -514,15 +507,21 @@ class AvitoCardTests(TestCase):
         rows = cast(list[dict[str, object]], params["items"])
         params["items"] = [row for row in rows if row["title"] != "Условия продажи"]
 
+        share = projection("room")
+        item_for(share)["title"] = "Доля: одна комната 12,5 м²"
+        item_for(card)["title"] = (
+            "Комната 12,5 м² в 2-к. Отдельно можно купить вторую комнату"
+        )
+
         # Act
         ordinary = parsed(card)
-        ambiguous_share = parsed(projection("room"))
+        physical_share = parsed(share)
 
         # Assert
         assert ordinary["state"] == "active"
-        assert ambiguous_share["state"] == "active"
+        assert physical_share["state"] == "active"
         self.assertEqual(ordinary["rooms"], 1)
-        self.assertIsNone(ambiguous_share["rooms"])
+        self.assertEqual(physical_share["rooms"], 1)
 
     def test_wrong_display_amount_or_unit_is_unavailable(self) -> None:
         for label, display in (
@@ -545,6 +544,7 @@ class AvitoCardTests(TestCase):
     def test_primary_room_title_and_structured_area_conflict(self) -> None:
         # Arrange
         card = projection("room")
+        item_for(card)["title"] = "Доля: одна комната 12,5 м²"
         params = as_object(as_object(card["route"]["buyerItem"])["paramsDto"])
         for row in cast(list[dict[str, object]], params["items"]):
             if row["title"] == "Площадь комнаты":
@@ -571,7 +571,19 @@ class AvitoCardTests(TestCase):
 
         # Assert
         assert snapshot["state"] == "active"
-        self.assertIsNone(snapshot["rooms"])
+        self.assertEqual(snapshot["rooms"], 2)
+        self.assertIsNone(snapshot["area_m2"])
+
+    def test_abstract_share_does_not_create_a_room(self) -> None:
+        # Arrange
+        card = projection("room")
+        item_for(card)["title"] = "Доля 1/2 в квартире"
+        with self.assertRaises(RejectedCard) as rejected:
+            # Act
+            parsed(card)
+
+        # Assert
+        self.assertEqual(str(rejected.exception), "unconfirmed_room_unit")
 
     def test_browser_projection_preserves_malformed_geo(self) -> None:
         # Arrange: serve only the local replay document at the public card URL.
