@@ -52,6 +52,13 @@ _ROOM_FIRST_ALLOCATION = re.compile(
 )
 _HOLDER_TERM = re.compile(r"^[ ,—–-]*(?P<negated>не +)?(?:за|принадлежит) +")
 _SOLD_HOLDER = re.compile(r"^(?:(?:этой|предлагаемой) долей|ней|продавц(?:ом|у))\b")
+# (holder of the offered share, negated) -> confirmed, disputed, or neutral.
+_HOLDER_POLARITY = {
+    (True, False): True,
+    (True, True): False,
+    (False, False): False,
+    (False, True): None,
+}
 _ALTERNATIVE = re.compile(r" *,? +а +")
 _HOLDER_ROOM = re.compile(
     rf"(?:{_PAUSE}|(?: +|{_PAUSE})(?P<negated>не +)?(?:{_ALLOCATION_VERB}) +)"
@@ -236,7 +243,7 @@ def _holder_facts(
     facts = []
     for index, term in enumerate(_ALTERNATIVE.split(text)):
         negated = index == 0 and first_predicate_negated
-        confirmed: bool | None = True if index == 0 and implicit_holder else None
+        sold_holder: bool | None = None
         if member := _ROOM_FRAGMENT.match(term):
             evidence = _claim_fields(term)
             term = term[member.end() :]
@@ -249,14 +256,12 @@ def _holder_facts(
             if member_after_holder := _HOLDER_ROOM.search(holder_text):
                 evidence = _claim_fields(holder_text[member_after_holder.end() :])
                 negated |= member_after_holder["negated"] is not None
-            holder_negated = holder["negated"] is not None
-            confirmed = (
-                sold_holder and not holder_negated
-                if sold_holder or not holder_negated
-                else None
-            )
-        if negated:
-            confirmed = False
+            negated |= holder["negated"] is not None
+        elif negated or (index == 0 and implicit_holder):
+            sold_holder = True
+        if sold_holder is None:
+            continue
+        confirmed = _HOLDER_POLARITY[sold_holder, negated]
         if confirmed is not None:
             facts.append((evidence, confirmed))
     return facts
@@ -285,12 +290,16 @@ def _share_allocation(
     negated = bool(
         (prefix and prefix["negated"]) or (predicate and predicate["negated"])
     )
-    preceding = _holder_facts(before, evidence) if before and not negated else []
+    preceding = (
+        _holder_facts(before, evidence, first_predicate_negated=negated)
+        if before
+        else []
+    )
     following = _holder_facts(
         after,
         evidence,
         implicit_holder=prefix is not None and before is None,
-        first_predicate_negated=negated,
+        first_predicate_negated=negated and before is None,
     )
     return [*preceding, *following]
 
