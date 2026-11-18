@@ -17,37 +17,48 @@ _COUNT = re.compile(
 )
 _IDENTIFIER = r"[0-9]+[а-я]?(?:[-/][0-9]+[а-я]?)*\b"
 _PAUSE = r" *[,—–-] *"
+_ROOM_TAG = rf"№ *(?P<room>{_IDENTIFIER})"
+_APARTMENT = rf"(?:(?: +|{_PAUSE})в квартире +(?:№ *)?(?P<apartment>{_IDENTIFIER}))?"
 _ROOM_FRAGMENT = re.compile(
-    rf"(?P<noun>{_ROOM})\b(?: +№ *(?P<room>{_IDENTIFIER}))?"
-    rf"(?:(?: +|{_PAUSE})в квартире +(?:№ *)?{_IDENTIFIER})?"
+    rf"(?P<single>отдельн(?:ая|ую) +)?(?P<noun>{_ROOM})\b"
+    rf"(?: +{_ROOM_TAG})?{_APARTMENT}"
     rf"(?:(?: +(?:площадью +)?|{_PAUSE}площадью +| *[—–] +)"
     rf"(?P<area>{_AMOUNT}) *{_UNIT})?"
 )
-_ROOM_NUMBER = re.compile(rf"№ *{_IDENTIFIER}")
+_ROOM_NUMBER = re.compile(rf"{_ROOM_TAG}{_APARTMENT}")
 _ROOM_LINK = re.compile(
     r"(?: *,? +и +|(?P<comma> *, *))(?P<extra>ещ[её] +)?(?:(?:одна|одну|1) +)?"
 )
+_LIST_INTRO = re.compile(r"^ *[:,—–-] *")
 _TOTAL = re.compile(
     rf" *(?:, *)?(?P<whole>общей +)?площадью +(?P<area>{_AMOUNT}) *{_UNIT}"
 )
 _SHARE = re.compile(r"^(?:[0-9]+/[0-9]+ +)?дол[яю]\b")
+_ALLOCATED_UNIT = r"(?=(?:комната +№ ?[1-9][0-9]*|(?:одна|1) комната)\b)"
 _ALLOCATED = re.compile(
     r"^(?:доля: |(?:[0-9]+/[0-9]+ +)?дол[яю], которо[йю] "
-    r"(?:по соглашению )?соответствует )"
-    r"(?=(?:комната +№ ?[1-9][0-9]*|(?:одна|1) комната)\b)"
+    rf"(?:по соглашению )?соответствует ){_ALLOCATED_UNIT}"
+)
+_RELATED_ALLOCATION = re.compile(
+    r"^(?:за (?:ней|(?:этой|предлагаемой) долей)|по соглашению(?: о пользовании)?)"
+    rf" +закреплена +{_ALLOCATED_UNIT}"
 )
 _NOT_ALLOCATED = re.compile(r"\b(?:без выделения|не выделен[ао]?)\b")
 _OTHER_SCOPE = re.compile(
     r"^[ ,—-]*(?:в соседне[йм]|в друго[йм]|у сосед|не прода|не сда)"
 )
-_IMAGE = r"на (?:фото|фотографии|плане|схеме)\b"
+_IMAGE = r"на (?:[а-я0-9-]+ +){0,2}(?:фото|фотографи[ия]х?|плане|схеме)\b"
 _DEPICTED = re.compile(rf"^(?:(?: +| *[—–-] *){_IMAGE}| *, *{_IMAGE}(?=$|[,;]))")
 _SEPARATE = re.compile(
     r"^[ ,—–-]*(?:котор(?:ую|ые) +)?"
     r"(?:(?:прода[её]тся|сда[её]тся|можно купить|можно снять) +)?"
     r"(?:отдельно|не входит)\b"
 )
-_AREA_SUBJECT = re.compile(r"^площадь (?:продаваемой|предлагаемой|сдаваемой) комнаты\b")
+_AREA_STATEMENT = re.compile(
+    rf"^площадь (?:продаваемой|предлагаемой|сдаваемой) комнаты\b"
+    rf"(?: +{_ROOM_TAG})?{_APARTMENT}"
+    rf"(?: *[:=—–-] *| +(?:составляет +)?)(?P<area>{_AMOUNT}) *{_UNIT}"
+)
 _CARD_REFERENCE = re.compile(
     r"^\s*(?:арт\.|артикул|объявление) *№? *[0-9]+[.\n]\s*", re.IGNORECASE
 )
@@ -61,7 +72,7 @@ def room_heading(title: str) -> bool:
     return (
         _SHARE.match(text) is not None
         or _COUNT.match(text) is not None
-        or text.startswith(("комната ", "комната,"))
+        or _ROOM_FRAGMENT.match(text) is not None
     )
 
 
@@ -77,21 +88,33 @@ def _outside_offer(tail: str) -> bool:
 def _enumerated_rooms(claim: str, first: re.Match[str]) -> tuple[int, int]:
     rooms, end = 1, first.end()
     numbered_list = first["room"] is not None and first["noun"] == "комнаты"
+    identifiers: dict[str, set[str | None]] = (
+        {first["room"]: {first["apartment"]}} if first["room"] else {}
+    )
     while link := _ROOM_LINK.match(claim, end):
-        room = _ROOM_FRAGMENT.match(claim, link.end())
-        if room is not None:
-            if link["comma"] and not (link["extra"] or room["room"] or room["area"]):
+        member = _ROOM_FRAGMENT.match(claim, link.end())
+        if member is not None:
+            if link["comma"] and not (
+                link["extra"] or member["room"] or member["area"]
+            ):
                 break
-            numbered_list = room["room"] is not None and room["noun"] == "комнаты"
-            next_end = room.end()
-        elif numbered_list and (number := _ROOM_NUMBER.match(claim, link.end())):
-            next_end = number.end()
-        else:
+            numbered_list = member["room"] is not None and member["noun"] == "комнаты"
+        elif numbered_list:
+            member = _ROOM_NUMBER.match(claim, link.end())
+        if member is None:
             break
-        tail = claim[next_end:]
+        tail = claim[member.end() :]
         if _outside_offer(tail) or _SEPARATE.match(tail):
             break
-        rooms, end = rooms + 1, next_end
+        if member["room"]:
+            apartment = member["apartment"]
+            seen_in = identifiers.setdefault(member["room"], set())
+            if seen_in and (
+                apartment is None or None in seen_in or apartment in seen_in
+            ):
+                raise RejectedCard("conflicting_room_count")
+            seen_in.add(apartment)
+        rooms, end = rooms + 1, member.end()
     return rooms, end
 
 
@@ -102,6 +125,15 @@ def _set_area(tail: str, *, after_count: bool = False) -> Decimal | None:
     return None if _outside_offer(tail[total.end() :]) else number(total["area"])
 
 
+def _listing_after_count(tail: str) -> tuple[str, re.Match[str]] | None:
+    intro = _LIST_INTRO.match(tail)
+    if intro is None:
+        return None
+    listing = tail[intro.end() :]
+    first = _ROOM_FRAGMENT.match(listing)
+    return (listing, first) if first is not None else None
+
+
 def _claim_fields(claim: str) -> tuple[int | None, Decimal | None, Decimal | None]:
     count = _COUNT.match(claim)
     if count:
@@ -109,17 +141,16 @@ def _claim_fields(claim: str) -> tuple[int | None, Decimal | None, Decimal | Non
         tail = claim[count.end() :]
         if _outside_offer(tail):
             return None, None, None
-        if tail.lstrip().startswith(":"):
-            listing = tail.lstrip()[1:].lstrip()
-            first_listed = _ROOM_FRAGMENT.match(listing)
-            if first_listed is not None and not _outside_offer(
-                listing[first_listed.end() :]
-            ):
+        if declared := _listing_after_count(tail):
+            listing, first_listed = declared
+            if not _outside_offer(listing[first_listed.end() :]):
                 listed, end = _enumerated_rooms(listing, first_listed)
                 if listed != rooms:
                     raise RejectedCard("conflicting_room_count")
                 if listed > 1:
                     return listed, None, _set_area(listing[end:])
+                listed_area = first_listed["area"]
+                return 1, number(listed_area) if listed_area else None, None
         if rooms != 1:
             return rooms, None, _set_area(tail, after_count=True)
         claim = f"комната{tail}"
@@ -132,11 +163,10 @@ def _claim_fields(claim: str) -> tuple[int | None, Decimal | None, Decimal | Non
         return rooms, None, _set_area(claim[end:])
     if area := first["area"]:
         return 1, number(area), None
-    return (
-        (1 if count or first["room"] and first["noun"] != "комнаты" else None),
-        None,
-        None,
+    known_single = count or (
+        (first["single"] or first["room"]) and first["noun"] != "комнаты"
     )
+    return (1 if known_single else None), None, None
 
 
 def room_facts(
@@ -159,11 +189,12 @@ def room_facts(
         offer = _OFFER.match(claim)
         if offer:
             claim = claim[offer.end() :].removeprefix("только ")
-        measurement = _AREA_SUBJECT.match(claim)
+        if measurement := _AREA_STATEMENT.match(claim):
+            if not _outside_offer(claim[measurement.end() :]):
+                areas.add(number(measurement["area"]))
+            continue
         allocation = None
-        if measurement:
-            claim = "комната" + claim[measurement.end() :]
-        elif share_claim := _SHARE.match(claim):
+        if share_claim := _SHARE.match(claim):
             if _OTHER_SCOPE.match(claim[share_claim.end() :]):
                 continue
             share = True
@@ -173,16 +204,24 @@ def room_facts(
             if not allocation:
                 continue
             claim = claim[allocation.end() :]
+        elif share and (allocation := _RELATED_ALLOCATION.match(claim)):
+            claim = claim[allocation.end() :]
         elif not offer and index >= len(headings):
-            if index != len(headings) or not claim.startswith("уютная "):
+            if index != len(headings):
                 continue
-            claim = claim.removeprefix("уютная ")
+            if claim.startswith("уютная "):
+                claim = claim.removeprefix("уютная ")
+            elif not (
+                (declared := _COUNT.match(claim))
+                and _listing_after_count(claim[declared.end() :])
+            ):
+                continue
         count, area, total = _claim_fields(claim)
         if allocation is not None:
             if count != 1:
                 raise RejectedCard("unconfirmed_room_unit")
             allocated = True
-        if count is not None and not measurement:
+        if count is not None:
             counts.add(count)
         if area is not None:
             areas.add(area)
