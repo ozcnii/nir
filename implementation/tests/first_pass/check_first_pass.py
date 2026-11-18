@@ -4,14 +4,12 @@ import json
 import os
 import sys
 import time
-from contextlib import suppress
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
 import psycopg
-from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Route
 
 from collection.one_card import CardReadFailed, collect_cian_card
@@ -26,6 +24,7 @@ from config.startup import preflight, web_command
 
 URL = "https://samara.cian.ru/sale/flat/330631159/"
 REJECT_NEXT = CONTROL_PATH.parent / "reject-next"
+TIMEOUT_FIRST = CONTROL_PATH.parent / "timeout-first"
 DIRECTION = Direction("cian", 68, "new_build", "sale")
 START: dict[str, object] = {
     "action": "start",
@@ -58,7 +57,14 @@ def route_fixture(work: BrowserWork) -> list[tuple[str, datetime]]:
         requested.append((route.request.url, datetime.now(UTC)))
         if route.request.url == URL:
             if len(requested) == 1:
-                route.fulfill(status=500, body="Controlled transient response")
+                if TIMEOUT_FIRST.exists():
+                    route.fulfill(
+                        status=200,
+                        content_type="text/html",
+                        body="<title>Waiting</title>",
+                    )
+                else:
+                    route.fulfill(status=500, body="Controlled transient response")
                 return
             route.fulfill(status=200, content_type="text/html", body=html)
         else:
@@ -79,16 +85,6 @@ def run_child(mode: str, incoming: str) -> int:
                 "http": error.http_status,
                 "problem": error.problem,
             }
-            if mode == "live":
-                page = work.pages.card
-                with suppress(PlaywrightError):
-                    observation["page_title"] = page.title()[:120]
-                    observation["embedded_marker"] = any(
-                        "frontend-offer-card" in text
-                        for text in page.locator(
-                            "script:not([src])"
-                        ).all_text_contents()
-                    )
             path.write_text(json.dumps(observation), encoding="utf-8")
             raise
         if intercepted is not None:
@@ -188,7 +184,10 @@ def verify(mode: str) -> int:
         assert connection.execute("SELECT count(*) FROM ads").fetchone() == (0,)
 
         # Act: two real manual control runs against one publication.
+        if mode == "fixture":
+            TIMEOUT_FIRST.touch()
         first = one()
+        TIMEOUT_FIRST.unlink(missing_ok=True)
         second = one()
         if mode == "fixture":
             # The third, synthetic run provokes rejection before a committed write.

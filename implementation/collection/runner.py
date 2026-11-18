@@ -65,25 +65,33 @@ class BrowserWork:
             raise BrowserFailed("browser_disconnected")
         check_stop(self._stopped)
 
-    def navigate(
-        self, page: Literal["listing", "card"], url: str
-    ) -> tuple[Response | None, datetime, float]:
+    def navigate(self, page: Literal["listing", "card"], url: str) -> Response | None:
+        return self.read_page(
+            page, url, lambda response, _observed_at, _deadline: response
+        )
+
+    def read_page[T](
+        self,
+        page: Literal["listing", "card"],
+        url: str,
+        read: Callable[[Response | None, datetime, float], T],
+    ) -> T:
         for retry in (False, True):
             self.checkpoint()
             observed_at = datetime.now(UTC)
             deadline = time.monotonic() + NAVIGATION_TIMEOUT_MS / 1000
             try:
                 response = self.pages.goto(page, url)
+                if not retry and response is not None and 500 <= response.status < 600:
+                    continue
+                self.checkpoint()
+                return read(response, observed_at, deadline)
             except PlaywrightError as error:
                 transport_error = isinstance(error, PlaywrightTimeout) or any(
                     candidate in str(error) for candidate in TRANSPORT_ERRORS
                 )
                 if retry or not transport_error:
                     raise
-            else:
-                if retry or response is None or not 500 <= response.status < 600:
-                    self.checkpoint()
-                    return response, observed_at, deadline
         raise AssertionError("The second navigation always returns or raises")
 
     def write[T](self, operation: Callable[[Connection[TupleRow]], T]) -> T:
