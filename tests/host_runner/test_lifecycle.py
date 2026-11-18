@@ -17,12 +17,13 @@ from host_runner.leases import State
 from host_runner.process import birth, group_exists
 
 REPOSITORY = Path(__file__).resolve().parents[2]
-RUN = """
+RUN = r"""
 import os
 import sys
+import time
 from pathlib import Path
 from host_runner import leases
-from host_runner.__main__ import run
+from host_runner import __main__ as host
 
 def checked_birth(pid):
     if str(pid) == os.environ.get("FAKE_UNKNOWN_PID"):
@@ -34,11 +35,26 @@ def checked_save(store, state):
         raise OSError("fixture transient ready write failure")
     return actual_save(store, state)
 
+def checked_group_registration(store, token, group):
+    if os.environ.get("FAKE_GROUP_REGISTRATION"):
+        Path("registration-paused").write_text(str(group))
+        while not Path("register-now").exists():
+            time.sleep(0.01)
+    return actual_register_group(store, token, group)
+
 actual_birth = leases.birth
 actual_save = leases.LeaseStore.save
+actual_register_group = leases.LeaseStore.register_group
 leases.birth = checked_birth
 leases.LeaseStore.save = checked_save
-raise SystemExit(run(Path.cwd(), sys.argv[2:], sys.argv[1] == 'db'))
+leases.LeaseStore.register_group = checked_group_registration
+if os.environ.get("FAKE_GROUP_REGISTRATION"):
+    host.EXEC_AFTER_REGISTRATION = (
+        "from pathlib import Path\nPath('bootstrap-ready').touch()\n"
+        + host.EXEC_AFTER_REGISTRATION
+    )
+host.TASK_STOP_GRACE = 1.5
+raise SystemExit(host.run(Path.cwd(), sys.argv[2:], sys.argv[1] == 'db'))
 """
 TASK = """
 import json
@@ -131,10 +147,10 @@ class HostRunnerTests(unittest.TestCase):
 
     def wait_for_task_guard(self, token: str) -> None:
         path = self.state.parent / f"task-{token}.lock"
-        group = self.read_state()["leases"][token]["task_group"]
+        group = self.read_state()["leases"][token].get("task_group")
 
         def unlocked() -> bool:
-            if group_exists(group):
+            if group is not None and group_exists(group):
                 return False
             with path.open("rb") as guard:
                 try:
@@ -302,6 +318,92 @@ while not Path(f'{name}.exit').exists():
 
                 self.assertEqual(process.wait(timeout=10), 128 + signal.SIGTERM)
                 self.assert_released()
+
+    def test_crash_before_group_registration_never_executes_the_task(self) -> None:
+        self.env["FAKE_GROUP_REGISTRATION"] = "1"
+        process = self.start("unregistered")
+        paused = self.root / "registration-paused"
+        until(lambda: paused.exists() and paused.stat().st_size > 0)
+        until((self.root / "bootstrap-ready").exists)
+        token = next(iter(self.read_state()["leases"]))
+        self.assertNotIn("task_group", self.read_state()["leases"][token])
+        original = self.read_state()["generation"]
+
+        process.kill()
+        process.wait(timeout=10)
+        self.wait_for_task_guard(token)
+        self.assertFalse((self.root / "unregistered.ready").exists())
+
+        del self.env["FAKE_GROUP_REGISTRATION"]
+        task = self.start("registered")
+        self.assertNotEqual(self.ready("registered")["generation"], original)
+        self.finish(task, "registered")
+        self.assertFalse((self.root / "unregistered.ready").exists())
+        self.assert_released()
+
+    def test_resistant_descendant_is_killed_while_unrelated_group_survives(
+        self,
+    ) -> None:
+        child = """
+import signal
+import time
+from pathlib import Path
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+Path('resistant-ready').touch()
+while not Path('resistant-exit').exists():
+    time.sleep(0.01)
+"""
+        wrapper = (
+            "import subprocess, sys; "
+            f"raise SystemExit(subprocess.call([sys.executable, '-c', {child!r}]))"
+        )
+        unrelated = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(30)"],
+            process_group=0,
+        )
+        self.addCleanup(self.reap, unrelated)
+        process = self.start("resistant", wrapper)
+        self.addCleanup((self.root / "resistant-exit").touch)
+        until((self.root / "resistant-ready").exists)
+        self.assertNotIn("container stop", self.events.read_text())
+
+        process.terminate()
+
+        self.assertEqual(process.wait(timeout=10), 128 + signal.SIGTERM)
+        self.assertIsNone(unrelated.poll())
+        self.assert_released()
+
+    def test_task_group_interrupt_with_exit_code_still_cleans_descendants(self) -> None:
+        child = """
+import signal
+import time
+from pathlib import Path
+signal.signal(signal.SIGINT, signal.SIG_IGN)
+Path('tty-child-ready').touch()
+while not Path('tty-child-exit').exists():
+    time.sleep(0.01)
+"""
+        wrapper = f"""
+import signal
+import subprocess
+import sys
+
+def finish(signum, frame):
+    raise SystemExit(128 + signum)
+
+signal.signal(signal.SIGINT, finish)
+child = subprocess.Popen([sys.executable, '-c', {child!r}])
+raise SystemExit(child.wait())
+"""
+        process = self.start("interrupt", wrapper)
+        self.addCleanup((self.root / "tty-child-exit").touch)
+        until((self.root / "tty-child-ready").exists)
+        owner = next(iter(self.read_state()["leases"].values()))
+
+        os.killpg(owner["task_group"], signal.SIGINT)
+
+        self.assertEqual(process.wait(timeout=10), 128 + signal.SIGINT)
+        self.assert_released()
 
     def test_unknown_owner_birth_keeps_the_lease(self) -> None:
         old = self.start("old")
