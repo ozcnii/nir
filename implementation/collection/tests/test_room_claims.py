@@ -255,3 +255,67 @@ class RoomClaimsTests(TestCase):
                     room_facts(count, area, description)
 
                 # Assert: the exact failure is validated by assertRaisesRegex.
+
+    def test_share_allocation_requires_an_affirmative_link(self) -> None:
+        for claim in (
+            "По соглашению закреплена комната № 2 не за этой долей, а за долей соседа.",
+            "По соглашению не закреплена комната № 2 за этой долей.",
+            "Этой доле не соответствует комната № 2.",
+        ):
+            with self.subTest(claim=claim):
+                # Arrange
+                description = (
+                    "Продаётся доля, которой соответствует комната № 2. " + claim
+                )
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, "^unconfirmed_room_unit$"):
+                    room_facts(1, Decimal("9"), description)
+
+                # Assert: the rejection reason is checked above.
+
+        # Arrange
+        description = (
+            "Продаётся доля в квартире. По соглашению закреплена комната № 2 "
+            "за этой долей, ремонт не требуется."
+        )
+
+        # Act
+        result = room_facts(1, Decimal("9"), description)
+
+        # Assert
+        self.assertEqual(result, (1, Decimal("9")))
+
+    def test_separate_sale_keeps_the_apartment_with_its_room(self) -> None:
+        for separate in (
+            "Комната № 2 в квартире № 26 продаётся отдельно.",
+            "Комната № 2 продаётся в квартире № 26 отдельно.",
+            "Комната № 2 продаётся отдельно в квартире № 26.",
+            "Комната № 2 продаётся отдельно.",
+            "Комната № 2 продаётся отдельно в квартире № 25.",
+        ):
+            with self.subTest(separate=separate):
+                # Arrange
+                description = (
+                    "Продаётся комната № 2 в квартире № 25. "
+                    "Площадь продаваемой комнаты № 2 в квартире № 25: 9,2 м². "
+                    + separate
+                )
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, "^conflicting_room_area$"):
+                    room_facts(1, Decimal("9"), description)
+
+                # Assert: the rejection reason is checked above.
+
+        # Arrange
+        description = (
+            "Площадь продаваемой комнаты № 2 в квартире № 26: 9,2 м². "
+            "Комната № 2 продаётся отдельно в квартире № 26."
+        )
+
+        # Act
+        result = room_facts(1, Decimal("9"), description)
+
+        # Assert
+        self.assertEqual(result, (1, Decimal("9")))
