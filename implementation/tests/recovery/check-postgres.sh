@@ -96,7 +96,8 @@ test "$(docker container inspect --format '{{.State.Running}}' "$old")" = true
 offline_socket="$T12_FIXTURE_DIR/unavailable.sock"
 offline_docker=(env -u DOCKER_CONTEXT "DOCKER_HOST=unix://$offline_socket")
 test ! -e "$offline_socket"
-if "${offline_docker[@]}" docker info --format '{{.ID}}' >/dev/null 2>&1; then
+# Formatting daemon info can exit zero without a daemon on some CLI releases.
+if "${offline_docker[@]}" docker container ls --quiet >/dev/null 2>&1; then
     echo "Docker unexpectedly connected using the unavailable fixture endpoint." >&2
     exit 1
 fi
