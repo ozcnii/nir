@@ -1,7 +1,7 @@
 name: Quality
 on:
   pull_request:
-    branches: [main]
+    branches: [main, vkr/proof-t13-5215069-base]
   push:
     branches: [main]
   workflow_dispatch:
