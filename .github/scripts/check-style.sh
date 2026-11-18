@@ -2,6 +2,10 @@
 set -euo pipefail
 
 # Both CI and the profile-change hook use the same tracked scope.
+paths=$(mktemp)
+trap 'rm -f "$paths"' EXIT
+git ls-files -z -- manage.py config catalog collection > "$paths"
+
 python_files=()
 templates=()
 while IFS= read -r -d '' path; do
@@ -10,7 +14,7 @@ while IFS= read -r -d '' path; do
         manage.py|config/*.py|catalog/*.py|collection/*.py) python_files+=("$path") ;;
         catalog/templates/*.html|collection/templates/*.html) templates+=("$path") ;;
     esac
-done < <(git ls-files -z -- manage.py config catalog collection)
+done < "$paths"
 
 if (( ${#python_files[@]} )); then
     uv run --no-sync ruff check --no-fix "${python_files[@]}"
