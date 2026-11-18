@@ -1,0 +1,82 @@
+name: Quality
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  classify:
+    runs-on: ubuntu-24.04
+    outputs:
+      app: ${{ steps.paths.outputs.app }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: paths
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          app=true
+          paths=$(mktemp)
+          if [[ "$EVENT" == pull_request ]]; then
+            BASE=$(git merge-base "$BASE" "$HEAD_SHA") || BASE=
+          fi
+          if [[ "$EVENT" != workflow_dispatch && -n "$BASE" ]] &&
+            git diff --no-renames --name-only -z "$BASE" "$HEAD_SHA" -- > "$paths"; then
+            app=false
+            while IFS= read -r -d '' path; do
+              case "$path" in
+                manage.py|config/*|catalog/*|collection/*|tests/*|.github/*|pyproject.toml|uv.lock|.python-version|.pre-commit-config.yaml)
+                  app=true
+                  break
+                  ;;
+                *.md|guidelines/*|examples/*|thesis/*|bachelor-thesis/evidence/*) ;;
+                *)
+                  app=true
+                  break
+                  ;;
+              esac
+            done < "$paths"
+          fi
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+  app-checks:
+    needs: classify
+    if: needs.classify.outputs.app == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: '0.13.9'
+      - run: uv sync --locked --dev
+      - run: uv run --no-sync pre-commit validate-config
+      - run: bash .github/scripts/check-style.sh --types
+  quality:
+    needs: [classify, app-checks]
+    if: always()
+    runs-on: ubuntu-24.04
+    env:
+      CLASSIFY: ${{ needs.classify.result }}
+      APP_NEEDED: ${{ needs.classify.outputs.app }}
+      APP_RESULT: ${{ needs.app-checks.result }}
+    steps:
+      - shell: bash
+        run: |
+          [[ "$CLASSIFY" == success ]] || exit 1
+          case "$APP_NEEDED:$APP_RESULT" in
+            true:success) echo 'Initial application checks passed.' ;;
+            false:skipped) echo 'Application checks were not needed.' ;;
+            *) exit 1 ;;
+          esac

@@ -1,0 +1,43 @@
+default_install_hook_types: [pre-commit]
+repos:
+  - repo: local
+    hooks:
+      - id: lock
+        name: Check uv lock
+        entry: uv lock --check
+        language: unsupported
+        files: '^(pyproject\.toml|uv\.lock|\.python-version|\.pre-commit-config\.yaml)$'
+        pass_filenames: false
+      - id: environment
+        name: Check prepared uv environment
+        entry: uv sync --locked --check --dev
+        language: unsupported
+        files: '^(pyproject\.toml|uv\.lock|\.python-version|\.pre-commit-config\.yaml|manage\.py$|(config|catalog|collection)/.*\.py$|(catalog|collection)/templates/.*\.html$)'
+        pass_filenames: false
+        fail_fast: true
+      - id: ruff-lint
+        name: Check staged Python lint
+        entry: uv run --no-sync ruff check --no-fix
+        language: unsupported
+        files: '^(manage\.py$|(config|catalog|collection)/.*\.py$)'
+      - id: ruff-format
+        name: Check staged Python formatting
+        entry: uv run --no-sync ruff format --check
+        language: unsupported
+        files: '^(manage\.py$|(config|catalog|collection)/.*\.py$)'
+      - id: djlint-lint
+        name: Check staged Django template lint
+        entry: uv run --no-sync djlint --lint
+        language: unsupported
+        files: '^(catalog|collection)/templates/.*\.html$'
+      - id: djlint-format
+        name: Check staged Django template formatting
+        entry: uv run --no-sync djlint --check
+        language: unsupported
+        files: '^(catalog|collection)/templates/.*\.html$'
+      - id: profile
+        name: Check full lint and format profile after configuration changes
+        entry: bash .github/scripts/check-style.sh
+        language: unsupported
+        files: '^(pyproject\.toml|uv\.lock|\.python-version|\.pre-commit-config\.yaml)$'
+        pass_filenames: false
