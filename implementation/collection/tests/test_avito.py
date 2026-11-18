@@ -303,9 +303,16 @@ class AvitoCardTests(TestCase):
         for label, title, field, value, error in (
             ("house", None, "Площадь участка", "6 акров", "invalid_area_unit"),
             ("house", None, "Площадь участка", "10.001 м²", "invalid_precision"),
+            (
+                "house",
+                None,
+                "Площадь участка",
+                "6.240000000000000000000000000001 сот.",
+                "invalid_precision",
+            ),
             ("house", None, "Этажей в доме", "1–3", "invalid_number"),
             ("room", "Доля в квартире", None, None, "unconfirmed_room_unit"),
-            ("room", "Номер люкс в гостинице", None, None, "unconfirmed_room_unit"),
+            ("room", "Номер люкс в гостинице", None, None, "unsupported_hotel_unit"),
         ):
             with self.subTest(label=label, field=field, value=value, title=title):
                 # Arrange: mutate only one part of the observed card.
@@ -317,9 +324,12 @@ class AvitoCardTests(TestCase):
                     if param["title"] == field:
                         param["description"] = value
 
-                with self.assertRaisesRegex(RejectedCard, error):
+                with self.assertRaises(RejectedCard) as raised:
                     # Act
                     parsed(card)
+
+                # Assert
+                self.assertEqual(str(raised.exception), error)
 
     def test_normalizes_exact_land_coords_address_and_preserves_seller_text(
         self,
@@ -394,3 +404,119 @@ class AvitoCardTests(TestCase):
                 "currency": "RUB",
             },
         )
+
+    def test_same_card_listing_from_qualifies_card_amount(self) -> None:
+        # Arrange: listing has a different base amount for the same publication.
+        card = projection("day_rent")
+        url = card["url"]
+
+        # Act
+        snapshot = parse_card(
+            url,
+            OBSERVED_AT,
+            card["route"],
+            loaded_url=url,
+            page_title=card["title"],
+            listing_price=(url, "от 4 500 ₽ за 1 сутки"),
+        )
+
+        # Assert
+        assert snapshot["state"] == "active"
+        self.assertEqual(
+            snapshot["price"],
+            {
+                "status": "known",
+                "price_rub": Decimal("4980.00"),
+                "price_kind": "from",
+                "currency": "RUB",
+            },
+        )
+
+    def test_conflicting_explicit_hotel_title_is_rejected(self) -> None:
+        for channel in ("item", "page"):
+            with self.subTest(channel=channel):
+                # Arrange: the other title still names an apartment.
+                card = projection("day_rent")
+                item = item_for(card)
+                item["title"] = "Квартира 42 м²"
+                if channel == "item":
+                    item["title"] = "Гостиничный номер люкс"
+                else:
+                    card["title"] = "Номер в апарт-отеле | Квартира 42 м²"
+
+                with self.assertRaises(RejectedCard) as raised:
+                    # Act
+                    parsed(card)
+
+                # Assert
+                self.assertEqual(str(raised.exception), "unsupported_hotel_unit")
+
+    def test_null_coordinates_and_malformed_pairs(self) -> None:
+        # Arrange
+        card = projection("new_build")
+        item = item_for(card)
+        item["geo"] = {"coords": {"lat": None, "lng": None}}
+
+        # Act
+        nulls = parsed(card)
+
+        # Assert
+        assert nulls["state"] == "active"
+        self.assertIsNone(nulls["latitude"])
+        self.assertIsNone(nulls["longitude"])
+        malformed: tuple[object, ...] = (
+            [],
+            {},
+            {"lat": None},
+            {"lat": 53, "lng": None},
+        )
+        for coords in malformed:
+            with self.subTest(coords=coords):
+                # Arrange
+                item["geo"] = {"coords": coords}
+
+                with self.assertRaises(RejectedCard) as raised:
+                    # Act
+                    parsed(card)
+
+                # Assert
+                self.assertIn(
+                    str(raised.exception),
+                    {
+                        "invalid_coordinates",
+                        "invalid_coordinate_pair",
+                    },
+                )
+
+    def test_malformed_parameter_row_is_rejected(self) -> None:
+        # Arrange
+        card = projection("new_build")
+        params = as_object(as_object(card["route"]["buyerItem"])["paramsDto"])
+        rows = cast(list[dict[str, object]], params["items"])
+        del rows[0]["title"]
+
+        with self.assertRaises(RejectedCard) as raised:
+            # Act
+            parsed(card)
+
+        # Assert
+        self.assertEqual(str(raised.exception), "invalid_card_param")
+
+    def test_room_count_requires_a_specific_offered_room(self) -> None:
+        # Arrange: an ordinary sale explicitly names the room and its own area.
+        card = projection("room")
+        item_for(card)["title"] = "Комната 12,5 м² в 2-к."
+        card["title"] = "Комната 12,5 м² в 2-к. на продажу"
+        params = as_object(as_object(card["route"]["buyerItem"])["paramsDto"])
+        rows = cast(list[dict[str, object]], params["items"])
+        params["items"] = [row for row in rows if row["title"] != "Условия продажи"]
+
+        # Act
+        ordinary = parsed(card)
+        ambiguous_share = parsed(projection("room"))
+
+        # Assert
+        assert ordinary["state"] == "active"
+        assert ambiguous_share["state"] == "active"
+        self.assertEqual(ordinary["rooms"], 1)
+        self.assertIsNone(ambiguous_share["rooms"])
