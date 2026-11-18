@@ -1,4 +1,4 @@
-"""One verified Cian route: new flats for sale in Samara Oblast."""
+"""Read the published state of native Cian and Cian's daily partner cards."""
 
 import json
 import re
@@ -6,31 +6,85 @@ import time
 from collections.abc import Iterable
 from datetime import datetime
 from decimal import Decimal
-from typing import TypedDict, cast
+from typing import Literal, NamedTuple, TypedDict, cast
 from urllib.parse import urlsplit
 
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from catalog.contracts import Snapshot, SnapshotKey
+from catalog.contracts import Deal, Snapshot, SnapshotKey, is_http_url
 from collection.browser import NAVIGATION_TIMEOUT_MS
-from collection.normalization import RejectedCard, as_object, normalize_cian_card
+from collection.normalization import (
+    RejectedCard,
+    as_object,
+    cian_partner_property_type,
+    normalize_cian_card,
+    normalize_cian_partner,
+)
 
-CARD_PATH = re.compile(r"/sale/flat/([1-9][0-9]{0,19})/?")
+_NATIVE_HOSTS = {
+    "cian.ru",
+    "www.cian.ru",
+    "samara.cian.ru",
+    "tolyatti.cian.ru",
+    "saratov.cian.ru",
+}
+_PARTNER_HOST = "cian.sutochno.ru"
+_CARD_PATH = re.compile(r"/(sale|rent)/(flat|suburban)/([1-9][0-9]{0,19})/?")
+_PARTNER_PATH = re.compile(r"/detail/([1-9][0-9]*)/?")
 CONFIG = re.compile(
     r"""_cianConfig\[['"]frontend-offer-card['"]\].*?\.concat\(\s*""", re.DOTALL
 )
 
 
-def card_key(url: str) -> str | None:
-    try:
-        parts = urlsplit(url)
-        match = CARD_PATH.fullmatch(parts.path)
-        if parts.scheme == "https" and parts.netloc == "samara.cian.ru" and match:
-            return match[1]
-    except ValueError:
+class _Route(NamedTuple):
+    deal: str
+    kind: str
+    external_id: str
+
+
+def _route(url: str) -> _Route | None:
+    if not is_http_url(url) or "\\" in url:
         return None
+    parts = urlsplit(url)
+    if parts.port not in (None, 443 if parts.scheme == "https" else 80):
+        return None
+    if parts.hostname == _PARTNER_HOST and (
+        partner := _PARTNER_PATH.fullmatch(parts.path)
+    ):
+        return _Route("rent", "partner", f"/detail/{partner[1]}")
+    if (
+        parts.scheme == "https"
+        and parts.hostname in _NATIVE_HOSTS
+        and (native := _CARD_PATH.fullmatch(parts.path))
+    ):
+        return _Route(native[1], native[2], native[3])
     return None
+
+
+def card_key(url: str) -> str | None:
+    route = _route(url)
+    return route.external_id if route else None
+
+
+class _Direction(NamedTuple):
+    deal: Deal
+    property_type_id: int
+    market: Literal["resale", "new_build"] | None = None
+
+
+_DIRECTIONS = {
+    "newBuildingFlatSale": _Direction("sale", 1, "new_build"),
+    "flatSale": _Direction("sale", 1, "resale"),
+    "roomSale": _Direction("sale", 2),
+    "houseSale": _Direction("sale", 3),
+    "flatRent": _Direction("month_rent", 1),
+    "roomRent": _Direction("month_rent", 2),
+    "cottageRent": _Direction("month_rent", 3),
+    "dailyFlatRent": _Direction("day_rent", 1),
+    "dailyRoomRent": _Direction("day_rent", 2),
+    "dailyHouseRent": _Direction("day_rent", 3),
+}
 
 
 def _state(scripts: Iterable[str]) -> dict[str, object]:
@@ -55,24 +109,160 @@ def _state(scripts: Iterable[str]) -> dict[str, object]:
     return found or {}
 
 
-def _product(scripts: Iterable[str], key: str) -> dict[str, object]:
-    matches = []
+def _structured_data(scripts: Iterable[str]) -> list[dict[str, object]]:
+    documents = []
     for script in scripts:
         try:
-            product = as_object(json.loads(script, parse_float=Decimal))
+            document = as_object(json.loads(script, parse_float=Decimal))
         except (ValueError, RecursionError):
             continue
+        if document:
+            documents.append(document)
+    return documents
+
+
+def _product(
+    documents: Iterable[dict[str, object]], route: _Route
+) -> dict[str, object]:
+    matches = []
+    for product in documents:
         sku = product.get("sku")
         url = as_object(product.get("offers")).get("url")
         if (
             product.get("@type") == "Product"
             and isinstance(sku, (int, str))
-            and str(sku) == key
+            and str(sku) == route.external_id
             and isinstance(url, str)
-            and card_key(url) == key
+            and _route(url) == route
         ):
             matches.append(product)
     return matches[0] if len(matches) == 1 else {}
+
+
+class _Nuxt:
+    """Resolve only the indexed Nuxt values this adapter reads."""
+
+    def __init__(self, body: str) -> None:
+        try:
+            rows = json.loads(body, parse_float=Decimal)
+        except (ValueError, RecursionError) as error:
+            raise RejectedCard("invalid_partner_state") from error
+        if not isinstance(rows, list) or not rows:
+            raise RejectedCard("invalid_partner_state")
+        self.rows = cast(list[object], rows)
+        self.remaining = 30_000
+
+    def _value(self, ref: object) -> object:
+        self.remaining -= 1
+        if self.remaining < 0:
+            raise RejectedCard("invalid_partner_reference")
+        if type(ref) is not int or not 0 <= ref < len(self.rows):
+            raise RejectedCard("invalid_partner_reference")
+        value = self.rows[ref]
+        for _ in range(10):
+            if (
+                not isinstance(value, list)
+                or not value
+                or value[0] not in ("Reactive", "ShallowReactive")
+            ):
+                return value
+            index = value[1] if len(value) == 2 else None
+            if type(index) is not int or not 0 <= index < len(self.rows):
+                break
+            value = self.rows[index]
+        raise RejectedCard("invalid_partner_reference")
+
+    def _decode(self, value: object, depth: int) -> object:
+        if depth == 0:
+            raise RejectedCard("invalid_partner_reference")
+        if isinstance(value, dict):
+            return {
+                key: self._decode(self._value(ref), depth - 1)
+                for key, ref in as_object(value).items()
+                if ref != -1
+            }
+        if isinstance(value, list):
+            return [
+                self._decode(self._value(ref), depth - 1)
+                for ref in cast(list[object], value)
+            ]
+        return value
+
+    def read(self, *path: str, default: object = None) -> object:
+        value = self._value(0)
+        for key in path:
+            if value is None:
+                return default
+            if not isinstance(value, dict):
+                raise RejectedCard("invalid_partner_structure")
+            ref = as_object(value).get(key, -1)
+            if ref == -1:
+                return default
+            value = self._value(ref)
+        return self._decode(value, 12)
+
+
+def _parse_partner(
+    url: str,
+    key: SnapshotKey,
+    scripts: Iterable[str],
+    documents: list[dict[str, object]],
+) -> Snapshot:
+    unavailable: Snapshot = {**key, "state": "unavailable"}
+    payloads = list(scripts)
+    if len(payloads) != 1:
+        return unavailable
+    identifier = key["external_id"].removeprefix("/detail/")
+    path = ("data", f"detail:{identifier}")
+    try:
+        nuxt = _Nuxt(payloads[0])
+        actual = nuxt.read(*path, "id")
+        if type(actual) is not int or str(actual) != identifier:
+            return unavailable
+        internal_url = nuxt.read(*path, "url")
+        if internal_url != f"https://sutochno.ru/front/searchapp/detail/{identifier}":
+            return unavailable
+        if nuxt.read(*path, "status", "name") != "approved":
+            return unavailable
+    except RejectedCard:
+        return unavailable
+
+    # Inspect type/parent before reading structural fields or constructing P3.
+    property_type_id = cian_partner_property_type(
+        {field: nuxt.read(*path, field) for field in ("type", "title", "name", "hotel")}
+    )
+    # Price is optional. Missing context differs from explicitly unselected dates.
+    missing = object()
+    try:
+        search_path = ("vuex", "search")
+        price_context = {
+            "checkIn": nuxt.read(*search_path, "checkIn", default=missing),
+            "checkOut": nuxt.read(*search_path, "checkOut", default=missing),
+            "guests": nuxt.read(*search_path, "guests"),
+            "base": nuxt.read("vuex", "detail", "objectBasePrice"),
+            "currency": nuxt.read(*path, "currency", "code"),
+        }
+    except RejectedCard:
+        price_context = {}
+    location = {
+        field: nuxt.read(*path, "location", field)
+        for field in ("address", "lat", "lng")
+    }
+    location["city"] = nuxt.read(*path, "location", "city", "title")
+    try:
+        images = nuxt.read(*path, "media", "images")
+    except RejectedCard:
+        images = None
+    return normalize_cian_partner(
+        url,
+        key,
+        property_type_id,
+        location,
+        nuxt.read(*path, "propertyGroups"),
+        images,
+        price_context,
+        documents,
+    )
 
 
 def parse_card(
@@ -83,22 +273,70 @@ def parse_card(
     *,
     loaded_url: str,
 ) -> Snapshot:
-    external_id = card_key(requested_url)
-    if external_id is None or observed_at.utcoffset() is None:
+    route = _route(requested_url)
+    if route is None or observed_at.utcoffset() is None:
         raise RejectedCard("invalid_identity")
     key: SnapshotKey = {
         "source_code": "cian",
-        "external_id": external_id,
+        "external_id": route.external_id,
         "observed_at": observed_at,
     }
-    if card_key(loaded_url) != external_id:
-        return {**key, "state": "unavailable"}
+    unavailable: Snapshot = {**key, "state": "unavailable"}
+    if _route(loaded_url) != route:
+        return unavailable
+    documents = _structured_data(product_scripts)
+    if route.kind == "partner":
+        return _parse_partner(loaded_url, key, config_scripts, documents)
+
     data = _state(config_scripts)
-    if not data:
-        return {**key, "state": "unavailable"}
+    offer = as_object(data.get("offer"))
+    identifier = offer.get("id")
+    status = offer.get("status")
+    if status not in ("published", "deleted"):
+        return unavailable
+    secondary_id = offer.get("cianId", identifier)
+    if (
+        identifier is None
+        and secondary_id is None
+        and status == "deleted"
+        and route.deal == "sale"
+        and offer.get("offerType") in (None, route.kind)
+        and offer.get("dealType") in (None, route.deal)
+    ):
+        return {**key, "state": "removed", "url": loaded_url, "deal_type": "sale"}
+    if (
+        type(identifier) is not int
+        or str(identifier) != route.external_id
+        or type(secondary_id) is not int
+        or secondary_id != identifier
+    ):
+        return unavailable
+    if offer.get("offerType") != route.kind or offer.get("dealType") != route.deal:
+        return unavailable
+    category = offer.get("category")
+    direction = _DIRECTIONS.get(category) if isinstance(category, str) else None
+    if direction is None:
+        raise RejectedCard("invalid_card_direction")
+    if (direction.deal == "sale") != (route.deal == "sale") or (
+        direction.property_type_id == 3
+    ) != (route.kind == "suburban"):
+        return unavailable
+    if status == "deleted":
+        return {
+            **key,
+            "state": "removed",
+            "url": loaded_url,
+            "deal_type": direction.deal,
+        }
 
     return normalize_cian_card(
-        loaded_url, key, data, _product(product_scripts, external_id)
+        loaded_url,
+        key,
+        data,
+        _product(documents, route),
+        deal=direction.deal,
+        property_type_id=direction.property_type_id,
+        market_segment=direction.market,
     )
 
 
@@ -117,16 +355,22 @@ def capture_page(page: Page, url: str, deadline: float) -> EmbeddedPage:
         r"""requested => {
             const expected = new URL(requested);
             const trimSlash = path => path.replace(/\/$/, "");
-            const redirected = location.origin !== expected.origin
+            const partner = expected.hostname === "cian.sutochno.ru";
+            const redirected = partner !== (location.hostname === "cian.sutochno.ru")
                 || trimSlash(location.pathname) !== trimSlash(expected.pathname);
             const captcha = trimSlash(location.pathname) === "/cian-captcha"
                 || document.title.toLowerCase().includes("captcha");
             // Bootstrap scripts can mention this card before its published data arrives.
             if (!redirected && !captcha && document.readyState !== "complete") return false;
             const scripts = Array.from(document.scripts).filter(script => !script.src);
-            const config = scripts.map(script => script.textContent).filter(text =>
-                text.includes("_cianConfig") && text.includes("frontend-offer-card")
-            );
+            const config = partner
+                ? scripts.filter(script =>
+                    script.id === "__NUXT_DATA__" && script.type === "application/json"
+                ).map(script => script.textContent)
+                : scripts.map(script => script.textContent).filter(text =>
+                    text.includes("_cianConfig") && text.includes("frontend-offer-card")
+                    && text.includes("defaultState") && text.includes("offerData")
+                );
             if (!redirected && !captcha && config.length === 0) return false;
             return {
                 url: location.href, captcha, config,
