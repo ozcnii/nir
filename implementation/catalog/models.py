@@ -18,6 +18,7 @@ class Source(models.Model):
 
 
 class Region(models.Model):
+    ci_proof_field = models.BooleanField(default=False)
     name = models.TextField()
 
     class Meta:
