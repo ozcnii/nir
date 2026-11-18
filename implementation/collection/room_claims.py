@@ -2,6 +2,7 @@
 
 import re
 from decimal import Decimal
+from typing import NamedTuple
 
 from collection.normalization import RejectedCard, decimal_2, number, optional_integer
 
@@ -42,6 +43,10 @@ _ALLOCATED = re.compile(
 _RELATED_ALLOCATION = re.compile(
     r"^(?:за (?:ней|(?:этой|предлагаемой) долей)|по соглашению(?: о пользовании)?)"
     rf" +закреплена +{_ALLOCATED_UNIT}"
+)
+_OTHER_HOLDER = re.compile(
+    r"^[ ,—–-]*(?:за +(?!этой долей\b|предлагаемой долей\b|продавцом\b)"
+    r"|принадлежит +другому\b)"
 )
 _NOT_ALLOCATED = re.compile(r"\b(?:без выделения|не выделен[ао]?)\b")
 _OTHER_SCOPE = re.compile(
@@ -134,13 +139,33 @@ def _listing_after_count(tail: str) -> tuple[str, re.Match[str]] | None:
     return (listing, first) if first is not None else None
 
 
-def _claim_fields(claim: str) -> tuple[int | None, Decimal | None, Decimal | None]:
+type RoomRef = tuple[str, str | None]
+
+
+class RoomClaim(NamedTuple):
+    rooms: int | None = None
+    area: Decimal | None = None
+    total: Decimal | None = None
+    room: RoomRef | None = None
+
+
+def _room_ref(match: re.Match[str]) -> RoomRef | None:
+    return (match["room"], match["apartment"]) if match["room"] else None
+
+
+def _same_room(left: RoomRef, right: RoomRef) -> bool:
+    return left[0] == right[0] and (
+        left[1] is None or right[1] is None or left[1] == right[1]
+    )
+
+
+def _claim_fields(claim: str) -> RoomClaim:
     count = _COUNT.match(claim)
     if count:
         rooms = optional_integer(_WORD_COUNTS.get(count[1], count[1]), minimum=1)
         tail = claim[count.end() :]
         if _outside_offer(tail):
-            return None, None, None
+            return RoomClaim()
         if declared := _listing_after_count(tail):
             listing, first_listed = declared
             if not _outside_offer(listing[first_listed.end() :]):
@@ -148,25 +173,31 @@ def _claim_fields(claim: str) -> tuple[int | None, Decimal | None, Decimal | Non
                 if listed != rooms:
                     raise RejectedCard("conflicting_room_count")
                 if listed > 1:
-                    return listed, None, _set_area(listing[end:])
+                    return RoomClaim(rooms=listed, total=_set_area(listing[end:]))
                 listed_area = first_listed["area"]
-                return 1, number(listed_area) if listed_area else None, None
+                return RoomClaim(
+                    1,
+                    number(listed_area) if listed_area else None,
+                    room=_room_ref(first_listed),
+                )
         if rooms != 1:
-            return rooms, None, _set_area(tail, after_count=True)
+            return RoomClaim(rooms=rooms, total=_set_area(tail, after_count=True))
         claim = f"комната{tail}"
 
     first = _ROOM_FRAGMENT.match(claim)
     if first is None or _outside_offer(claim[first.end() :]):
-        return None, None, None
+        return RoomClaim()
     rooms, end = _enumerated_rooms(claim, first)
     if rooms > 1:
-        return rooms, None, _set_area(claim[end:])
+        return RoomClaim(rooms=rooms, total=_set_area(claim[end:]))
+    if _SEPARATE.match(claim[first.end() :]):
+        return RoomClaim()
     if area := first["area"]:
-        return 1, number(area), None
+        return RoomClaim(1, number(area), room=_room_ref(first))
     known_single = count or (
         (first["single"] or first["room"]) and first["noun"] != "комнаты"
     )
-    return (1 if known_single else None), None, None
+    return RoomClaim(1, room=_room_ref(first)) if known_single else RoomClaim()
 
 
 def room_facts(
@@ -179,9 +210,11 @@ def room_facts(
 ) -> tuple[int | None, Decimal | None]:
     """Keep counts and areas scoped to a single proposed physical unit."""
     counts = set() if rooms is None else {rooms}
-    areas = set() if room_area is None else {room_area}
+    measurements: list[tuple[RoomRef | None, Decimal]] = []
     totals: set[Decimal] = set()
-    allocated = False
+    offered: set[RoomRef] = set()
+    separate: set[RoomRef] = set()
+    allocations: set[RoomRef | None] = set()
     headings = _statements(title)
     sources = [*headings, *_statements(_CARD_REFERENCE.sub("", description or ""))]
     for index, source in enumerate(sources):
@@ -191,7 +224,14 @@ def room_facts(
             claim = claim[offer.end() :].removeprefix("только ")
         if measurement := _AREA_STATEMENT.match(claim):
             if not _outside_offer(claim[measurement.end() :]):
-                areas.add(number(measurement["area"]))
+                measurements.append(
+                    (_room_ref(measurement), number(measurement["area"]))
+                )
+            continue
+        member = _ROOM_FRAGMENT.match(claim)
+        if member and _SEPARATE.match(claim[member.end() :]):
+            if room := _room_ref(member):
+                separate.add(room)
             continue
         allocation = None
         if share_claim := _SHARE.match(claim):
@@ -216,26 +256,53 @@ def room_facts(
                 and _listing_after_count(claim[declared.end() :])
             ):
                 continue
-        count, area, total = _claim_fields(claim)
+        evidence = _claim_fields(claim)
         if allocation is not None:
-            if count != 1:
+            allocated_room = _ROOM_FRAGMENT.search(claim)
+            if (
+                evidence.rooms != 1
+                or allocated_room is None
+                or _OTHER_HOLDER.match(claim[allocated_room.end() :])
+            ):
                 raise RejectedCard("unconfirmed_room_unit")
-            allocated = True
-        if count is not None:
-            counts.add(count)
-        if area is not None:
-            areas.add(area)
-        if total is not None:
-            totals.add(total)
+            allocations.add(evidence.room)
+        elif evidence.room is not None:
+            offered.add(evidence.room)
+        if evidence.rooms is not None:
+            counts.add(evidence.rooms)
+        if evidence.area is not None:
+            measurements.append((evidence.room, evidence.area))
+        if evidence.total is not None:
+            totals.add(evidence.total)
 
     if share:
-        if not allocated:
+        if not allocations:
             raise RejectedCard("unconfirmed_room_unit")
+        offered.update(room for room in allocations if room is not None)
         counts.add(1)
     if len(counts) > 1:
         raise RejectedCard("conflicting_room_count")
     count = next(iter(counts), None)
-    comparable = totals if count is not None and count > 1 else areas
+    if count == 1:
+        for room in offered:
+            if any(not _same_room(room, other) for other in offered):
+                reason = "unconfirmed_room_unit" if share else "conflicting_room_count"
+                raise RejectedCard(reason)
+    if count is not None and count > 1:
+        comparable = totals
+    else:
+        candidates = [
+            (room, value)
+            for room, value in measurements
+            if room is None or not any(_same_room(room, other) for other in separate)
+        ]
+        subjects = offered or {room for room, _ in candidates if room is not None}
+        comparable = {room_area} if room_area is not None else set()
+        comparable.update(
+            value
+            for room, value in candidates
+            if room is None or all(_same_room(room, subject) for subject in subjects)
+        )
     if len(comparable) > 1:
         raise RejectedCard("conflicting_room_area")
     area = next(iter(comparable), None)

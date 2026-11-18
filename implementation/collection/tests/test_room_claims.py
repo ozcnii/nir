@@ -150,8 +150,44 @@ class RoomClaimsTests(TestCase):
                 # Assert
                 self.assertEqual(result, expected)
 
+    def test_area_and_share_stay_with_the_offered_room(self) -> None:
+        # Arrange
+        description = (
+            "Продаётся комната № 2 площадью 9,0 м². "
+            "Площадь продаваемой комнаты № 3: 9,2 м². "
+            "Комната № 3 продаётся отдельно."
+        )
+        valid_share = (
+            "Продаётся доля в квартире. По соглашению о пользовании "
+            "закреплена комната № 2 за этой долей."
+        )
+
+        # Act
+        measured = room_facts(1, Decimal("9"), description)
+        allocated = room_facts(1, Decimal("9"), valid_share)
+
+        # Assert
+        self.assertEqual(measured, (1, Decimal("9.00")))
+        self.assertEqual(allocated, (1, Decimal("9.00")))
+
     def test_conflicting_or_unallocated_unit_stops_before_p3(self) -> None:
         cases = (
+            (
+                "Продаётся 1/2 доля в праве на квартиру. "
+                "По соглашению о пользовании закреплена комната № 2 за другим собственником.",
+                "unconfirmed_room_unit",
+            ),
+            (
+                "Доля, которой по соглашению соответствует комната № 2. "
+                "За этой долей закреплена комната № 3.",
+                "unconfirmed_room_unit",
+            ),
+            (
+                "Продаётся комната № 2 площадью 9 м². "
+                "Площадь продаваемой комнаты № 2: 9,2 м². "
+                "Комната № 3 продаётся отдельно.",
+                "conflicting_room_area",
+            ),
             (
                 "Доля: комната № 2 (на фото), продаётся только 1/2 квартиры.",
                 "unconfirmed_room_unit",
