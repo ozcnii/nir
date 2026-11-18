@@ -53,7 +53,10 @@ _ROOM_FIRST_ALLOCATION = re.compile(
 _HOLDER_TERM = re.compile(r"^[ ,—–-]*(?P<negated>не +)?(?:за|принадлежит) +")
 _SOLD_HOLDER = re.compile(r"^(?:(?:этой|предлагаемой) долей|ней|продавц(?:ом|у))\b")
 _ALTERNATIVE = re.compile(r" *,? +а +")
-_ALTERNATIVE_ROOM = re.compile(rf"{_PAUSE}(?:(?:{_ALLOCATION_VERB}) +)?(?={_ROOM}\b)")
+_HOLDER_ROOM = re.compile(
+    rf"(?:{_PAUSE}|(?: +|{_PAUSE})(?P<negated>не +)?(?:{_ALLOCATION_VERB}) +)"
+    rf"(?={_ROOM}\b)"
+)
 _ALLOCATION_OWNER = re.compile(r"^[ ,—–-]*(?:не +)?принадлежит\b")
 _NOT_ALLOCATED = re.compile(r"\b(?:без выделения|не выделен[ао]?)\b")
 _OTHER_SCOPE = re.compile(
@@ -224,27 +227,38 @@ def _claim_fields(claim: str) -> RoomClaim:
 
 
 def _holder_facts(
-    text: str, evidence: RoomClaim
-) -> list[tuple[RoomClaim, bool]] | None:
-    if not _HOLDER_TERM.match(text):
-        return None
+    text: str,
+    evidence: RoomClaim,
+    *,
+    implicit_holder: bool = False,
+    first_predicate_negated: bool = False,
+) -> list[tuple[RoomClaim, bool]]:
     facts = []
-    for term in _ALTERNATIVE.split(text):
+    for index, term in enumerate(_ALTERNATIVE.split(text)):
+        negated = index == 0 and first_predicate_negated
+        confirmed: bool | None = True if index == 0 and implicit_holder else None
         if member := _ROOM_FRAGMENT.match(term):
             evidence = _claim_fields(term)
             term = term[member.end() :]
             if predicate := _ROOM_FIRST_ALLOCATION.match(term):
-                if predicate["negated"]:
-                    facts.append((evidence, False))
-                    continue
+                negated |= predicate["negated"] is not None
                 term = term[predicate.end() :]
         if holder := _HOLDER_TERM.match(term):
             holder_text = term[holder.end() :]
             sold_holder = _SOLD_HOLDER.match(holder_text) is not None
-            if alternative := _ALTERNATIVE_ROOM.search(holder_text):
-                evidence = _claim_fields(holder_text[alternative.end() :])
-            if sold_holder or not holder["negated"]:
-                facts.append((evidence, sold_holder and not holder["negated"]))
+            if member_after_holder := _HOLDER_ROOM.search(holder_text):
+                evidence = _claim_fields(holder_text[member_after_holder.end() :])
+                negated |= member_after_holder["negated"] is not None
+            holder_negated = holder["negated"] is not None
+            confirmed = (
+                sold_holder and not holder_negated
+                if sold_holder or not holder_negated
+                else None
+            )
+        if negated:
+            confirmed = False
+        if confirmed is not None:
+            facts.append((evidence, confirmed))
     return facts
 
 
@@ -266,16 +280,19 @@ def _share_allocation(
     evidence = _claim_fields(claim)
     if evidence.rooms != 1 or (prefix is None and evidence.room is None):
         raise RejectedCard("unconfirmed_room_unit")
-    if (prefix and prefix["negated"]) or (predicate and predicate["negated"]):
-        return [(evidence, False)]
-
     before = prefix["holders"] if prefix and not share_heading else None
     after = tail[predicate.end() :] if predicate else tail
-    preceding = _holder_facts(before, evidence) if before else None
-    following = _holder_facts(after, evidence)
-    if preceding is None and following is None:
-        return [(evidence, True)] if prefix else []
-    return [*(preceding or []), *(following or [])]
+    negated = bool(
+        (prefix and prefix["negated"]) or (predicate and predicate["negated"])
+    )
+    preceding = _holder_facts(before, evidence) if before and not negated else []
+    following = _holder_facts(
+        after,
+        evidence,
+        implicit_holder=prefix is not None and before is None,
+        first_predicate_negated=negated,
+    )
+    return [*preceding, *following]
 
 
 def room_facts(
