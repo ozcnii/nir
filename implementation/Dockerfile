@@ -30,4 +30,4 @@ COPY collection/ collection/
 ENV HOME=/home/app
 USER 10001:10001
 
-CMD ["python", "-m", "config.startup"]
+CMD ["python", "-m", "config.launcher"]

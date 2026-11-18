@@ -1,6 +1,6 @@
 """Read collection parameters as values owned by the catalog."""
 
-from catalog.models import PropertyType, Region, Source
+from catalog.models import DealType, PropertyType, Region, Source
 from catalog.reference_data_v1 import PROPERTY_TYPES, REGIONS, SOURCE_CODES
 
 _PROPERTY_KINDS = {pk: kind for pk, kind, _ in PROPERTY_TYPES}
@@ -28,3 +28,7 @@ def region_name(region_id: int) -> str | None:
     if name is not None and Region.objects.filter(pk=region_id).exists():
         return name
     return None
+
+
+def valid_deal_type(value: str) -> bool:
+    return value in DealType.values
