@@ -136,9 +136,13 @@ def read_card(
                 ?.loaderData?.["catalog-or-main-or-item"];
             const buyer = route?.buyerItem;
             const item = buyer?.item;
-            const project = (value, fields) => value && typeof value === "object"
-                ? Object.fromEntries(fields.map(field => [field, value[field]]))
-                : value;
+            const project = (value, fields) => {
+                // Keep malformed arrays distinguishable without copying their contents.
+                if (Array.isArray(value)) return [];
+                return value && typeof value === "object"
+                    ? Object.fromEntries(fields.map(field => [field, value[field]]))
+                    : value;
+            };
             return JSON.stringify({
                 url: location.href,
                 title: document.title,

@@ -241,6 +241,13 @@ class AvitoCardTests(TestCase):
         url = card["url"]
         other_id = url.replace("3638106726", "3638106727")
         other_family = url.replace("kvartiry", "komnaty")
+        wrong_item = projection("new_build")
+        item_for(wrong_item)["id"] = 3638106727
+        foreign_urls = (
+            other_id,
+            other_family,
+            url.replace("www.avito.ru", "avito.ru.example", 1),
+        )
 
         # Act
         same = parse_card(
@@ -251,18 +258,14 @@ class AvitoCardTests(TestCase):
         )
         wrong_ids = [
             parse_card(url, OBSERVED_AT, card["route"], loaded_url=loaded)
-            for loaded in (
-                other_id,
-                other_family,
-                "https://avito.ru.example" + url[20:],
-            )
+            for loaded in foreign_urls
         ]
-        item_for(card)["id"] = 3638106727
-        wrong_ids.append(parsed(card))
-        with self.assertRaisesRegex(RejectedCard, "invalid_identity"):
+        wrong_ids.append(parsed(wrong_item))
+        with self.assertRaises(RejectedCard) as raised:
             parse_card(url + "/extra", OBSERVED_AT, card["route"], loaded_url=url)
 
         # Assert
+        self.assertEqual(str(raised.exception), "invalid_identity")
         assert same["state"] == "active"
         self.assertEqual(same["external_id"], "3638106726")
         self.assertEqual(same["url"], url + "?context=y#after")
@@ -520,3 +523,80 @@ class AvitoCardTests(TestCase):
         assert ambiguous_share["state"] == "active"
         self.assertEqual(ordinary["rooms"], 1)
         self.assertIsNone(ambiguous_share["rooms"])
+
+    def test_wrong_display_amount_or_unit_is_unavailable(self) -> None:
+        for label, display in (
+            ("resale", "9 500 000 ₽ за м²"),
+            ("resale", "9 500 001 ₽"),
+            ("month_rent", "43 000 ₽ за сутки"),
+        ):
+            with self.subTest(label=label, display=display):
+                # Arrange: numeric fields and postfix remain unchanged.
+                card = projection(label)
+                as_object(item_for(card)["formattedPrice"])["formatedString"] = display
+
+                # Act
+                snapshot = parsed(card)
+
+                # Assert
+                assert snapshot["state"] == "active"
+                self.assertEqual(snapshot["price"], {"status": "unavailable"})
+
+    def test_primary_room_title_and_structured_area_conflict(self) -> None:
+        # Arrange
+        card = projection("room")
+        params = as_object(as_object(card["route"]["buyerItem"])["paramsDto"])
+        for row in cast(list[dict[str, object]], params["items"]):
+            if row["title"] == "Площадь комнаты":
+                row["description"] = "9 м²"
+
+        with self.assertRaises(RejectedCard) as raised:
+            # Act
+            parsed(card)
+
+        # Assert
+        self.assertEqual(str(raised.exception), "conflicting_room_area")
+
+    def test_multiple_offered_rooms_do_not_become_one(self) -> None:
+        # Arrange: the title explicitly mentions a second offered room.
+        card = projection("room")
+        item_for(card)["title"] = "Комната 12,5 м² и комната 10 м²"
+        card["title"] = "Комната 12,5 м² и комната 10 м² на продажу"
+        params = as_object(as_object(card["route"]["buyerItem"])["paramsDto"])
+        rows = cast(list[dict[str, object]], params["items"])
+        params["items"] = [row for row in rows if row["title"] != "Условия продажи"]
+
+        # Act
+        snapshot = parsed(card)
+
+        # Assert
+        assert snapshot["state"] == "active"
+        self.assertIsNone(snapshot["rooms"])
+
+    def test_browser_projection_preserves_malformed_geo(self) -> None:
+        # Arrange: serve only the local replay document at the public card URL.
+        card = projection("new_build")
+        item_for(card)["geo"] = []
+        hydration = {"loaderData": {"catalog-or-main-or-item": card["route"]}}
+        html = f"<script>window.__staticRouterHydrationData = {json.dumps(hydration)};</script>"
+
+        def serve_projection(route: Route) -> None:
+            if route.request.url == card["url"]:
+                route.fulfill(body=html, content_type="text/html; charset=utf-8")
+            else:
+                route.abort()
+
+        # Act
+        with (
+            sync_playwright() as playwright,
+            playwright.chromium.launch(channel="chromium", headless=True) as browser,
+            browser.new_context() as context,
+        ):
+            context.route("**/*", serve_projection)
+            page = context.new_page()
+            page.goto(card["url"], wait_until="domcontentloaded")
+            with self.assertRaises(RejectedCard) as raised:
+                read_card(page, card["url"], OBSERVED_AT)
+
+        # Assert
+        self.assertEqual(str(raised.exception), "invalid_geo")

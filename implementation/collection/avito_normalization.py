@@ -54,16 +54,21 @@ _ADDRESS_ABBREVIATION = re.compile(
     r"(?<!\S)(" + "|".join(map(re.escape, _ABBREVIATIONS)) + r")(?=\s|,|$)",
     re.IGNORECASE,
 )
-_DAILY_LIST_PRICE = re.compile(r"(от )?([0-9][0-9 ,.]*) ?₽ за (?:1 )?сутки")
+_PUBLISHED_PRICE = re.compile(
+    r"(от )?([0-9][0-9 ,.]*) ?₽(?: (в месяц|за (?:1 )?сутки))?"
+)
+_PRICE_PERIOD = {"sale": None, "month_rent": "в месяц", "day_rent": "за сутки"}
 _AREA = re.compile(r"(.+?)\s+(м²|сот\.|га)")
 
 _HOTEL_UNIT = re.compile(
     r"\b(?:гостиничный номер|номер в (?:отеле|гостинице|апарт-отеле))\b"
     r"|^номер\s+.+\bв (?:отеле|гостинице|апарт-отеле)\b"
 )
-_ONE_ROOM = re.compile(
-    r"^(?:(?:доля:\s+)?(?:одна|1) комната\b|комната [0-9]+(?:[,.][0-9]+)? м²)"
+_ROOM_TITLE_AREA = re.compile(
+    r"^(?:доля: )?(?:(?:одна|1) )?комната ([0-9]+(?:[,.][0-9]+)?) м²(?: |,|$)"
 )
+_EXPLICIT_ONE_ROOM = re.compile(r"^(?:доля: )?(?:одна|1) комната\b")
+_OTHER_OFFERED_ROOM = re.compile(r"\bи (?:ещ[её] )?(?:(?:одна|1) )?комната\b")
 
 
 def _text(value: object) -> str:
@@ -163,17 +168,23 @@ def _price(
     display = formatted.get("formatedString")
     if not isinstance(display, str) or not display.strip():
         return {"status": "unavailable"}
+    published = _PUBLISHED_PRICE.fullmatch(_text(unescape(display)).casefold())
+    if published is None or published[3] != _PRICE_PERIOD[deal]:
+        return {"status": "unavailable"}
     try:
         bounds = {"minimum": Decimal(0), "maximum": Decimal("1e14")}
         amount = decimal_2(item.get("price"), **bounds)
-        if decimal_2(formatted.get("value"), **bounds) != amount:
+        if (
+            decimal_2(formatted.get("value"), **bounds) != amount
+            or decimal_2(published[2], **bounds) != amount
+        ):
             return {"status": "unavailable"}
         kind: Literal["from", "listed"] = "listed"
-        if _text(unescape(display)).casefold().split()[:1] == ["от"]:
+        if published[1]:
             kind = "from"
         elif deal == "day_rent":
-            listed = _DAILY_LIST_PRICE.fullmatch(_text(listing_label).casefold())
-            if not listed:
+            listed = _PUBLISHED_PRICE.fullmatch(_text(listing_label).casefold())
+            if listed is None or listed[3] not in ("за сутки", "за 1 сутки"):
                 return {"status": "unavailable"}
             listing_amount = decimal_2(listed[2], **bounds)
             if listed[1]:
@@ -238,13 +249,14 @@ def _classify(
             if params.get("Условия продажи") == "Продажа доли":
                 if not (
                     item_title.startswith("доля: комната ")
-                    or _ONE_ROOM.match(item_title)
+                    or _EXPLICIT_ONE_ROOM.match(item_title)
                 ):
                     raise RejectedCard("unconfirmed_room_unit")
                 return "sale", None
-            if (item_title.startswith("комната ") or _ONE_ROOM.match(item_title)) and (
-                offer == "Продам" or "на продажу" in page_title
-            ):
+            if (
+                item_title.startswith("комната ")
+                or _EXPLICIT_ONE_ROOM.match(item_title)
+            ) and (offer == "Продам" or "на продажу" in page_title):
                 return "sale", None
         if (
             family == _HOUSE
@@ -293,7 +305,16 @@ def normalize_avito_card(
             raise RejectedCard("floor_above_building")
     room_count = params.get("Количество комнат")
     if family == _ROOM:
-        rooms = 1 if _ONE_ROOM.match(_text(item.get("title")).casefold()) else None
+        item_title = _text(item.get("title")).casefold()
+        rooms = None
+        if not _OTHER_OFFERED_ROOM.search(item_title):
+            title_area = _ROOM_TITLE_AREA.match(item_title)
+            if title_area and number(title_area[1]) != area:
+                raise RejectedCard("conflicting_room_area")
+            if _EXPLICIT_ONE_ROOM.match(item_title) or (
+                title_area and params.get("Условия продажи") != "Продажа доли"
+            ):
+                rooms = 1
     elif family == _FLAT and room_count == "Студия":
         rooms = 0
     else:
