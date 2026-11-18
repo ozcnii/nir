@@ -24,6 +24,7 @@ from collection.normalization import (
     number,
     optional_integer,
 )
+from collection.room_claims import validate_room_claims
 
 
 def _optional_object(value: object) -> dict[str, object]:
@@ -138,12 +139,6 @@ _CIAN_REGIONS = {
     (4609, "Саратовская область"): 69,
 }
 _M2_MAX = Decimal("1e10")
-_SALE_ROOM_AREA = re.compile(
-    r"(?:^|[.!?]\s+|\n\s*)(?:Прода[её]тся|Уютная)\s+комната\s+"
-    r"(?:площадью\s+)?([0-9]+(?:[.,][0-9]+)?)\s*(?:м²|кв\.\s+м\.?)"
-    r"(?=\s|[.,;!?]|$)",
-    re.IGNORECASE,
-)
 
 
 def cian_area(value: object) -> Decimal | None:
@@ -229,12 +224,10 @@ def normalize_cian_card(
         raise RejectedCard("unconfirmed_studio")
     area = cian_area(offer.get("roomArea" if room else "totalArea"))
     description = cian_description(offer.get("description"))
-    if room and deal == "sale" and rooms == 1 and area is not None and description:
-        # Only an explicit sentence about the offered room can contradict roomArea.
-        if any(
-            number(match[1]) != area for match in _SALE_ROOM_AREA.finditer(description)
-        ):
-            raise RejectedCard("conflicting_room_area")
+    if room:
+        validate_room_claims(description, rooms, area)
+        if rooms is not None and rooms > 1:
+            area = None
 
     return {
         **key,

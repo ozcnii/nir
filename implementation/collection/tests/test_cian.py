@@ -232,6 +232,7 @@ class CianCardTests(TestCase):
                         offer["description"],
                         "Уютная комната 9,2 м² с ремонтом — заезжай и живи!",
                         "Продаётся комната площадью 9,2 м².",
+                        "Продаю комнату площадью 9,2 м².",
                         "Продаётся комната 9,2 кв. м.",
                     ):
                         with self.subTest(description=description):
@@ -301,7 +302,10 @@ class CianCardTests(TestCase):
             category="roomSale",
             roomArea="9.0",
             roomsForSaleCount=1,
-            description="Площадь кухни 9,2 м². Общая площадь квартиры 68,8 м².",
+            description=(
+                "Площадь кухни 9,2 м². Общая площадь квартиры 68,8 м². "
+                "Уютная комната 9,2 м² в соседней квартире."
+            ),
         )
 
         # Act
@@ -310,6 +314,28 @@ class CianCardTests(TestCase):
         # Assert
         assert snapshot["state"] == "active"
         self.assertEqual(snapshot["area_m2"], Decimal("9.00"))
+
+    def test_monthly_room_compares_only_offered_area(self) -> None:
+        # Arrange
+        original, offer, product = projection()
+        url = original.replace("/sale/", "/rent/")
+        terms = cast(dict[str, object], offer["bargainTerms"])
+        terms["paymentPeriod"] = "monthly"
+        offer.update(
+            category="roomRent",
+            dealType="rent",
+            roomArea="9.0",
+            roomsForSaleCount=1,
+            description="Сдаю комнату площадью 9,2 м².",
+        )
+        cast(dict[str, object], product["offers"])["url"] = url
+
+        with self.assertRaises(RejectedCard) as rejected:
+            # Act
+            parsed(url, offer, product)
+
+        # Assert
+        self.assertEqual(str(rejected.exception), "conflicting_room_area")
 
     def test_missing_native_label_cannot_turn_from_into_listed(self) -> None:
         for deal, category, unit in (
