@@ -36,10 +36,17 @@ app_volume=
 port_owner=
 first=
 second=
+signal_job() {
+    local pid=$1 job
+    # Use the shell job rather than signalling the numeric PID directly.
+    job=$(jobs -lr | awk -v pid="$pid" '$2 == pid { sub(/^\[/, "", $1); sub(/\].*$/, "", $1); print $1 }')
+    [[ -n "$job" ]] && kill -TERM "%$job"
+}
+
 cleanup() {
     for pid in "$first" "$second" "$port_owner"; do
         if [[ -n "$pid" ]]; then
-            kill -TERM "$pid" 2>/dev/null || true
+            signal_job "$pid" 2>/dev/null || true
             wait "$pid" 2>/dev/null || true
         fi
     done
@@ -81,9 +88,12 @@ if docker volume inspect "$candidate" >/dev/null 2>&1; then
     echo 'Managed runtime check refuses an existing app_data volume.' >&2
     exit 1
 fi
-app_volume=$(docker volume create --label "com.docker.compose.project=$project" \
+created=$(docker volume create --label "com.docker.compose.project=$project" \
     --label com.docker.compose.volume=app_data \
     --label "org.nir.fixture.token=$NIR_PG_FIXTURE_TOKEN" "$candidate")
+test "$created" = "$candidate"
+test "$(docker volume inspect --format '{{index .Labels "com.docker.compose.project"}} {{index .Labels "org.nir.fixture.token"}}' "$created")" = "$project $NIR_PG_FIXTURE_TOKEN"
+app_volume=$created
 "$python" -m host_runner --db-only -- bash "$script" --prepare
 
 await_task() {
@@ -164,7 +174,7 @@ grep -Fx "$url" "$probe/first.log"
 grep -Fx "$url" "$probe/second.log"
 assert_app "$app_id" "$url" "$generation"
 
-# Act: normal first release, then TERM of the last owner.
+# Act: trigger a normal release of the first lease.
 touch "$probe/release-first"
 wait "$first"
 first=
@@ -173,9 +183,9 @@ test "$(container_id app)" = "$app_id"
 test "$(container_id db)" = "$db_id"
 curl -fsS -o /dev/null --max-time 3 "$url/admin/login/"
 
-# Act
+# Act: send TERM to the last lease.
 since=$(date +%s)
-kill -TERM "$second"
+signal_job "$second"
 status=0
 wait "$second" || status=$?
 second=
@@ -201,9 +211,13 @@ test "$(container_id db)" != "$db_id"
 test "$restarted_generation" != "$generation"
 assert_app "$restarted_app" "$restarted_url" "$restarted_generation"
 assert_volumes
+
+# Act: release the restarted stack and wait for host runner to finish.
 touch "$probe/release-restart"
 wait "$first"
 first=
+
+# Assert: no managed containers remain and the two volumes survive release.
 test -z "$(docker ps -aq --filter "label=com.docker.compose.project=$project")"
 assert_volumes
 echo 'Managed runtime, two leases, TERM, occupied port and persistent restart passed.'
