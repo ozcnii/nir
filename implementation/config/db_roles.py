@@ -122,15 +122,31 @@ def validate_owners(cursor: Cursor[tuple[object, ...]], role: str) -> str:
             "Unexpected database session identity or role memberships/attributes"
         )
 
+    validate_database_owners(cursor)
+    return str(identity[0])
+
+
+def validate_database_owners(cursor: Cursor[tuple[object, ...]]) -> None:
+    cursor.execute("""
+        SELECT nspname FROM pg_namespace
+        WHERE nspname NOT IN ('public', 'pg_catalog', 'information_schema', 'pg_toast')
+          AND nspname !~ '^pg_(temp|toast_temp)_[0-9]+$'
+    """)
+    if schema := cursor.fetchone():
+        raise RoleError(f"Unexpected schema {schema[0]} in application database")
+
     cursor.execute(
-        sql.SQL("SELECT kind, name, pg_get_userbyid(owner) FROM ({}) objects").format(
-            sql.SQL(OBJECTS)
-        )
+        sql.SQL("""
+            SELECT kind, name, pg_get_userbyid(owner) FROM ({}) objects
+            UNION ALL
+            SELECT 'TYPE', t.typname, pg_get_userbyid(t.typowner)
+            FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+            WHERE n.nspname = 'public'
+        """).format(sql.SQL(OBJECTS))
     )
     for kind, name, owner in cursor.fetchall():
         if owner != "migrator" and (kind, owner) != ("SCHEMA", "pg_database_owner"):
             raise RoleError(f"Unexpected owner of {kind} {name}: {owner}")
-    return str(identity[0])
 
 
 def existing_grants(cursor: Cursor[tuple[object, ...]]) -> set[Grant]:
