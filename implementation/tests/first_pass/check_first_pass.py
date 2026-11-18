@@ -4,12 +4,14 @@ import json
 import os
 import sys
 import time
-from datetime import datetime
+from contextlib import suppress
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
 import psycopg
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Route
 
 from collection.one_card import CardReadFailed, collect_cian_card
@@ -17,11 +19,13 @@ from collection.runner import BrowserWork, run_with_browser
 from collection.selection import Direction, Selection, parse
 from collection.tests.test_cian import projection, script
 from config.control import CONTROL_PATH, ControlError, decode, request
+from config.journal import JOURNAL_ROOT
 from config.launcher import serve
 from config.run_events import RUN_ID_ENV
 from config.startup import preflight, web_command
 
 URL = "https://samara.cian.ru/sale/flat/330631159/"
+REJECT_NEXT = CONTROL_PATH.parent / "reject-next"
 DIRECTION = Direction("cian", 68, "new_build", "sale")
 START: dict[str, object] = {
     "action": "start",
@@ -38,19 +42,24 @@ def proof_path(run_id: str) -> Path:
     return CONTROL_PATH.parent / f"first-pass-{run_id}.json"
 
 
-def route_fixture(work: BrowserWork) -> list[str]:
+def route_fixture(work: BrowserWork) -> list[tuple[str, datetime]]:
     url, offer, product = projection()
     assert url == URL
+    if REJECT_NEXT.exists():
+        offer["description"] = "reject\x00this"
     html = (
         f"<script>{script(offer)}</script>"
         f'<script type="application/ld+json">{json.dumps(product)}</script>'
         '<img src="/first-pass-probe.jpg">'
     )
-    requested: list[str] = []
+    requested: list[tuple[str, datetime]] = []
 
     def serve_card(route: Route) -> None:
-        requested.append(route.request.url)
+        requested.append((route.request.url, datetime.now(UTC)))
         if route.request.url == URL:
+            if len(requested) == 1:
+                route.fulfill(status=500, body="Controlled transient response")
+                return
             route.fulfill(status=200, content_type="text/html", body=html)
         else:
             route.abort()
@@ -66,13 +75,25 @@ def run_child(mode: str, incoming: str) -> int:
         try:
             snapshot, receipt = collect_cian_card(work, URL)
         except CardReadFailed as error:
-            path.write_text(
-                json.dumps({"http": error.http_status, "problem": error.problem}),
-                encoding="utf-8",
-            )
+            observation: dict[str, object] = {
+                "http": error.http_status,
+                "problem": error.problem,
+            }
+            if mode == "live":
+                page = work.pages.card
+                with suppress(PlaywrightError):
+                    observation["page_title"] = page.title()[:120]
+                    observation["embedded_marker"] = any(
+                        "frontend-offer-card" in text
+                        for text in page.locator(
+                            "script:not([src])"
+                        ).all_text_contents()
+                    )
+            path.write_text(json.dumps(observation), encoding="utf-8")
             raise
         if intercepted is not None:
-            assert intercepted == [URL]
+            assert [url for url, _ in intercepted] == [URL, URL]
+            assert intercepted[0][1] <= snapshot["observed_at"] <= intercepted[1][1]
         price = snapshot["price"]
         photos = snapshot["photos"]
         path.write_text(
@@ -120,7 +141,7 @@ def status(state: str, timeout: float = 90) -> dict[str, object]:
     raise AssertionError(f"Expected {state}; last control state: {last}")
 
 
-def one() -> dict[str, object]:
+def one(expected_failure: str | None = None) -> dict[str, object]:
     launched = request(START)
     assert launched["ok"] is True
     run_id = cast(str, launched["run_id"])
@@ -129,6 +150,16 @@ def one() -> dict[str, object]:
     raw = cast(
         dict[str, object], json.loads(proof_path(run_id).read_text(encoding="utf-8"))
     )
+    if expected_failure is not None:
+        assert raw.get("problem") == expected_failure
+        assert ended["reason"] == "browser_operation_failed"
+        saved = json.loads(
+            (JOURNAL_ROOT / run_id / "state.json").read_text(encoding="utf-8")
+        )
+        assert saved["outcome"] == "error" and saved["progress"] == {
+            "committed_writes": 0
+        }
+        return raw
     if "problem" in raw:
         print(
             json.dumps({"kind": "card_unavailable", **raw, "cleanup_confirmed": True}),
@@ -159,6 +190,10 @@ def verify(mode: str) -> int:
         # Act: two real manual control runs against one publication.
         first = one()
         second = one()
+        if mode == "fixture":
+            # The third, synthetic run provokes rejection before a committed write.
+            REJECT_NEXT.touch()
+            one(expected_failure="catalog_rejected")
         rows = connection.execute(
             """
             SELECT ads.id, property_id, external_id, observed_at, photos, area_m2

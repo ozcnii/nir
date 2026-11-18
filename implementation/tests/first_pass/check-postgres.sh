@@ -3,6 +3,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 source tests/disposable-postgres.sh
+committed_rows() {
+    admin -d "$DB_NAME" -At -c "SELECT jsonb_build_object(
+      'properties', (SELECT jsonb_agg(id ORDER BY id) FROM properties),
+      'ads', (SELECT jsonb_agg(jsonb_build_array(id, property_id, source_code, external_id, observed_at)
+                              ORDER BY id) FROM ads),
+      'prices', (SELECT jsonb_agg(jsonb_build_array(ad_id, observed_at, price_rub, price_kind)
+                                 ORDER BY ad_id, observed_at) FROM price_history))"
+}
 if [[ ${1:-} != --leased && ${1:-} != --persisted ]]; then
     # Arrange
     mode=${1:-fixture}
@@ -13,6 +21,7 @@ if [[ ${1:-} != --leased && ${1:-} != --persisted ]]; then
     export DB_MIGRATOR_PASSWORD="$(openssl rand -hex 24)"
     export DJANGO_SECRET_KEY="$(openssl rand -hex 32)"
     reserve_disposable_postgres
+    export T16_PROOF_DIR="$(mktemp -d)"
     database=$(docker volume ls --filter "label=org.nir.fixture.token=$NIR_PG_FIXTURE_TOKEN" --format '{{.Name}}')
     project=$(docker volume inspect --format '{{index .Labels "com.docker.compose.project"}}' "$database")
     app_volume="${project}_app_data"
@@ -27,7 +36,12 @@ if [[ ${1:-} != --leased && ${1:-} != --persisted ]]; then
             fi
         done
     }
-    trap release_volumes EXIT
+    clean_fixture() {
+        release_volumes
+        if [[ -f "$T16_PROOF_DIR/committed.json" ]]; then unlink "$T16_PROOF_DIR/committed.json"; fi
+        rmdir "$T16_PROOF_DIR"
+    }
+    trap clean_fixture EXIT
     if docker volume inspect "$app_volume" >/dev/null 2>&1; then
         echo "First-pass fixture refuses an existing app_data volume." >&2
         exit 1
@@ -45,7 +59,7 @@ if [[ ${1:-} != --leased && ${1:-} != --persisted ]]; then
     # Assert: no fixtures are still using the volumes. Reopen the database after
     # successful release to check the committed rows are on its preserved volume.
     test -z "$(docker ps -aq --filter "label=com.docker.compose.project=$project")"
-    if [[ "$result" = 0 ]]; then
+    if [[ -f "$T16_PROOF_DIR/committed.json" ]]; then
         uv run --locked python -m host_runner --db-only -- bash "$0" --persisted
         test -z "$(docker ps -aq --filter "label=com.docker.compose.project=$project")"
     fi
@@ -57,11 +71,11 @@ if [[ $1 == --persisted ]]; then
     test -n "$NIR_PG_FIXTURE_TOKEN"
 
     # Act
-    persisted=$(admin -d "$DB_NAME" -At -c "SELECT count(*) FROM ads WHERE source_code='cian' AND external_id='330631159'")
+    persisted=$(committed_rows)
 
     # Assert
-    test "$persisted" = 1
-    echo 'Committed publication survived app and database release.'
+    test "$persisted" = "$(cat "$T16_PROOF_DIR/committed.json")"
+    echo 'IDs and exact price history survived app and database release.'
     exit 0
 fi
 
@@ -72,7 +86,7 @@ bash scripts/prepare-db.sh
 app=$(docker compose run -d --no-deps \
     --label "org.nir.fixture.token=$NIR_PG_FIXTURE_TOKEN" \
     -v "$PWD/tests/first_pass:/test-suite:ro" -e PYTHONPATH=/app \
-    app python /test-suite/check_runtime.py launch "$2")
+    app python /test-suite/check_first_pass.py launch "$2")
 release_app() {
     local label
     label=$(docker container inspect --format '{{index .Config.Labels "org.nir.fixture.token"}}' "$app")
@@ -86,11 +100,12 @@ trap release_app EXIT
 
 # Act
 result=0
-docker exec "$app" python /test-suite/check_runtime.py verify "$2" || result=$?
+docker exec "$app" python /test-suite/check_first_pass.py verify "$2" || result=$?
 
 # Assert
 trap - EXIT
 release_app
+committed_rows >"$T16_PROOF_DIR/committed.json"
 admin -d "$DB_NAME" -At -c "SELECT
   (SELECT count(*) FROM properties),
   (SELECT count(*) FROM ads),

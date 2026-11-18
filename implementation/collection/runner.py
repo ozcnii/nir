@@ -3,7 +3,9 @@
 import os
 import signal
 import sys
+import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 from itertools import count
 from typing import Literal
 
@@ -17,6 +19,7 @@ from psycopg import Connection
 from psycopg.rows import TupleRow
 
 from collection.browser import (
+    NAVIGATION_TIMEOUT_MS,
     BrowserCleanupUnconfirmed,
     BrowserFailed,
     BrowserPages,
@@ -62,9 +65,13 @@ class BrowserWork:
             raise BrowserFailed("browser_disconnected")
         check_stop(self._stopped)
 
-    def navigate(self, page: Literal["listing", "card"], url: str) -> Response | None:
+    def navigate(
+        self, page: Literal["listing", "card"], url: str
+    ) -> tuple[Response | None, datetime, float]:
         for retry in (False, True):
             self.checkpoint()
+            observed_at = datetime.now(UTC)
+            deadline = time.monotonic() + NAVIGATION_TIMEOUT_MS / 1000
             try:
                 response = self.pages.goto(page, url)
             except PlaywrightError as error:
@@ -76,7 +83,7 @@ class BrowserWork:
             else:
                 if retry or response is None or not 500 <= response.status < 600:
                     self.checkpoint()
-                    return response
+                    return response, observed_at, deadline
         raise AssertionError("The second navigation always returns or raises")
 
     def write[T](self, operation: Callable[[Connection[TupleRow]], T]) -> T:
