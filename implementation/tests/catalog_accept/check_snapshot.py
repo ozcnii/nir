@@ -227,6 +227,12 @@ class SnapshotTests(TestCase):
                         "address": f"{other}, {street}, 17, кв. 26",
                         "floor": 3,
                     }
+                    another = {
+                        **competitor,
+                        "external_id": f"95000403{index}",
+                        "address": f"{other}, {street}, 17, кв. 27",
+                        "floor": 4,
+                    }
                     incoming = {
                         **first,
                         "external_id": f"95000402{index}",
@@ -237,12 +243,51 @@ class SnapshotTests(TestCase):
                     # Act
                     known = self.accept(connection, first)
                     self.accept(connection, competitor)
+                    self.accept(connection, another)
                     matched = self.accept(connection, incoming)
 
                     # Assert
                     self.assertEqual(
                         matched.property_id == known.property_id, should_attach
                     )
+
+    def test_a_and_b_remain_ambiguous_with_a_numbered_offer_in_another_house(
+        self,
+    ) -> None:
+        # Arrange: creation without a description keeps the two local objects distinct.
+        house = "Самара, Кировский район, ул. Садовая, 105"
+        seller = "Кухня 28 м², спальня 24 м²."
+        with_number = {
+            **card("950006001"),
+            "address": f"{house}, кв. 25",
+            "description": seller,
+        }
+        without_number: ActiveSnapshot = {
+            **card("950006002"),
+            "address": house,
+        }
+        other_district = {
+            **card("950006003"),
+            "address": "Самара, Ленинский район, ул. Садовая, 105, кв. 26",
+            "description": seller,
+            "floor": 3,
+        }
+        incoming = {
+            **card("950006004"),
+            "address": "Самара, ул. Садовая, 105, кв. 25",
+            "description": seller,
+        }
+        with as_app() as connection:
+            # Act
+            a = self.accept(connection, with_number)
+            b = self.accept(connection, without_number)
+            self.accept(connection, {**later(without_number, 1), "description": seller})
+            self.accept(connection, other_district)
+            result = self.accept(connection, incoming)
+
+            # Assert
+            self.assertEqual(result.outcome, "created")
+            self.assertEqual(len({a.property_id, b.property_id, result.property_id}), 3)
 
     def test_matching_description_patch_and_preserved_originals(self) -> None:
         # Arrange: published address/measurements of the F07 pair, with synthetic

@@ -228,10 +228,16 @@ def same_house(left: Address, right: Address) -> bool:
     )
 
 
-def apartment_address_conflicts(previous: Address, incoming: Address) -> bool:
-    return _location_conflicts(previous, incoming) or any(
+def details_conflict(previous: Address, incoming: Address) -> bool:
+    return any(
         previous.details[name][0] != incoming.details[name][0]
         for name in previous.details.keys() & incoming.details.keys()
+    )
+
+
+def apartment_address_conflicts(previous: Address, incoming: Address) -> bool:
+    return _location_conflicts(previous, incoming) or details_conflict(
+        previous, incoming
     )
 
 

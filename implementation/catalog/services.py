@@ -282,16 +282,15 @@ def accept_snapshot(
                             reason="apartment_address_changed",
                         )
                     match = Match(property_id, patch)
-        elif (
-            active_data["property_type_id"] == FLAT_ID
-            and region is not None
-            and parse_address(active_data["address"], region) is not None
-        ):
-            match = choose_flat(
-                active_data,
-                flat_candidates(connection, active_data["region_id"]),
-                region,
-            )
+        elif active_data["property_type_id"] == FLAT_ID and region is not None:
+            address = parse_address(active_data["address"], region)
+            if address is not None:
+                match = choose_flat(
+                    active_data,
+                    address,
+                    flat_candidates(connection, active_data["region_id"]),
+                    region,
+                )
         return _store_active(connection, active_data, previous, match)
 
 

@@ -12,6 +12,7 @@ from catalog.matching_address import (
     Address,
     address_patch,
     apartment_address_conflicts,
+    details_conflict,
     mentions_unit,
     parse_address,
     same_house,
@@ -21,7 +22,7 @@ FLAT_ID = 1
 _ROOMS = re.compile(
     r"(?<!\w)(кухня-гостиная|кухня|гостиная|спальня|комната|прихожая|"
     r"коридор|санузел|ванная|гардеробная|кабинет|детская)"
-    r"(?:\s*№\s*([1-9][0-9]*))?\s*(?:[:=]\s*|-\s+)?"
+    r"(?:\s*№\s*([1-9][0-9]*))?(?:-\s*|\s*(?:[:=]\s*|-\s+)?)"
     r"([0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.?\s*м)\b"
 )
 _OTHER_UNIT = re.compile(
@@ -96,15 +97,26 @@ def _has_layout(text: str) -> bool:
     rooms: set[tuple[str, str]] = set()
     on_offer = True
     for sentence in _SENTENCE_END.split(_SQUARE_METERS.sub("м²", text)):
-        denied = _UNASSERTED.search(sentence)
-        for clause in _CLAUSE_END.split(sentence):
+        if _OTHER_UNIT.search(sentence):
+            on_offer = False
+        clauses = [clause.strip() for clause in _CLAUSE_END.split(sentence)]
+        claims = [(clause, _ROOMS.findall(clause)) for clause in clauses]
+        denied = any(
+            (
+                _UNASSERTED.search(clause)
+                if measurements
+                else _UNASSERTED.fullmatch(clause)
+            )
+            for clause, measurements in claims
+        )
+        for clause, measurements in claims:
             other = _OTHER_UNIT.search(clause)
             if other or _OFFERED_UNIT.search(clause):
                 on_offer = not other
-            if on_offer and not denied:
+            if on_offer and not denied and not clause.startswith("не "):
                 rooms.update(
                     (name, ordinal)
-                    for name, ordinal, size in _ROOMS.findall(clause)
+                    for name, ordinal, size in measurements
                     if Decimal(size.replace(",", ".")) > 0
                 )
 
@@ -171,12 +183,19 @@ def repeated_flat_patch(
     return _patch(previous, incoming, address)
 
 
+def _is_template(house: Address, numbered: list[tuple[Address, str]]) -> bool:
+    in_house = [
+        (address, unit) for address, unit in numbered if same_house(house, address)
+    ]
+    return any(
+        first_unit != second_unit and same_house(first, second)
+        for (first, first_unit), (second, second_unit) in combinations(in_house, 2)
+    )
+
+
 def choose_flat(
-    incoming: ActiveSnapshot, candidates: list[Candidate], region: str
+    incoming: ActiveSnapshot, address: Address, candidates: list[Candidate], region: str
 ) -> Match | None:
-    address = parse_address(incoming["address"], region)
-    if address is None:
-        return None
     seller = _seller(incoming["description"])
     description = " ".join(seller.split())
     detailed = _has_layout(seller)
@@ -184,7 +203,7 @@ def choose_flat(
     numbered: list[tuple[Address, str]] = []
     if unit is not None:
         numbered.append((address, unit))
-    choices: list[tuple[Match, bool]] = []
+    choices: list[tuple[Candidate, Address, bool]] = []
     for candidate in candidates:
         other = parse_address(candidate.facts["address"], region)
         if other is None or not same_house(address, other):
@@ -201,7 +220,7 @@ def choose_flat(
         )
         if equal_texts and other_unit is not None:
             numbered.append((other, other_unit))
-        if apartment_address_conflicts(address, other):
+        if details_conflict(address, other):
             continue
         common = [
             left == right
@@ -222,16 +241,21 @@ def choose_flat(
             and incoming["floor"] is not None
             and incoming["floor"] == candidate.facts["floor"]
         ):
-            patch = _patch(
-                candidate.facts,
-                incoming,
-                address_patch(other, address, candidate.facts["address"]),
-            )
-            choices.append((Match(candidate.property_id, patch), by_number))
+            choices.append((candidate, other, by_number))
 
-    template = any(
-        first_unit != second_unit and same_house(first, second)
-        for (first, first_unit), (second, second_unit) in combinations(numbered, 2)
+    valid = [
+        (candidate, house)
+        for candidate, house, by_number in choices
+        if by_number or not _is_template(house, numbered)
+    ]
+    if len(valid) != 1:
+        return None
+    candidate, house = valid[0]
+    return Match(
+        candidate.property_id,
+        _patch(
+            candidate.facts,
+            incoming,
+            address_patch(house, address, candidate.facts["address"]),
+        ),
     )
-    valid = [item for item, by_number in choices if by_number or not template]
-    return valid[0] if len(valid) == 1 else None
