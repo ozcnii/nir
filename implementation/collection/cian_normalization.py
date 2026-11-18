@@ -24,7 +24,7 @@ from collection.normalization import (
     number,
     optional_integer,
 )
-from collection.room_claims import validate_room_claims
+from collection.room_claims import room_facts
 
 
 def _optional_object(value: object) -> dict[str, object]:
@@ -225,9 +225,7 @@ def normalize_cian_card(
     area = cian_area(offer.get("roomArea" if room else "totalArea"))
     description = cian_description(offer.get("description"))
     if room:
-        validate_room_claims(description, rooms, area)
-        if rooms is not None and rooms > 1:
-            area = None
+        rooms, area = room_facts(rooms, area, description)
 
     return {
         **key,
