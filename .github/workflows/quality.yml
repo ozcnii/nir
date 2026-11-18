@@ -36,7 +36,7 @@ jobs:
             app=false
             while IFS= read -r -d '' path; do
               case "$path" in
-                manage.py|config/*|catalog/*|collection/*|tests/*|.github/*|pyproject.toml|uv.lock|.python-version|.pre-commit-config.yaml)
+                implementation/*|.github/*|.pre-commit-config.yaml)
                   app=true
                   break
                   ;;
@@ -60,9 +60,9 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: '0.13.9'
-      - run: uv sync --locked --dev
-      - run: uv run --no-sync pre-commit validate-config
-      - run: bash .github/scripts/check-style.sh --types
+      - run: uv --directory implementation sync --locked --dev
+      - run: uv --project implementation run --no-sync pre-commit validate-config
+      - run: bash implementation/scripts/check-style.sh --types
   quality:
     needs: [classify, app-checks]
     if: always()
