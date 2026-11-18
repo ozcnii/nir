@@ -92,6 +92,134 @@ class SnapshotTests(TestCase):
 
         self.accept = accept_snapshot
 
+    def test_matching_apartment_numbers_and_unique_candidate(self) -> None:
+        # Arrange: one exact A match and two contradictory existing room counts.
+        address = "Самарская область, Самара, ул. Гагарина, 17а, кв. 25"
+        first = {**card("950000001"), "address": address, "rooms": 1}
+        common = {
+            **card("950000002"),
+            "source_code": "domclick",
+            "address": "Самара, Гагарина улица, дом 17а, квартира 25",
+            "rooms": None,
+        }
+        other_rooms = {**first, "external_id": "950000003", "rooms": 3}
+        multiple = {**common, "external_id": "950000004"}
+        other_flat = {
+            **first,
+            "external_id": "950000005",
+            "address": address.replace("кв. 25", "кв. 26"),
+        }
+        no_known_traits = {
+            **first,
+            "external_id": "950000006",
+            "rooms": None,
+            "area_m2": None,
+            "floor": None,
+        }
+        with as_app() as connection:
+            # Act
+            a, b, c, d, e, f = (
+                self.accept(connection, data)
+                for data in (
+                    first,
+                    common,
+                    other_rooms,
+                    multiple,
+                    other_flat,
+                    no_known_traits,
+                )
+            )
+
+            # Assert
+            self.assertEqual(a.property_id, b.property_id)
+            self.assertNotEqual(a.ad_id, b.ad_id)
+            self.assertEqual(
+                len(
+                    {
+                        a.property_id,
+                        c.property_id,
+                        d.property_id,
+                        e.property_id,
+                        f.property_id,
+                    }
+                ),
+                5,
+            )
+
+    def test_matching_description_patch_and_preserved_originals(self) -> None:
+        # Arrange: published address/measurements of the F07 pair, with synthetic
+        # seller wording. The optional city district is present on only one side.
+        original_address = "Самарская область, Самара, р-н Ленинский, ул. Буянова, 120"
+        short_address = "Самара, улица Буянова, 120"
+        source: ActiveSnapshot = {
+            **card("950000010"),
+            "address": original_address,
+            "area_m2": Decimal("110.00"),
+            "rooms": None,
+            "floor": 12,
+            "floors_total": 20,
+            "description": "Кухня-гостиная 28 м². Спальня 24 м².",
+        }
+        incoming: ActiveSnapshot = {
+            **card("950000011"),
+            "source_code": "domclick",
+            "address": f"{short_address}, квартира 25",
+            "area_m2": Decimal("110"),
+            "rooms": 3,
+            "floor": 12,
+            "floors_total": 20,
+            "description": "⭐ КУХНЯ-ГОСТИНАЯ 28 м².\n\nСпальня 24 м².",
+        }
+        another = {
+            **incoming,
+            "external_id": "950000012",
+            "address": f"{short_address}, квартира 26",
+            "area_m2": Decimal("111"),
+        }
+        numberless = {**incoming, "external_id": "950000013", "address": short_address}
+        empty = {**numberless, "external_id": "950000014", "description": None}
+        repeat = {**later(incoming, 1), "address": short_address, "rooms": None}
+        shifted = {**later(incoming, 2), "address": another["address"]}
+
+        with as_app() as connection:
+            # Act
+            first = self.accept(connection, source)
+            with self.assertRaises(psycopg.errors.CheckViolation):
+                self.accept(connection, {**incoming, "price": price("12345")})
+            rolled_back = connection.execute(
+                "SELECT address, rooms FROM properties WHERE id=%s",
+                (first.property_id,),
+            ).fetchone()
+            attached = self.accept(connection, incoming)
+            separate = [
+                self.accept(connection, data) for data in (another, numberless, empty)
+            ]
+            preserved = self.accept(connection, repeat)
+            stale = self.accept(
+                connection, {**shifted, "observed_at": START - timedelta(minutes=1)}
+            )
+            conflict = self.accept(connection, shifted)
+            rows = connection.execute(
+                """
+                SELECT address, rooms, observed_at
+                FROM properties JOIN ads ON ads.property_id=properties.id
+                WHERE ads.id=%s
+                """,
+                (attached.ad_id,),
+            ).fetchone()
+
+            # Assert
+            self.assertEqual(rolled_back, (original_address, None))
+            self.assertEqual(first.property_id, attached.property_id)
+            self.assertEqual(
+                len({first.property_id, *(item.property_id for item in separate)}), 4
+            )
+            self.assertEqual(preserved.property_id, first.property_id)
+            self.assertEqual((stale.outcome, conflict.outcome), ("stale", "conflict"))
+            self.assertEqual(
+                rows, (f"{original_address}, квартира 25", 3, repeat["observed_at"])
+            )
+
     def test_create_repeat_and_price_state_changes(self) -> None:
         # Arrange
         source = card("940000001")

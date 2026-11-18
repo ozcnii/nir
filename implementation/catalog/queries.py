@@ -1,5 +1,11 @@
 """Read collection parameters as values owned by the catalog."""
 
+from typing import cast
+
+from psycopg import Connection
+from psycopg.rows import TupleRow, dict_row
+
+from catalog.matching import FLAT_ID, Candidate, PropertyFacts
 from catalog.models import DealType, PropertyType, Region, Source
 from catalog.reference_data_v1 import PROPERTY_TYPES, REGIONS, SOURCE_CODES
 
@@ -32,3 +38,52 @@ def region_name(region_id: int) -> str | None:
 
 def valid_deal_type(value: str) -> bool:
     return value in DealType.values
+
+
+class SavedProperty(PropertyFacts):
+    region_id: int
+    property_type_id: int
+
+
+def property_for_update(
+    connection: Connection[TupleRow], property_id: int
+) -> SavedProperty:
+    with connection.cursor(row_factory=dict_row) as cursor:
+        row = cursor.execute(
+            """
+            SELECT region_id, property_type_id, address, latitude, longitude,
+                   area_m2, rooms, floor, floors_total, land_area_m2
+            FROM properties WHERE id=%s
+            """,
+            (property_id,),
+        ).fetchone()
+    assert row is not None
+    return cast(SavedProperty, row)
+
+
+def flat_candidates(
+    connection: Connection[TupleRow], region_id: int
+) -> list[Candidate]:
+    with connection.cursor(row_factory=dict_row) as cursor:
+        rows = cursor.execute(
+            """
+            SELECT properties.id, address, latitude, longitude, area_m2, rooms,
+                   floor, floors_total, land_area_m2,
+                   COALESCE(
+                     array_agg(ads.description) FILTER (WHERE ads.description IS NOT NULL),
+                     ARRAY[]::text[]
+                   ) AS descriptions
+            FROM properties LEFT JOIN ads ON ads.property_id=properties.id
+            WHERE region_id=%s AND property_type_id=%s AND address IS NOT NULL
+            GROUP BY properties.id
+            """,
+            (region_id, FLAT_ID),
+        ).fetchall()
+    return [
+        Candidate(
+            cast(int, row["id"]),
+            cast(PropertyFacts, row),
+            cast(list[str], row["descriptions"]),
+        )
+        for row in rows
+    ]
