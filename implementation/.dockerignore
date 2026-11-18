@@ -1,0 +1,14 @@
+**
+!.python-version
+!pyproject.toml
+!uv.lock
+!manage.py
+!config/
+!config/**
+!catalog/
+!catalog/**
+!collection/
+!collection/**
+**/__pycache__/
+**/*.py[cod]
+**/.env*
