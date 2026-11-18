@@ -146,6 +146,36 @@ class SnapshotTests(TestCase):
                 5,
             )
 
+    def test_matching_leaves_unattributed_addresses_and_sizes_separate(self) -> None:
+        cases = (
+            ("Самарская область, Кировский р-н., ул. Садовая, 17, кв. 25", None),
+            ("Самара, ул. Гагарина, ул. Садовая, 17, кв. 25", None),
+            (
+                "Самара, ул. Садовая, 17",
+                "На фото соседняя квартира. Кухня 28 м²; спальня 24 м².",
+            ),
+        )
+        with as_app() as connection:
+            for index, (address, description) in enumerate(cases):
+                with self.subTest(address=address):
+                    # Arrange: identical offers whose address or sizes lack attribution.
+                    first = {
+                        **card(f"95000002{index}"),
+                        "address": address,
+                        "description": description,
+                    }
+                    second = {**first, "source_code": "domclick"}
+
+                    # Act
+                    left = self.accept(connection, first)
+                    right = self.accept(connection, second)
+
+                    # Assert
+                    self.assertEqual(
+                        (left.outcome, right.outcome), ("created", "created")
+                    )
+                    self.assertNotEqual(left.property_id, right.property_id)
+
     def test_matching_description_patch_and_preserved_originals(self) -> None:
         # Arrange: published address/measurements of the F07 pair, with synthetic
         # seller wording. The optional city district is present on only one side.
@@ -158,7 +188,7 @@ class SnapshotTests(TestCase):
             "rooms": None,
             "floor": 12,
             "floors_total": 20,
-            "description": "Кухня-гостиная 28 м². Спальня 24 м².",
+            "description": "Кухня-гостиная 28 м²; спальня 24 м²; без комиссии.",
         }
         incoming: ActiveSnapshot = {
             **card("950000011"),
@@ -168,7 +198,7 @@ class SnapshotTests(TestCase):
             "rooms": 3,
             "floor": 12,
             "floors_total": 20,
-            "description": "⭐ КУХНЯ-ГОСТИНАЯ 28 м².\n\nСпальня 24 м².",
+            "description": "⭐ КУХНЯ-ГОСТИНАЯ 28 м²;\n\nспальня 24 м²; без комиссии.",
         }
         another = {
             **incoming,

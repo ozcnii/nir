@@ -20,7 +20,6 @@ _PREFIXES = {
     "пер.": "переулок",
     "бул.": "бульвар",
     "ш.": "шоссе",
-    "р-н": "район",
 }
 _TAGS = {
     "кв": "квартира",
@@ -43,26 +42,20 @@ _STREET_TYPES = (
     "площадь",
     "тракт",
 )
-_NOT_SETTLEMENT = (
-    "район ",
-    "жк ",
-    "жилой комплекс ",
-    "мкр ",
-    "микрорайон ",
-    "республика ",
-    "автономный округ ",
-)
-_NAME_WITHOUT_STREET = (
-    "жк ",
-    "жилой комплекс ",
-    "корпус ",
-    "строение ",
-    "квартира ",
-    "подъезд ",
-    "район ",
-    "мкр ",
-    "микрорайон ",
-)
+_DISTRICTS = {"район", "р-н", "р–н"}
+_TERRITORIES = {
+    "область",
+    "край",
+    "республика",
+    "округ",
+    "муниципалитет",
+    "микрорайон",
+    "мкр",
+    "квартал",
+    "жк",
+    "снт",
+    "кп",
+}
 _HOUSE = re.compile(rf"(?:дом\s*|д\.\s*)?({_NUMBER})\Z")
 _STREET_AND_NUMBER = re.compile(
     rf"(?P<street>.+?) +(?:(?:дом|д\.) +)?(?P<num>{_NUMBER})\Z"
@@ -75,13 +68,13 @@ _ROOMS = re.compile(
     r"(?:\s*№\s*([1-9][0-9]*))?\s*[:=–-]?\s*"
     r"([0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.?\s*м)\b"
 )
-_NOT_STREET_SUFFIX = (" район", " р-н", " микрорайон", " мкр", " квартал", " округ")
-_NOT_OFFERED_ROOM = re.compile(
-    r"\b(?:не|нет|без|возможн\w*|планиру\w*|проект\w*)\b"
+_OTHER_UNIT = re.compile(
+    r"\b(?:соседн\w*|друг\w*|аналогичн\w*|типов\w*)\s+(?:квартир\w*|кв\b)"
     r"|\b(?:нескольк\w*|разн\w*|друг\w*|типов\w*|вариант\w*)\s+планиров"
-    r"|\b(?:соседн\w*|друг\w*|аналогичн\w*|типов\w*)\s+квартир"
 )
-_SENTENCE_END = re.compile(r"[.!?](?![0-9])")
+_OFFERED_UNIT = re.compile(r"\b(?:продаваем\w*|предлагаем\w*)\s+квартир\w*")
+_UNASSERTED = re.compile(r"\b(?:не|нет|без|возможн\w*|планиру\w*|проект\w*)\b")
+_CLAUSE_END = re.compile(r"[.!?](?![0-9])|;")
 _SQUARE_METERS = re.compile(r"\bкв\.\s*м\b")
 _TYPOGRAPHY = str.maketrans(
     {
@@ -114,6 +107,26 @@ def _plain(value: str) -> str:
 def _component(value: str) -> str:
     head, space, tail = value.partition(" ")
     return _PREFIXES.get(head, head) + space + tail
+
+
+def _address_role(component: str) -> str:
+    words = component.split()
+    ends = {words[0].strip("."), words[-1].strip(".")}
+    if ends & _DISTRICTS:
+        return "district"
+    if (
+        ends & _TERRITORIES
+        or component.startswith("жилой комплекс ")
+        or set(words[:2] + words[-2:]).intersection({"район", "округ"})
+    ):
+        return "territory"
+    if ends.intersection(_STREET_TYPES):
+        return "street"
+    if ends & {"город", "село", "поселок", "деревня", "станица", "хутор", "аул"}:
+        return "settlement"
+    if not ends.intersection((*_TAGS.values(), "дом", "жилой комплекс")):
+        return "name"
+    return "other"
 
 
 @dataclass(frozen=True)
@@ -184,24 +197,39 @@ def parse_address(value: str | None, region: str) -> Address | None:
 
     if not all(_ADDRESS_TOKEN.fullmatch(part) for part in (*locality, street)):
         return None
-    if locality[0].startswith(_NOT_SETTLEMENT) or locality[0].endswith(
-        (*_NOT_STREET_SUFFIX, " область", " край", " республика", " муниципалитет")
+    roles = [_address_role(part) for part in locality]
+    if _address_role(street) not in ("street", "name"):
+        return None
+    # Only one component may identify the settlement. Districts can qualify it.
+    settlements = [i for i, role in enumerate(roles) if role in ("settlement", "name")]
+    districts = [i for i, role in enumerate(roles) if role == "district"]
+    if (
+        len(settlements) != 1
+        or len(districts) > 1
+        or any(role not in ("settlement", "name", "district") for role in roles)
     ):
         return None
-    if street.startswith(_NAME_WITHOUT_STREET) or street.endswith(_NOT_STREET_SUFFIX):
-        return None
-    # An explicitly attributed district after the settlement describes a
-    # location within it. Either listing can omit it.
-    districts = [part for part in locality[1:] if part.startswith("район ")]
-    if len(districts) > 1:
-        return None
-    settlement = tuple(part for part in locality if part not in districts)
+    district = None
+    settlement = tuple(locality)
+    if districts:
+        index = districts[0]
+        label = locality[index].split()
+        if label[0].strip(".") in _DISTRICTS:
+            name = " ".join(label[1:])
+        else:
+            name = " ".join(label[:-1])
+        if not name:
+            return None
+        if index > settlements[0]:
+            # An explicitly displayed city district may be omitted on one site.
+            district = name
+            settlement = (locality[settlements[0]],)
+        else:
+            settlement = (f"район {name}", locality[settlements[0]])
     tail = street.rsplit(" ", 1)
     if len(tail) == 2 and tail[1] in _STREET_TYPES:
         street = f"{tail[1]} {tail[0]}"
-    return Address(
-        settlement, street, districts[0] if districts else None, number, details
-    )
+    return Address(settlement, street, district, number, details)
 
 
 class PropertyFacts(TypedDict):
@@ -236,18 +264,23 @@ def _seller(value: str | None) -> str:
 
 
 def _has_layout(text: str) -> bool:
-    return (
-        len(
-            {
-                (part, ordinal)
-                for sentence in _SENTENCE_END.split(_SQUARE_METERS.sub("м²", text))
-                if not _NOT_OFFERED_ROOM.search(sentence)
-                for part, ordinal, size in _ROOMS.findall(sentence)
+    rooms: set[tuple[str, str]] = set()
+    on_offer = True
+    for clause in _CLAUSE_END.split(_SQUARE_METERS.sub("м²", text)):
+        if _OTHER_UNIT.search(clause):
+            on_offer = False
+        elif _OFFERED_UNIT.search(clause):
+            on_offer = True
+        if on_offer and not _UNASSERTED.search(clause):
+            rooms.update(
+                (name, ordinal)
+                for name, ordinal, size in _ROOMS.findall(clause)
                 if Decimal(size.replace(",", ".")) > 0
-            }
-        )
-        >= 2
-    )
+            )
+
+    if ("кухня-гостиная", "") in rooms:
+        rooms.difference_update({("кухня", ""), ("гостиная", "")})
+    return len(rooms) >= 2
 
 
 def apartment_address_conflicts(previous: Address, incoming: Address) -> bool:

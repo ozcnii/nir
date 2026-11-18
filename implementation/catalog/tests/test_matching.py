@@ -12,6 +12,10 @@ class MatchingTests(TestCase):
             "Самара, Ленинский район, 17, кв. 25",
             "Самарская область, Кировский р-н, ул. Садовая, 17, кв. 25",
             "Самара, Советский р-н, 17",
+            "Самарская область, Кировский р-н., ул. Садовая, 17, кв. 25",
+            "Самара, ул. Гагарина, ул. Садовая, 17, кв. 25",
+            "Самарская область, городской округ Самара, улица Садовая, 17",
+            "Самарская область, Самара, жилой комплекс Садовый, 17, кв. 25",
         )
 
         # Act
@@ -38,6 +42,10 @@ class MatchingTests(TestCase):
             "кухня 18 м², кухня 20 м²",
             "в соседней квартире кухня 28 м², спальня 24 м².",
             "на фото соседняя квартира: кухня 28 м²; спальня 24 м²; гостиная 31 м².",
+            "на фото соседняя квартира. кухня 28 м²; спальня 24 м²; гостиная 31 м².",
+            "на фото соседняя квартира. в этой квартире кухня 28 м², спальня 24 м².",
+            "кухня-гостиная 28 м². кухня 28 м².",
+            "в доме общая площадь 80 м². кухня 28 м².",
         ):
             with self.subTest(text=text):
                 # Arrange: two measurements without two asserted rooms.
@@ -48,10 +56,34 @@ class MatchingTests(TestCase):
                 self.assertFalse(result)
 
         # Arrange
-        text = "кухня-гостиная 28 кв. м. спальня 24 кв. м."
+        texts = (
+            "кухня-гостиная 28 кв. м. спальня 24 кв. м.",
+            "кухня 28 м²; спальня 24 м²; без комиссии.",
+            "кухня 28 м². спальня 24 м². фото соседней квартиры.",
+            "на фото соседняя квартира. кухня 28 м², спальня 24 м². "
+            "в предлагаемой квартире кухня 16 м², спальня 19 м².",
+        )
 
         # Act
-        result = _has_layout(text)
+        results = [_has_layout(text) for text in texts]
 
         # Assert
-        self.assertTrue(result)
+        self.assertEqual(results, [True] * len(texts))
+
+    def test_district_can_qualify_a_settlement_but_keeps_its_scope(self) -> None:
+        # Arrange
+        region = "Самарская область"
+        street = "ул. Садовая, 17, кв. 25"
+
+        # Act
+        city = parse_address(f"{region}, Самара, Кировский р-н., {street}", region)
+        village = parse_address(
+            f"{region}, Кировский р-н., с. Лесное, {street}", region
+        )
+
+        # Assert
+        assert city is not None and village is not None
+        self.assertEqual(city.locality, ("самара",))
+        self.assertEqual(city.district, "кировский")
+        self.assertEqual(village.locality, ("район кировский", "село лесное"))
+        self.assertIsNone(village.district)
