@@ -7,7 +7,7 @@ import uuid
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager, suppress
 from pathlib import Path
-from typing import BinaryIO, Literal, TypedDict, cast
+from typing import BinaryIO, Literal, NotRequired, TypedDict, cast
 
 from host_runner.docker import (
     GENERATION,
@@ -17,7 +17,7 @@ from host_runner.docker import (
     Docker,
     DockerError,
 )
-from host_runner.process import birth
+from host_runner.process import birth, group_exists
 
 HEARTBEAT_INTERVAL = 5.0
 
@@ -26,6 +26,7 @@ class Lease(TypedDict):
     pid: int
     birth: str
     heartbeat: float
+    task_group: NotRequired[int]
 
 
 class State(TypedDict):
@@ -95,8 +96,8 @@ class LeaseStore:
                 alive = birth(owner["pid"]) == owner["birth"]
                 if alive:
                     continue
-                with self.guard_path(token).open("rb") as guard:
-                    fcntl.flock(guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if not self.task_finished(token, owner):
+                    continue
             except OSError:
                 # An unknown owner or a foreground task still holding its guard protects
                 # the stack. A missing guard also requires operator investigation.
@@ -220,22 +221,26 @@ class LeaseStore:
             "containers": {},
             "leases": {},
         }
-        if not containers:
+        managed = not containers
+        if managed:
             self.save(state)
-            try:
+        try:
+            if managed:
                 containers = self.start(docker, state, generation, db_only)
-                url = self.ready_url(containers, db_only)
-            except (DockerError, LeaseError):
-                self.stop(state, docker)
-                raise
-        else:
-            if any(item.labels.get(PROJECT) != self.project for item in containers):
+            elif any(item.labels.get(PROJECT) != self.project for item in containers):
                 raise LeaseError("Unverified project labels")
             url = self.ready_url(containers, db_only)
-        state["phase"] = "ready"
-        state["containers"] = {item.id: item.labels for item in containers}
-        state["leases"][token] = self.owner(owner_birth)
-        self.save(state)
+            state["phase"] = "ready"
+            state["containers"] = {item.id: item.labels for item in containers}
+            state["leases"][token] = self.owner(owner_birth)
+            self.save(state)
+        except (DockerError, LeaseError, OSError):
+            # Read the last committed transaction. A failed stopping transaction
+            # is already recoverable and must not get a second destructive attempt.
+            recorded = self.load() if managed else None
+            if recorded is not None and recorded["phase"] == "starting":
+                self.stop(recorded, docker)
+            raise
         return url, state["generation"]
 
     def start(
@@ -254,6 +259,25 @@ class LeaseStore:
             docker.start(generation, "0", db_only)
         return self.owned(state, docker)
 
+    def register_group(self, token: str, group: int) -> None:
+        with self.transaction():
+            state = self.load()
+            if state is None:
+                raise LeaseError("The active lease registry disappeared")
+            state["leases"][token]["task_group"] = group
+            self.save(state)
+
+    def task_finished(self, token: str, owner: Lease) -> bool:
+        group = owner.get("task_group")
+        if group is not None and group_exists(group):
+            return False
+        with self.guard_path(token).open("rb") as guard:
+            try:
+                fcntl.flock(guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return False
+        return True
+
     def heartbeat(self, token: str) -> None:
         with self.transaction():
             state = self.load()
@@ -262,7 +286,7 @@ class LeaseStore:
             state["leases"][token]["heartbeat"] = time.time()
             self.save(state)
 
-    def release(self, token: str) -> None:
+    def release(self, token: str, *, wait_for_task: bool) -> None:
         with self.transaction() as docker:
             state = self.load()
             guard_path = self.guard_path(token)
@@ -270,12 +294,11 @@ class LeaseStore:
                 with suppress(FileNotFoundError):
                     guard_path.unlink()
                 return
-            try:
-                with guard_path.open("rb") as guard:
-                    fcntl.flock(guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                # A subprocess still holds the lease even after the wrapper exits.
-                return
+            deadline = time.monotonic() + (5 if wait_for_task else 0)
+            while not self.task_finished(token, state["leases"][token]):
+                if time.monotonic() >= deadline:
+                    return
+                time.sleep(0.02)
             self.forget(state, token)
             self.recover_leases(state)
             if not state["leases"]:

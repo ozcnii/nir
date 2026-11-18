@@ -1,3 +1,4 @@
+import fcntl
 import hashlib
 import json
 import os
@@ -13,13 +14,32 @@ from pathlib import Path
 from typing import cast
 
 from host_runner.leases import State
-from host_runner.process import birth
+from host_runner.process import birth, group_exists
 
 REPOSITORY = Path(__file__).resolve().parents[2]
-RUN = (
-    "import sys; from pathlib import Path; from host_runner.__main__ import run; "
-    "raise SystemExit(run(Path.cwd(), sys.argv[2:], sys.argv[1] == 'db'))"
-)
+RUN = """
+import os
+import sys
+from pathlib import Path
+from host_runner import leases
+from host_runner.__main__ import run
+
+def checked_birth(pid):
+    if str(pid) == os.environ.get("FAKE_UNKNOWN_PID"):
+        raise OSError("fixture process identity unavailable")
+    return actual_birth(pid)
+
+def checked_save(store, state):
+    if state["phase"] == "ready" and os.environ.pop("FAKE_READY_WRITE", ""):
+        raise OSError("fixture transient ready write failure")
+    return actual_save(store, state)
+
+actual_birth = leases.birth
+actual_save = leases.LeaseStore.save
+leases.birth = checked_birth
+leases.LeaseStore.save = checked_save
+raise SystemExit(run(Path.cwd(), sys.argv[2:], sys.argv[1] == 'db'))
+"""
 TASK = """
 import json
 import os
@@ -32,7 +52,6 @@ Path(f'{key}.ready').write_text(json.dumps({
     'url': os.environ.get('NIR_APP_URL'),
     'project': os.environ['COMPOSE_PROJECT_NAME'],
     'generation': os.environ['NIR_RUNNER_GENERATION'],
-    'pid': os.getpid(),
 }))
 while not Path(f'{key}.exit').exists():
     time.sleep(0.01)
@@ -110,6 +129,22 @@ class HostRunnerTests(unittest.TestCase):
     def update_state(self, state: State) -> None:
         self.state.write_text(json.dumps(state))
 
+    def wait_for_task_guard(self, token: str) -> None:
+        path = self.state.parent / f"task-{token}.lock"
+        group = self.read_state()["leases"][token]["task_group"]
+
+        def unlocked() -> bool:
+            if group_exists(group):
+                return False
+            with path.open("rb") as guard:
+                try:
+                    fcntl.flock(guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    return False
+                return True
+
+        until(unlocked)
+
     def assert_released(self) -> None:
         self.assertFalse(self.state.exists())
         self.assertEqual(self.registry.read_text(), "{}")
@@ -151,9 +186,9 @@ class HostRunnerTests(unittest.TestCase):
         data = self.ready("old")
         old.kill()
         old.wait(timeout=10)
+        token = next(iter(self.read_state()["leases"]))
         (self.root / "old.exit").touch()
-        task_pid = cast(int, data["pid"])
-        until(lambda: birth(task_pid) is None)
+        self.wait_for_task_guard(token)
         state = self.read_state()
         owner = next(iter(state["leases"].values()))
         owner["pid"] = os.getpid()
@@ -168,7 +203,7 @@ class HostRunnerTests(unittest.TestCase):
     def test_sigkill_does_not_stop_a_surviving_task_then_recovers(self) -> None:
         old = self.start("old")
         data = self.ready("old")
-        task_pid = cast(int, data["pid"])
+        token = next(iter(self.read_state()["leases"]))
         self.addCleanup((self.root / "old.exit").touch)
         old.kill()
         old.wait(timeout=10)
@@ -179,7 +214,7 @@ class HostRunnerTests(unittest.TestCase):
         self.assertNotIn("container stop", self.events.read_text())
 
         (self.root / "old.exit").touch()
-        until(lambda: birth(task_pid) is None)
+        self.wait_for_task_guard(token)
         new = self.start("new")
         self.assertNotEqual(self.ready("new")["generation"], data["generation"])
         self.finish(new, "new")
@@ -222,6 +257,83 @@ class HostRunnerTests(unittest.TestCase):
                 process.send_signal(signum)
                 self.assertEqual(process.wait(timeout=10), 128 + signum)
                 self.assert_released()
+
+    def test_sigterm_reaches_a_foreground_wrapper_and_its_child(self) -> None:
+        child_code = """
+import signal
+import sys
+import time
+from pathlib import Path
+
+name = sys.argv[1]
+
+def stop(*args):
+    Path(f'{name}.term').touch()
+    while not Path(f'{name}.exit').exists():
+        time.sleep(0.01)
+    raise SystemExit(0)
+
+signal.signal(signal.SIGTERM, stop)
+Path(f'{name}.ready').touch()
+while not Path(f'{name}.exit').exists():
+    time.sleep(0.01)
+"""
+        for close_fds in (True, False):
+            with self.subTest(close_fds=close_fds):
+                name = f"child-{close_fds}"
+                wrapper = (
+                    "import subprocess, sys; "
+                    f"raise SystemExit(subprocess.call([sys.executable, '-c', "
+                    f"{child_code!r}, sys.argv[1]], close_fds={close_fds}))"
+                )
+                process = self.start(name, wrapper)
+                resume = self.root / f"{name}.exit"
+                self.addCleanup(resume.touch)
+                until((self.root / f"{name}.ready").exists)
+                before_stop = self.events.read_text().count("container stop")
+
+                process.terminate()
+                until((self.root / f"{name}.term").exists)
+                self.assertEqual(
+                    self.events.read_text().count("container stop"), before_stop
+                )
+                self.assertIsNone(process.poll())
+                resume.touch()
+
+                self.assertEqual(process.wait(timeout=10), 128 + signal.SIGTERM)
+                self.assert_released()
+
+    def test_unknown_owner_birth_keeps_the_lease(self) -> None:
+        old = self.start("old")
+        data = self.ready("old")
+        token = next(iter(self.read_state()["leases"]))
+        old.kill()
+        old.wait(timeout=10)
+        (self.root / "old.exit").touch()
+        self.wait_for_task_guard(token)
+        self.env["FAKE_UNKNOWN_PID"] = str(old.pid)
+
+        other = self.start("other")
+        self.assertEqual(self.ready("other")["generation"], data["generation"])
+        self.finish(other, "other")
+        self.assertIn(token, self.read_state()["leases"])
+        self.assertNotIn("container stop", self.events.read_text())
+
+        del self.env["FAKE_UNKNOWN_PID"]
+        new = self.start("new")
+        self.assertNotEqual(self.ready("new")["generation"], data["generation"])
+        self.finish(new, "new")
+        self.assert_released()
+
+    def test_ready_registry_write_failure_rolls_back_the_owned_stack(self) -> None:
+        self.env["FAKE_READY_WRITE"] = "1"
+
+        task = self.start("must-not-start")
+
+        self.assertEqual(task.wait(timeout=10), 1)
+        self.assertFalse((self.root / "must-not-start.ready").exists())
+        self.assertIn("container stop", self.events.read_text())
+        self.assert_released()
 
     def test_failed_stop_retains_ownership_for_later_recovery(self) -> None:
         first = self.start("first")

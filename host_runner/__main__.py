@@ -6,11 +6,35 @@ import subprocess
 import sys
 import time
 import uuid
+from contextlib import suppress
 from pathlib import Path
 
 from host_runner.docker import DockerError
 from host_runner.leases import HEARTBEAT_INTERVAL, LeaseError, LeaseStore
 from host_runner.process import birth
+
+
+def task_signal(pid: int, signum: int) -> None:
+    # The unreaped Popen leader reserves its PID while we address its task group.
+    with suppress(ProcessLookupError):
+        os.killpg(pid, signum)
+
+
+def terminal_group() -> int | None:
+    group = os.getpgrp()
+    if os.isatty(0):
+        with suppress(OSError):
+            if os.tcgetpgrp(0) == group:
+                return group
+    return None
+
+
+def give_terminal(group: int) -> None:
+    previous = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTTOU})
+    try:
+        os.tcsetpgrp(0, group)
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous)
 
 
 def run(root: Path, command: list[str], db_only: bool) -> int:
@@ -47,21 +71,27 @@ def run(root: Path, command: list[str], db_only: bool) -> int:
             if url is not None:
                 env["NIR_APP_URL"] = url
                 print(url, flush=True)
+            foreground = terminal_group()
             with subprocess.Popen(
                 command,
                 cwd=root,
                 env=env,
                 pass_fds=(guard.fileno(),),
+                process_group=0,
             ) as task:
                 next_heartbeat = time.monotonic() + HEARTBEAT_INTERVAL
                 try:
+                    store.register_group(token, task.pid)
+                    if foreground is not None:
+                        give_terminal(task.pid)
+                        task_signal(task.pid, signal.SIGCONT)
                     while True:
                         if (signum := pending_signal()) is not None:
-                            task.send_signal(signum)
+                            task_signal(task.pid, signum)
                             try:
                                 task.wait(timeout=5)
                             except subprocess.TimeoutExpired:
-                                task.kill()
+                                task_signal(task.pid, signal.SIGKILL)
                             return 128 + signum
                         try:
                             status = task.wait(timeout=0.2)
@@ -75,11 +105,15 @@ def run(root: Path, command: list[str], db_only: bool) -> int:
                                 return 128 + signum
                             return 128 - status if status < 0 else status
                 finally:
-                    if task.poll() is None:
-                        task.kill()
+                    try:
+                        if task.poll() is None:
+                            task_signal(task.pid, signal.SIGKILL)
+                    finally:
+                        if foreground is not None:
+                            give_terminal(foreground)
     finally:
         try:
-            store.release(token)
+            store.release(token, wait_for_task=pending_signal() is not None)
         finally:
             for signum, handler in previous.items():
                 signal.signal(signum, handler)

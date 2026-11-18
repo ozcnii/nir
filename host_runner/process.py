@@ -62,3 +62,15 @@ def birth(pid: int) -> str | None:
     except ProcessLookupError:
         return None
     raise OSError(f"Cannot verify birth of PID {pid}")
+
+
+def group_exists(group: int) -> bool:
+    if group <= 0:
+        raise ValueError("Process groups require a positive ID")
+    try:
+        os.killpg(group, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        pass
+    return True
