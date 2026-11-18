@@ -115,6 +115,7 @@ class CatalogSchemaTests(TransactionTestCase):
         urls = [
             "https://images.example.org/1.webp?width=512&signature=x#image",
             "http://images.example.org/2.jpg",
+            "https://[2001:db8::1]:8443/3.jpg?signature=x#image",
         ]
 
         Ad.objects.filter(pk=self.ad.pk).update(
@@ -140,6 +141,8 @@ class CatalogSchemaTests(TransactionTestCase):
             [url, ""],
             ["not-a-url"],
             ["https:///not-an-authority"],
+            ["https://:443/a.jpg"],
+            ["https://@/a.jpg"],
             ["https://example.org/with spaces"],
         )
         for value in invalid_items:

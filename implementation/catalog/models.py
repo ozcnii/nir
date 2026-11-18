@@ -158,7 +158,10 @@ class Ad(models.Model):
                     Value(
                         'strict $.type() == "array" && !(exists($[*] ? '
                         '(@.type() != "string" || !(@ like_regex '
-                        '"^https?://[^/?#[:space:]]+[^[:space:]]*$" flag "i"))))'
+                        '"^https?://([^@/?#[:space:]]+@)?'
+                        r"(\\[[0-9a-f]*:[0-9a-f:.]+\\]|"
+                        r"[[:alnum:]](-*[[:alnum:]])*(\\.[[:alnum:]](-*[[:alnum:]])*)*\\.?"
+                        ')(:[0-9]+)?([/?#][^[:space:]]*)?$" flag "i"))))'
                     ),
                     function="jsonb_path_match",
                     template="%(function)s(%(expressions)s::jsonpath)",

@@ -366,7 +366,7 @@ class Migration(migrations.Migration):
                 condition=models.Func(
                     models.F("photos"),
                     models.Value(
-                        'strict $.type() == "array" && !(exists($[*] ? (@.type() != "string" || !(@ like_regex "^https?://[^/?#[:space:]]+[^[:space:]]*$" flag "i"))))'
+                        'strict $.type() == "array" && !(exists($[*] ? (@.type() != "string" || !(@ like_regex "^https?://([^@/?#[:space:]]+@)?(\\\\[[0-9a-f]*:[0-9a-f:.]+\\\\]|[[:alnum:]](-*[[:alnum:]])*(\\\\.[[:alnum:]](-*[[:alnum:]])*)*\\\\.?)(:[0-9]+)?([/?#][^[:space:]]*)?$" flag "i"))))'
                     ),
                     function="jsonb_path_match",
                     output_field=models.BooleanField(),
