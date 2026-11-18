@@ -58,3 +58,12 @@ docker compose "${compose_args[@]}" run --rm --no-deps -T \
 
 # Assert
 test "$suite_result" = 0
+
+# Act: the journal fixture uses the same disposable database and control boundary.
+journal_result=0
+docker compose "${compose_args[@]}" run --rm --no-deps -T \
+    -v "$PWD/tests/journal:/test-suite:ro" \
+    -e PYTHONPATH=/app app python /test-suite/check_journal.py || journal_result=$?
+
+# Assert
+test "$journal_result" = 0

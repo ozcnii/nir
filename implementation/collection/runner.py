@@ -4,6 +4,7 @@ import os
 import signal
 import sys
 from collections.abc import Callable
+from itertools import count
 from typing import Literal
 
 import django
@@ -24,6 +25,7 @@ from collection.browser import (
 from collection.selection import Direction, InvalidSelection, Selection, parse, validate
 from config.collection_lock import LockBusy, LockLost, RunSession, run_session
 from config.control import ADMISSION_FD, ControlError, decode, encode
+from config.run_events import INSTANCE_ID_ENV, RUN_ID_ENV, SCHEMA_VERSION
 
 TRANSPORT_ERRORS = (
     "net::ERR_CONNECTION_CLOSED",
@@ -51,6 +53,7 @@ class BrowserWork:
         self.pages = pages
         self._session = session
         self._stopped = stopped
+        self._committed_writes = 0
 
     def checkpoint(self) -> None:
         check_stop(self._stopped)
@@ -81,7 +84,10 @@ class BrowserWork:
         # This owns the transaction boundary. Catalog services supply the write.
         with self._session.transaction() as connection:
             check_stop(self._stopped)
-            return operation(connection)
+            result = operation(connection)
+        self._committed_writes += 1
+        emit("progress", committed_writes=self._committed_writes)
+        return result
 
 
 RunBody = Callable[
@@ -90,8 +96,23 @@ RunBody = Callable[
 BrowserBody = Callable[[BrowserWork, Selection], None]
 
 
-def emit(event: str, reason: str = "") -> None:
-    sys.stdout.buffer.write(encode({"event": event, "reason": reason}))
+_sequence = count(1)
+
+
+def emit(event: str, reason: str = "", **fields: object) -> None:
+    sys.stdout.buffer.write(
+        encode(
+            {
+                **fields,
+                "event": event,
+                "reason": reason,
+                "schema_version": SCHEMA_VERSION,
+                "run_id": os.environ[RUN_ID_ENV],
+                "instance_id": os.environ[INSTANCE_ID_ENV],
+                "seq": next(_sequence),
+            }
+        )
+    )
     sys.stdout.buffer.flush()
 
 
@@ -123,9 +144,9 @@ def run(
         emit("finished", "stopped")
         return 0
 
-    django.setup()
     ready = False
     try:
+        django.setup()
         check_stop(stopped)
         with run_session() as session:
             check_stop(stopped)
@@ -172,6 +193,9 @@ def run(
         return 1
     except (psycopg.Error, DatabaseError):
         emit("fault", "database_error")
+        return 1
+    except Exception:
+        emit("fault", "run_failed")
         return 1
 
     emit("finished", "stopped" if stopped() else "completed")

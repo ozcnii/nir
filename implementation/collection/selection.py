@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from itertools import product
 from typing import cast
 
+from catalog.reference_data_v1 import SOURCE_CODES
+
 _CATEGORIES = {
     "resale": (1, "flat"),
     "new_build": (1, "flat"),
@@ -31,6 +33,14 @@ class Selection:
     regions: tuple[int, ...]
     categories: tuple[str, ...]
     deal_types: tuple[str, ...]
+
+    def record(self) -> dict[str, object]:
+        return {
+            "sources": self.sources,
+            "regions": self.regions,
+            "categories": self.categories,
+            "deal_types": self.deal_types,
+        }
 
     def directions(self) -> Iterator[Direction]:
         for values in product(
@@ -70,12 +80,16 @@ def parse(value: object) -> Selection:
         or len(set(places)) != len(places)
     ):
         raise InvalidSelection("invalid_selection")
-    return Selection(
-        strings("sources"),
-        tuple(cast(list[int], places)),
-        strings("categories"),
-        strings("deal_types"),
-    )
+    sources = strings("sources")
+    categories = strings("categories")
+    deals = strings("deal_types")
+    if any(source not in SOURCE_CODES for source in sources):
+        raise InvalidSelection("unsupported_or_disabled_source")
+    if any(category not in _CATEGORIES for category in categories):
+        raise InvalidSelection("unsupported_or_missing_property_type")
+    if any(deal not in ("sale", "month_rent", "day_rent") for deal in deals):
+        raise InvalidSelection("unsupported_deal_type")
+    return Selection(sources, tuple(cast(list[int], places)), categories, deals)
 
 
 def validate(selection: Selection, supported: Callable[[Direction], bool]) -> None:

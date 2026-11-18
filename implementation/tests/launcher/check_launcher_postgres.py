@@ -121,7 +121,9 @@ def fixture_launcher(root: Path) -> int:
     ]
     runner = [sys.executable, __file__, "child", str(root)]
     with patch.object(launcher, "receive", monitored_receive):
-        return launcher.serve(root / "control.sock", web, runner)
+        return launcher.serve(
+            root / "control.sock", web, runner, journal_root=root / "runs"
+        )
 
 
 class LauncherTests(unittest.TestCase):
@@ -226,7 +228,8 @@ class LauncherTests(unittest.TestCase):
             "sys.stdout.buffer.write(b'x' * 65536); sys.stdout.buffer.flush(); "
             f"Path({str(marker)!r}).touch()",
         ]
-        supervisor = Supervisor(command)
+        supervisor = Supervisor(command, self.root / "runs")
+        self.addCleanup(supervisor.close)
         peak = 0
 
         def reaped() -> bool:
@@ -234,7 +237,9 @@ class LauncherTests(unittest.TestCase):
             supervisor.tick()
             if supervisor.current is None:
                 return True
-            peak = max(peak, len(supervisor.current.buffer))
+            reader = supervisor.current.reader
+            if reader is not None:
+                peak = max(peak, reader.peak)
             return False
 
         # Act
@@ -243,7 +248,7 @@ class LauncherTests(unittest.TestCase):
         result = supervisor.status()
 
         # Assert
-        self.assertLess(peak, MAX_MESSAGE)
+        self.assertLessEqual(peak, MAX_MESSAGE)
         self.assertTrue(marker.exists())
         self.assertEqual(result["state"], "unknown")
         self.assertEqual(result["reason"], "invalid_runner_event")

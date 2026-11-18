@@ -19,7 +19,7 @@ class ControlError(RuntimeError):
 def decode(raw: bytes) -> dict[str, object]:
     try:
         value = json.loads(raw)
-    except (UnicodeError, ValueError) as error:
+    except (UnicodeError, ValueError, RecursionError) as error:
         raise ControlError("invalid JSON") from error
     if not isinstance(value, dict):
         raise ControlError("expected a JSON object")
