@@ -12,19 +12,19 @@ repos:
         name: Check prepared uv environment
         entry: uv sync --locked --check --dev
         language: unsupported
-        files: '^(pyproject\.toml|uv\.lock|\.python-version|\.pre-commit-config\.yaml|manage\.py$|(config|catalog|collection)/.*\.py$|(catalog|collection)/templates/.*\.html$)'
+        files: '^(pyproject\.toml|uv\.lock|\.python-version|\.pre-commit-config\.yaml|manage\.py$|(config|catalog|collection|host_runner|tests)/.*\.py$|(catalog|collection)/templates/.*\.html$)'
         pass_filenames: false
         fail_fast: true
       - id: ruff-lint
         name: Check staged Python lint
         entry: uv run --no-sync ruff check --no-fix
         language: unsupported
-        files: '^(manage\.py$|(config|catalog|collection)/.*\.py$)'
+        files: '^(manage\.py$|(config|catalog|collection|host_runner|tests)/.*\.py$)'
       - id: ruff-format
         name: Check staged Python formatting
         entry: uv run --no-sync ruff format --check
         language: unsupported
-        files: '^(manage\.py$|(config|catalog|collection)/.*\.py$)'
+        files: '^(manage\.py$|(config|catalog|collection|host_runner|tests)/.*\.py$)'
       - id: djlint-lint
         name: Check staged Django template lint
         entry: uv run --no-sync djlint --lint

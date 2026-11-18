@@ -144,3 +144,9 @@ thesis/thesis.docx
 
 # macOS
 .DS_Store
+
+# Local host-runner leases and locks
+/.local/runtime/
+
+# Python bytecode
+__pycache__/
