@@ -319,3 +319,25 @@ class RoomClaimsTests(TestCase):
 
         # Assert
         self.assertEqual(result, (1, Decimal("9")))
+
+    def test_contrasting_share_holders_in_both_statement_orders(self) -> None:
+        for sentence in (
+            "По соглашению закреплена комната № 2",
+            "Комната № 2 закреплена",
+        ):
+            with self.subTest(sentence=sentence):
+                # Arrange
+                share = "Продаётся 1/2 доля в квартире. "
+                agreed = f"{share}{sentence} не за долей соседа, а за этой долей."
+                disputed = (
+                    "Продаётся доля, которой соответствует комната № 2. "
+                    f"{sentence} не за этой долей, а за долей соседа."
+                )
+
+                # Act
+                confirmed = room_facts(1, Decimal("9"), agreed)
+                with self.assertRaisesRegex(RejectedCard, "^unconfirmed_room_unit$"):
+                    room_facts(1, Decimal("9"), disputed)
+
+                # Assert
+                self.assertEqual(confirmed, (1, Decimal("9")))
