@@ -42,12 +42,16 @@ line-ending = "lf"
 
 [tool.mypy]
 python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
 strict = true
 warn_unreachable = true
 disallow_any_unimported = true
 enable_error_code = ["ignore-without-code"]
 
-# T02 enables the Django plugin once its settings module exists.
+[tool.django-stubs]
+django_settings_module = "config.settings_base"
+strict_settings = true
+strict_model_abstract_attrs = true
 
 [tool.djlint]
 profile = "django"
