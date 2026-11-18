@@ -326,7 +326,7 @@ class CianCardTests(TestCase):
             dealType="rent",
             roomArea="9.0",
             roomsForSaleCount=1,
-            description="Сдаю комнату площадью 9,2 м².",
+            description="Сдаю комнату № 2 в квартире № 25 площадью 9,2 м².",
         )
         cast(dict[str, object], product["offers"])["url"] = url
 
