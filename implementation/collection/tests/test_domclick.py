@@ -689,3 +689,61 @@ class DomclickTests(TestCase):
         self.assertEqual(
             result["address"], "Самарская область, Самара, Солнечная улица, 7, блок 2"
         )
+
+        # Arrange: the same address belongs to a block whose sold share is unallocated.
+        data["objectInfo"] = {
+            "area": 55,
+            "description": "Продаётся 1/2 доля в блоке 2. Самостоятельная часть доли не выделена.",
+        }
+
+        # Act
+        with self.assertRaises(RejectedCard) as rejected:
+            read_native(url, data)
+
+        # Assert
+        self.assertEqual(str(rejected.exception), "unallocated_house_share")
+
+    def test_daily_studio_uses_published_unit_title_with_generic_page_title(
+        self,
+    ) -> None:
+        # Arrange
+        card = daily_projection()
+        card.update({"rooms": 0, "title": "Квартира-студия"})
+
+        # Act
+        result = parse_card(
+            DAILY,
+            OBSERVED,
+            [daily_ssr(card)],
+            [],
+            loaded_url=DAILY,
+            page_title="Домклик24",
+        )
+
+        # Assert
+        assert result["state"] == "active"
+        self.assertEqual(result["rooms"], 0)
+
+    def test_daily_studio_rejects_conflicting_public_unit_titles(self) -> None:
+        for heading, reason in (
+            ("Снять однокомнатную квартиру 36 м² посуточно", "contradictory_rooms"),
+            ("Снять частный дом", "contradictory_daily_type"),
+        ):
+            with self.subTest(heading=heading):
+                # Arrange
+                card = daily_projection()
+                card.update({"rooms": 0, "title": "Квартира-студия"})
+
+                # Act
+                with self.assertRaises(RejectedCard) as rejected:
+                    parse_card(
+                        DAILY,
+                        OBSERVED,
+                        [daily_ssr(card)],
+                        [],
+                        loaded_url=DAILY,
+                        page_title=heading,
+                    )
+
+                # Assert
+                self.assertEqual(str(rejected.exception), reason)

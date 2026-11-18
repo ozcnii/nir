@@ -72,11 +72,20 @@ _STUDIO_TITLE = re.compile(
     r"(?:(?:студия|квартира-студия)(?:,? [0-9]+(?:[.,][0-9]+)? м[²2].*)?"
     r"|(?:купить|снять) (?:студию|квартиру-студию)(?:,.*| по адресу .*)?)"
 )
+_NUMBERED_FLAT_TITLE = re.compile(
+    r"^(?:(?:купить|снять) )?"
+    r"(?:[1-9]\d*-|одно|двух|тр[её]х|четыр[её]х|пяти)комнатн(?:ая|ую) квартир[ау]\b"
+)
+_DAILY_HOUSE_TITLE = re.compile(
+    r"^(?:(?:снять )?(?:загородный|частный) дом|снять дом)\b"
+)
 _BLOCK_ADDRESS = re.compile(
     r"(?:^|, )\d+[а-яa-z]?, (?:блок|секция) (?:№ *)?\d+[а-яa-z]?$"
 )
 _COMPOUND_HOUSE_NUMBER = re.compile(r"(?:^|, )\d+[а-яa-z]?/\d+[а-яa-z]?$")
 _DORMITORY = re.compile(r"\b(?:здание общежития|(?:статус|назначение) общежитие)\b")
+_SHARE = re.compile(r"\bдол(?:я|и|ю|е|ей)\b")
+_NO_ALLOCATION = re.compile(r"\b(?:не выделен[аоы]?|без выделения)\b")
 _DUPLEX_AREA = re.compile(r"\bдуплекс (\d+(?:[.,]\d+)?) *м[²2]\b")
 
 
@@ -215,12 +224,14 @@ def _floors(floor: object, total: object) -> tuple[int | None, int | None]:
     return level, levels
 
 
-def _rooms(value: object, studio_title: str = "") -> int | None:
+def _rooms(value: object, *unit_titles: str) -> int | None:
     rooms = optional_integer(_optional(value), minimum=0)
-    if rooms == 0 and not _STUDIO_TITLE.fullmatch(
-        " ".join(studio_title.casefold().split())
-    ):
-        raise RejectedCard("unconfirmed_studio")
+    if rooms == 0:
+        titles = [" ".join(title.casefold().split()) for title in unit_titles]
+        if any(_NUMBERED_FLAT_TITLE.match(title) for title in titles):
+            raise RejectedCard("contradictory_rooms")
+        if not any(_STUDIO_TITLE.fullmatch(title) for title in titles):
+            raise RejectedCard("unconfirmed_studio")
     return rooms
 
 
@@ -292,6 +303,8 @@ def _check_native_house_unit(
     seller_text = " ".join((description or "").casefold().split())
     if _DORMITORY.search(seller_text):
         raise RejectedCard("unsupported_house_unit")
+    if _SHARE.search(seller_text) and _NO_ALLOCATION.search(seller_text):
+        raise RejectedCard("unallocated_house_share")
     published = (address or "").casefold()
     addressable = _BLOCK_ADDRESS.search(published) or (
         native_type == "townhouse" and _COMPOUND_HOUSE_NUMBER.search(published)
@@ -659,8 +672,11 @@ def _daily(
         return {**key, "state": "unavailable"}
     if data.get("category") != "flat":
         raise RejectedCard("unsupported_daily_type")
-    heading = _text(data.get("title"))
-    if heading and re.match(r"^(?:загородный|частный) дом\b", heading.casefold()):
+    heading = _text(data.get("title")) or ""
+    if any(
+        _DAILY_HOUSE_TITLE.match(" ".join(title.casefold().split()))
+        for title in (heading, page_title)
+    ):
         raise RejectedCard("contradictory_daily_type")
     if not _missing(data.get("area")) and data.get("areaUnit") != "м²":
         raise RejectedCard("invalid_area_unit")
@@ -682,7 +698,7 @@ def _daily(
         "latitude": lat,
         "longitude": lon,
         "area_m2": _area(data.get("area")),
-        "rooms": _rooms(data.get("rooms"), page_title),
+        "rooms": _rooms(data.get("rooms"), heading, page_title),
         "floor": floor,
         "floors_total": floors,
         "land_area_m2": None,
