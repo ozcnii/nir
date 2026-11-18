@@ -46,6 +46,17 @@ def preflight() -> bool:
     return True
 
 
+def web_command() -> list[str]:
+    return [
+        sys.executable,
+        "manage.py",
+        "runserver",
+        "0.0.0.0:8000",
+        "--noreload",
+        "--insecure",
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-only", action="store_true")
@@ -56,17 +67,7 @@ def main() -> int:
     if not preflight():
         return 1
     if not args.check_only:
-        os.execv(
-            sys.executable,
-            [
-                sys.executable,
-                "manage.py",
-                "runserver",
-                "0.0.0.0:8000",
-                "--noreload",
-                "--insecure",
-            ],
-        )
+        os.execv(sys.executable, web_command())
     return 0
 
 
