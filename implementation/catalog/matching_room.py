@@ -93,11 +93,13 @@ def repeated_room_patch(
             return None
         if old_unit is not None and new_unit is not None and old_unit != new_unit:
             return None
-        # Never join a partial apartment chain with a partial room chain.
+        # The incoming snapshot must publish the chain with the known qualifiers.
         if (
             new_unit is not None
+            and old.details.keys() <= new.details.keys()
             and not details_conflict(old, new)
-            and not (new_unit[0] is None and old.detail("комната") is not None)
+            and (old.district is None or new.district is not None)
+            and (old.settlement_kind is None or new.settlement_kind is not None)
         ):
             address = address_patch(old, new, saved["address"])
     return property_patch(saved, incoming, address)

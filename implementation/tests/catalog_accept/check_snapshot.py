@@ -136,7 +136,7 @@ class SnapshotTests(TestCase):
     def test_repeated_room_does_not_change_unit_or_complete_partial_chain(self) -> None:
         # Arrange
         building = "Самара, улица Ставропольская, дом 130"
-        address = f"{building}, квартира 25"
+        address = f"{building}, корпус 2, квартира 25"
         source: ActiveSnapshot = {
             **card("room-repeated"),
             "property_type_id": 2,
@@ -147,26 +147,32 @@ class SnapshotTests(TestCase):
             **later(source, 1),
             "address": f"{building}, комната 2",
         }
-        conflict: ActiveSnapshot = {
+        without_building_part: ActiveSnapshot = {
             **later(source, 2),
+            "address": f"{building}, квартира 25, комната 2",
+        }
+        conflict: ActiveSnapshot = {
+            **later(source, 3),
             "rooms": 2,
             "price": price("7000000"),
             "photos": {"status": "known", "urls": []},
         }
         full: ActiveSnapshot = {
-            **later(source, 3),
+            **later(source, 4),
             "address": f"{address}, комната 2",
         }
         moved: ActiveSnapshot = {
-            **later(full, 4),
+            **later(full, 5),
             "address": f"{address}, комната 3",
         }
         with as_app() as connection:
             # Act
             first = self.accept(connection, source)
             next_result = self.accept(connection, partial)
+            self.accept(connection, without_building_part)
             same_time = self.accept(
-                connection, {**conflict, "observed_at": partial["observed_at"]}
+                connection,
+                {**conflict, "observed_at": without_building_part["observed_at"]},
             )
             old_time = self.accept(connection, {**conflict, "observed_at": START})
             new_conflict = self.accept(connection, conflict)
@@ -178,6 +184,10 @@ class SnapshotTests(TestCase):
                 """,
                 (first.ad_id,),
             ).fetchone()
+            independent = self.accept(
+                connection,
+                {**full, "source_code": "domclick", "external_id": "room-qualified"},
+            )
             confirmed = self.accept(connection, full)
             changed_unit = self.accept(connection, moved)
 
@@ -185,7 +195,10 @@ class SnapshotTests(TestCase):
         self.assertEqual(first.property_id, next_result.property_id)
         self.assertEqual((same_time.outcome, old_time.outcome), ("ignored", "stale"))
         self.assertEqual(new_conflict.outcome, "conflict")
-        self.assertEqual(stored, (address, 1, partial["observed_at"], [PHOTO], 1))
+        self.assertEqual(
+            stored, (address, 1, without_building_part["observed_at"], [PHOTO], 1)
+        )
+        self.assertNotEqual(independent.property_id, first.property_id)
         self.assertEqual(confirmed.outcome, "updated")
         self.assertEqual(changed_unit.outcome, "conflict")
 
