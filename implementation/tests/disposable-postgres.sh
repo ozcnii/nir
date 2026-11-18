@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# This file is sourced by integration scripts from implementation/.
-run_disposable_postgres() {
+# Общие функции интеграционных проверок PostgreSQL из каталога implementation/.
+reserve_disposable_postgres() {
     # Arrange
     if [[ ! -f ../.git ]]; then
         echo "PostgreSQL checks require a disposable Git worktree." >&2
@@ -24,6 +24,10 @@ run_disposable_postgres() {
     # Assert
     actual_token=$(docker volume inspect --format '{{index .Labels "org.nir.fixture.token"}}' "$volume")
     test "$actual_token" = "$NIR_PG_FIXTURE_TOKEN"
+}
+
+run_disposable_postgres() {
+    reserve_disposable_postgres
     exec uv run --locked python -m host_runner --db-only -- "$@"
 }
 

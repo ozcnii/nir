@@ -489,6 +489,30 @@ raise SystemExit(child.wait())
         self.assertIn("container stop", self.events.read_text())
         self.assert_released()
 
+    def test_failed_start_keeps_error_when_cleanup_also_fails(self) -> None:
+        # Arrange
+        self.env["FAKE_READY_WRITE"] = "1"
+        (self.root / "fail-stop").touch()
+
+        # Act
+        result = subprocess.run(
+            [sys.executable, "-c", RUN, "full", sys.executable, "-c", TASK, "blocked"],
+            cwd=self.root,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+
+        # Assert
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("OSError: fixture transient ready write failure", result.stderr)
+        self.assertIn("Startup cleanup failed: Docker returned 1", result.stderr)
+        self.assertFalse((self.root / "blocked.ready").exists())
+        self.assertEqual(self.read_state()["phase"], "stopping")
+        self.assertFalse(self.read_state()["leases"])
+
     def test_failed_stop_retains_ownership_for_later_recovery(self) -> None:
         # Arrange
         first = self.start("first")

@@ -239,12 +239,15 @@ class LeaseStore:
             state["containers"] = {item.id: item.labels for item in containers}
             state["leases"][token] = self.owner(owner_birth)
             self.save(state)
-        except (DockerError, LeaseError, OSError):
+        except (DockerError, LeaseError, OSError) as error:
             # Read the last committed transaction. A failed stopping transaction
             # is already recoverable and must not get a second destructive attempt.
-            recorded = self.load() if managed else None
-            if recorded is not None and recorded["phase"] == "starting":
-                self.stop(recorded, docker)
+            try:
+                recorded = self.load() if managed else None
+                if recorded is not None and recorded["phase"] == "starting":
+                    self.stop(recorded, docker)
+            except (DockerError, LeaseError, OSError) as cleanup_error:
+                error.add_note(f"Startup cleanup failed: {cleanup_error}")
             raise
         return url, state["generation"]
 

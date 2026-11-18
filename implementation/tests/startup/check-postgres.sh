@@ -3,11 +3,36 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 source tests/disposable-postgres.sh
+export DB_NAME=t08_startup_test
 if [[ ${1:-} != --leased ]]; then
-    run_disposable_postgres bash "$0" --leased
+    # Arrange
+    reserve_disposable_postgres
+    uv run --locked python -m host_runner --db-only -- bash "$0" --leased
+    volume=$(docker volume ls --filter "label=org.nir.fixture.token=$NIR_PG_FIXTURE_TOKEN" --format '{{.Name}}')
+    project=$(docker volume inspect --format '{{index .Labels "com.docker.compose.project"}}' "$volume")
+    test -z "$(docker ps -aq --filter "label=com.docker.compose.project=$project")"
+    probe=$(mktemp -d)
+    trap 'rm -f "$probe/runner.log" "$probe/task-started"; rmdir "$probe"' EXIT
+
+    # Act
+    if uv run --locked python -m host_runner -- touch "$probe/task-started" >"$probe/runner.log" 2>&1; then
+        echo "Host runner reported ready with a missing application grant" >&2
+        exit 1
+    fi
+
+    # Assert
+    grep -F 'Runtime preflight failed: Database roles: ACL mismatch.' "$probe/runner.log"
+    grep -qF "'ads', None), 'app', 'INSERT'" "$probe/runner.log"
+    if grep -qE '^http://127[.]0[.]0[.]1:[0-9]+$' "$probe/runner.log" || [[ -e "$probe/task-started" ]]; then
+        echo "Host runner announced an address or started the task after preflight failure" >&2
+        exit 1
+    fi
+    test -z "$(docker ps -aq --filter "label=com.docker.compose.project=$project")"
+    test "$(docker volume inspect --format '{{index .Labels "org.nir.fixture.token"}}' "$volume")" = "$NIR_PG_FIXTURE_TOKEN"
+    echo "Host runner reported the failed preflight, preserved the test volume and released its containers."
+    exit 0
 fi
 assert_disposable_postgres
-export DB_NAME=t08_startup_test
 
 check_runtime() {
     docker compose run --rm --no-deps -T app sh -ec '
@@ -120,3 +145,6 @@ test "$before" = "$after"
 test "$password_before" = "$password_after"
 test "$(admin -d "$DB_NAME" -At -c "SELECT count(*) FROM auth_user")" = 1
 echo "Repeat preparation and runtime checks preserved reference edits, enabled flag and site administrator."
+
+# Arrange the isolated database for the managed app startup after this lease ends.
+admin -d "$DB_NAME" -c 'REVOKE INSERT ON public.ads FROM app'
