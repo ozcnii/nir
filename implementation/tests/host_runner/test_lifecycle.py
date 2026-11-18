@@ -177,7 +177,11 @@ class HostRunnerTests(unittest.TestCase):
         self.assertEqual(self.ready("second")["generation"], first_env["generation"])
         self.assertEqual(len(self.read_state()["leases"]), 2)
         self.assertEqual(self.read_state()["containers"], original["containers"])
+
+        # Act: release the first of the two active leases.
         self.finish(second, "second")
+
+        # Assert
         self.assertNotIn("container stop", self.events.read_text())
 
         # Act: release the last lease.
@@ -230,7 +234,11 @@ class HostRunnerTests(unittest.TestCase):
         other = self.start("other")
         # Assert: another lease must reuse the protected stack.
         self.assertEqual(self.ready("other")["generation"], data["generation"])
+
+        # Act: release the second lease while the original task is still protected.
         self.finish(other, "other")
+
+        # Assert
         self.assertNotIn("container stop", self.events.read_text())
 
         # Act: let the orphan task finish before recovery.
@@ -453,7 +461,10 @@ raise SystemExit(child.wait())
         other = self.start("other")
         # Assert
         self.assertEqual(self.ready("other")["generation"], data["generation"])
+        # Act: release the new lease while the original owner is uncertain.
         self.finish(other, "other")
+
+        # Assert
         self.assertIn(token, self.read_state()["leases"])
         self.assertNotIn("container stop", self.events.read_text())
 
@@ -511,7 +522,10 @@ raise SystemExit(child.wait())
         # Assert
         self.assertEqual(full.wait(timeout=10), 1)
         self.assertNotIn("container stop", self.events.read_text())
+        # Act: finish the task that owns the database lease.
         self.finish(database, "database")
+
+        # Assert
         self.assert_released()
 
     def test_last_release_rejects_replaced_container(self) -> None:
@@ -572,6 +586,9 @@ raise SystemExit(child.wait())
         self.assertEqual(env["project"], project)
         self.assertEqual(env["url"], "http://127.0.0.1:8001")
         self.assertEqual(env["generation"], "unmanaged")
+        # Act: release the borrowed stack.
         self.finish(first, "foreign")
+
+        # Assert
         self.assertEqual(json.loads(self.registry.read_text()), containers)
         self.assertNotIn("container stop", self.events.read_text())

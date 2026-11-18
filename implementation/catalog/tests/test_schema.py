@@ -264,9 +264,9 @@ class CatalogSchemaTests(TransactionTestCase):
         )
 
     def test_invalid_required_text_and_enum_values(self) -> None:
+        # Arrange: use the reference rows and publication from setUp.
+        # Act
         with self.assertRaises(IntegrityError) as caught:
-            # Arrange: use the reference rows and publication from setUp.
-            # Act
             Source.objects.create(code=" ", enabled=False)
         # Assert
         self.assert_database_error(caught.exception, "23514", "source_code_present")
@@ -346,7 +346,7 @@ class CatalogSchemaTests(TransactionTestCase):
         ):
             table = row._meta.db_table
             with self.subTest(table=table):
-                # Act and assert: the ORM blocks the deletion.
+                # Act: attempt ORM deletion and require ProtectedError.
                 with self.assertRaises(ProtectedError):
                     row.delete()
                 # Act: attempt deletion directly through PostgreSQL.
