@@ -82,6 +82,7 @@ admin -c 'SELECT pg_reload_conf()'
 docker compose build app
 test "$(admin -At -c 'SHOW log_statement')" = all
 test "$(admin -At -c 'SHOW log_min_duration_statement')" = 0
+admin -d template1 -c 'CREATE TABLE public.fixture_template1 (id integer)'
 
 # Act
 bash scripts/prepare-db.sh
@@ -89,6 +90,9 @@ admin -c "SELECT 't06_statement_logging_is_active'" >/dev/null
 logs=$(docker compose logs --no-color db)
 
 # Assert
+test "$(admin -d "$DB_NAME" -At -c "SELECT to_regclass('public.fixture_template1') IS NULL")" = t
+admin -d template1 -c 'DROP TABLE public.fixture_template1'
+echo "New catalog did not copy local template1 objects"
 grep -qF "t06_statement_logging_is_active" <<<"$logs"
 case "$logs" in
     *"$DB_APP_PASSWORD"*|*"$DB_MIGRATOR_PASSWORD"*|*"$POSTGRES_PASSWORD"*|*'SCRAM-SHA-256$'*)
@@ -196,6 +200,59 @@ for kind in schema owner app-password migrator-password; do
     esac
 done
 echo "Ownership, unexpected schema and both credential conflicts stopped before migrations"
+
+# Arrange
+admin -d "$conflict" <<'SQL'
+SET ROLE migrator;
+CREATE TABLE public.ads (id integer);
+CREATE FUNCTION public.fixture_return_new() RETURNS trigger
+    LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END;';
+CREATE TRIGGER fixture_trigger BEFORE INSERT ON public.ads
+    FOR EACH ROW EXECUTE FUNCTION public.fixture_return_new();
+SQL
+# Act
+if DB_NAME="$conflict" bash scripts/prepare-db.sh >"$guard_log" 2>&1; then
+    echo "Database preparation accepted a custom trigger" >&2
+    exit 1
+fi
+# Assert
+grep -F "Unexpected trigger fixture_trigger on app-writable table ads" "$guard_log"
+test "$(admin -d "$conflict" -At -c "SELECT to_regclass('public.django_migrations') IS NULL")" = t
+
+# Arrange
+runtime_check
+admin -d "$DB_NAME" <<'SQL'
+SET ROLE migrator;
+CREATE FUNCTION public.fixture_return_new() RETURNS trigger
+    LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END;';
+REVOKE EXECUTE ON FUNCTION public.fixture_return_new() FROM PUBLIC;
+CREATE TRIGGER fixture_trigger BEFORE INSERT ON public.ads
+    FOR EACH ROW EXECUTE FUNCTION public.fixture_return_new();
+SQL
+# Act
+if runtime_check >"$guard_log" 2>&1; then
+    echo "Runtime preflight accepted a custom trigger" >&2
+    exit 1
+fi
+# Assert
+grep -F "Unexpected trigger fixture_trigger on app-writable table ads" "$guard_log"
+
+# Arrange
+admin -d "$DB_NAME" <<'SQL'
+SET ROLE migrator;
+DROP TRIGGER fixture_trigger ON public.ads;
+DROP FUNCTION public.fixture_return_new();
+CREATE RULE fixture_rule AS ON INSERT TO public.ads DO ALSO NOTHING;
+SQL
+# Act
+if runtime_check >"$guard_log" 2>&1; then
+    echo "Runtime preflight accepted a rewrite rule" >&2
+    exit 1
+fi
+# Assert
+grep -F "Unexpected rewrite rule fixture_rule on app-writable table ads" "$guard_log"
+admin -d "$DB_NAME" -c 'DROP RULE fixture_rule ON public.ads'
+runtime_check
 
 # Arrange
 fixture_volume="${COMPOSE_PROJECT_NAME}_db"

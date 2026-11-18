@@ -136,7 +136,7 @@ def bootstrap() -> None:
         create_roles(admin, missing)
         if target_database is None:
             admin.execute(
-                sql.SQL("CREATE DATABASE {} OWNER migrator").format(
+                sql.SQL("CREATE DATABASE {} OWNER migrator TEMPLATE template0").format(
                     sql.Identifier(target)
                 )
             )

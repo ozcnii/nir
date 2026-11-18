@@ -148,6 +148,27 @@ def validate_database_owners(cursor: Cursor[tuple[object, ...]]) -> None:
         if owner != "migrator" and (kind, owner) != ("SCHEMA", "pg_database_owner"):
             raise RoleError(f"Unexpected owner of {kind} {name}: {owner}")
 
+    cursor.execute(
+        """
+        SELECT hooks.kind, hooks.name, relation.relname
+        FROM (
+            SELECT 'trigger' AS kind, tgname AS name, tgrelid AS relation
+            FROM pg_trigger WHERE NOT tgisinternal
+            UNION ALL
+            SELECT 'rewrite rule', rulename, ev_class FROM pg_rewrite
+        ) hooks
+        JOIN pg_class relation ON relation.oid = hooks.relation
+        JOIN pg_namespace schema ON schema.oid = relation.relnamespace
+        WHERE schema.nspname = 'public' AND relation.relname = ANY(%s::name[])
+        ORDER BY relation.relname, hooks.kind, hooks.name
+        LIMIT 1
+        """,
+        ([table for table in TABLES if table != "django_migrations"],),
+    )
+    if hook := cursor.fetchone():
+        kind, name, table = hook
+        raise RoleError(f"Unexpected {kind} {name} on app-writable table {table}")
+
 
 def existing_grants(cursor: Cursor[tuple[object, ...]]) -> set[Grant]:
     cursor.execute(
