@@ -202,6 +202,27 @@ class SnapshotTests(TestCase):
                 connection,
                 {**shifted, "address": f"{short_address}, кв. 26, кв. 27", "rooms": 4},
             )
+            qualified_address = f"{short_address}, квартира 25/1"
+            qualified = {
+                **incoming,
+                "external_id": "950000015",
+                "address": qualified_address,
+                "rooms": None,
+            }
+            qualified_created = self.accept(connection, qualified)
+            conflicting_qualifier = self.accept(
+                connection,
+                {
+                    **qualified,
+                    "observed_at": repeat["observed_at"],
+                    "address": another["address"],
+                    "rooms": 4,
+                },
+            )
+            qualified_facts = connection.execute(
+                "SELECT address, rooms FROM properties WHERE id=%s",
+                (qualified_created.property_id,),
+            ).fetchone()
             rows = connection.execute(
                 """
                 SELECT address, rooms, observed_at
@@ -222,6 +243,8 @@ class SnapshotTests(TestCase):
                 (stale.outcome, conflict.outcome, ambiguous_repeat.outcome),
                 ("stale", "conflict", "conflict"),
             )
+            self.assertEqual(conflicting_qualifier.outcome, "conflict")
+            self.assertEqual(qualified_facts, (qualified_address, None))
             self.assertEqual(
                 rows, (f"{original_address}, квартира 25", 3, repeat["observed_at"])
             )

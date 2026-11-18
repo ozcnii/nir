@@ -68,18 +68,21 @@ _STREET_AND_NUMBER = re.compile(
     rf"(?P<street>.+?) +(?:(?:дом|д\.) +)?(?P<num>{_NUMBER})\Z"
 )
 _ADDRESS_TOKEN = re.compile(r"[а-я][а-я0-9 .’'-]*\Z")
-_UNIT_NUMBER = re.compile(r"[0-9]+[а-я]?\Z")
+_UNIT_NUMBER = re.compile(rf"{_NUMBER}\Z")
 _ROOMS = re.compile(
     r"(?<!\w)(кухня-гостиная|кухня|гостиная|спальня|комната|прихожая|"
     r"коридор|санузел|ванная|гардеробная|кабинет|детская)"
     r"(?:\s*№\s*([1-9][0-9]*))?\s*[:=–-]?\s*"
     r"([0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.?\s*м)\b"
 )
+_NOT_STREET_SUFFIX = (" район", " р-н", " микрорайон", " мкр", " квартал", " округ")
 _NOT_OFFERED_ROOM = re.compile(
     r"\b(?:не|нет|без|возможн\w*|планиру\w*|проект\w*)\b"
     r"|\b(?:нескольк\w*|разн\w*|друг\w*|типов\w*|вариант\w*)\s+планиров"
+    r"|\b(?:соседн\w*|друг\w*|аналогичн\w*|типов\w*)\s+квартир"
 )
 _SENTENCE_END = re.compile(r"[.!?](?![0-9])|;")
+_SQUARE_METERS = re.compile(r"\bкв\.\s*м\b")
 _TYPOGRAPHY = str.maketrans(
     {
         "ё": "е",
@@ -185,7 +188,7 @@ def parse_address(value: str | None, region: str) -> Address | None:
         (" область", " край", " республика", " округ", " район", " муниципалитет")
     ):
         return None
-    if street.startswith(_NAME_WITHOUT_STREET):
+    if street.startswith(_NAME_WITHOUT_STREET) or street.endswith(_NOT_STREET_SUFFIX):
         return None
     # An explicitly attributed district after the settlement describes a
     # location within it. Either listing can omit it.
@@ -237,7 +240,7 @@ def _has_layout(text: str) -> bool:
         len(
             {
                 (part, ordinal)
-                for sentence in _SENTENCE_END.split(text)
+                for sentence in _SENTENCE_END.split(_SQUARE_METERS.sub("м²", text))
                 if not _NOT_OFFERED_ROOM.search(sentence)
                 for part, ordinal, size in _ROOMS.findall(sentence)
                 if Decimal(size.replace(",", ".")) > 0
@@ -313,6 +316,13 @@ def repeated_flat_patch(
     """Patch the same property only when the new address is compatible."""
     old = parse_address(previous["address"], region)
     new = parse_address(incoming["address"], region)
+    if (
+        old is None
+        and previous["address"] is not None
+        and incoming["address"] is not None
+    ):
+        # The current address may hold stronger evidence than the parser can resolve.
+        return _patch(previous, previous, None)
     if new is None and incoming["address"] is not None:
         if any(_TAG.fullmatch(_plain(part)) for part in incoming["address"].split(",")):
             # A unit qualifier in an unparseable chain cannot establish compatibility.
