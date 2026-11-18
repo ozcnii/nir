@@ -11,6 +11,8 @@ services:
       DB_PORT: "5432"
       DB_APP_PASSWORD: ${DB_APP_PASSWORD:-}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
+      NIR_RUNNER_GENERATION: ${NIR_RUNNER_GENERATION:-unmanaged}
+      NIR_HOST_RECOVERY_GENERATION: ${NIR_HOST_RECOVERY_GENERATION:-}
     ports:
       - host_ip: 127.0.0.1
         target: 8000

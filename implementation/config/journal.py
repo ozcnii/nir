@@ -3,21 +3,19 @@
 import json
 import os
 import queue
-import tempfile
 import threading
 import time
+import uuid
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
+
+from config.journal_history import STATE_FILE, directory, open_regular
+from config.journal_maintenance import append_event, recover_runs, retain_finished
 
 JOURNAL_ROOT = Path("/var/lib/app/runs")
 QUEUE_LIMIT = 256
 ACK_SECONDS = 5.0
-
-
-def timestamp() -> str:
-    return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
 @dataclass
@@ -37,31 +35,24 @@ class Job:
     initial: bool
 
 
-def sync_directory(path: Path) -> None:
-    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
-
-
-def write_snapshot(path: Path, record: dict[str, object]) -> None:
-    fd, temporary = tempfile.mkstemp(prefix=".state-", dir=path.parent)
+def write_snapshot(run: int, record: dict[str, object]) -> None:
+    temporary = f".state-{uuid.uuid4().hex}"
+    fd = open_regular(run, temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
             json.dump(record, stream, ensure_ascii=True, separators=(",", ":"))
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, path)
-        sync_directory(path.parent)
+        os.replace(temporary, STATE_FILE, src_dir_fd=run, dst_dir_fd=run)
+        os.fsync(run)
     finally:
         with suppress(FileNotFoundError):
-            os.unlink(temporary)
+            os.unlink(temporary, dir_fd=run)
 
 
 class JournalWriter:
-    def __init__(self, root: Path, instance_id: str) -> None:
+    def __init__(self, root: Path, instance_id: str, *, recover: bool = False) -> None:
         self.root = root
         self.instance_id = instance_id
         self._queue: queue.Queue[Job] = queue.Queue(maxsize=QUEUE_LIMIT)
@@ -70,6 +61,7 @@ class JournalWriter:
         self._operation = 0
         self._fault: str | None = None
         self._lost = 0
+        self._recovery_deadline = time.monotonic() + ACK_SECONDS if recover else None
         self._closing = threading.Event()
         self._fault_notice = threading.Event()
         self._reporter = threading.Thread(
@@ -96,6 +88,8 @@ class JournalWriter:
                 os.write(2, f"Collection journal storage fault: {reason}\n".encode())
 
     def _expire(self, now: float) -> None:
+        if self._recovery_deadline is not None and now >= self._recovery_deadline:
+            self._fail("journal_recovery_timeout")
         first = next(iter(self._pending.values()), None)
         if first is not None and now >= first.deadline:
             self._fail("journal_ack_timeout")
@@ -129,6 +123,11 @@ class JournalWriter:
             self._pending[ticket.operation] = ticket
             return ticket
 
+    def recovery_complete(self) -> bool:
+        with self._state:
+            self._expire(time.monotonic())
+            return self._recovery_deadline is None and self._fault is None
+
     def status(self) -> tuple[str | None, int]:
         with self._state:
             self._expire(time.monotonic())
@@ -149,15 +148,20 @@ class JournalWriter:
             self._expire(now)
             self._closing.set()
             last = next(reversed(self._pending.values()), None)
+            deadline = last.deadline if last is not None else self._recovery_deadline
             timeout = (
-                max(0.0, last.deadline - now)
-                if self._fault is None and last is not None
+                max(0.0, deadline - now)
+                if self._fault is None and deadline is not None
                 else 0.15
             )
         self._thread.join(timeout=timeout)
         with self._state:
             self._expire(time.monotonic())
-            if self._thread.is_alive() or self._pending:
+            if (
+                self._thread.is_alive()
+                or self._pending
+                or self._recovery_deadline is not None
+            ):
                 self._fail("journal_shutdown_incomplete")
             healthy = self._fault is None
             self._fault_notice.set()
@@ -165,6 +169,16 @@ class JournalWriter:
         return healthy
 
     def _write(self) -> None:
+        if self._recovery_deadline is not None:
+            try:
+                recover_runs(self.root, write_snapshot)
+            except OSError:
+                with self._state:
+                    self._fail("journal_recovery_failed")
+            finally:
+                with self._state:
+                    self._expire(time.monotonic())
+                    self._recovery_deadline = None
         while True:
             try:
                 if self._closing.is_set():
@@ -196,27 +210,37 @@ class JournalWriter:
                 self._pending.pop(job.ticket.operation)
                 if self._fault is None:
                     job.ticket.committed = True
+            if (
+                job.ticket.committed
+                and not job.event
+                and job.record["status"] == "finished"
+            ):
+                try:
+                    retain_finished(self.root, job.ticket.run_id)
+                except OSError:
+                    with self._state:
+                        self._fail("journal_retention_failed")
 
     def _persist(self, job: Job) -> None:
-        run = self.root / job.ticket.run_id
-        if job.initial:
-            if self.root.is_symlink():
-                raise OSError("journal root must not be a symlink")
-            self.root.mkdir(mode=0o700, exist_ok=True)
-            sync_directory(self.root.parent)
-            run.mkdir(mode=0o700)
-            sync_directory(self.root)
-            with (run / "events.jsonl").open("xb") as stream:
-                os.fsync(stream.fileno())
-        if job.event:
-            with (run / "events.jsonl").open("ab") as stream:
-                stream.write(
-                    json.dumps(
-                        job.record, ensure_ascii=True, separators=(",", ":")
-                    ).encode()
-                    + b"\n"
-                )
-                stream.flush()
-                os.fsync(stream.fileno())
-        else:
-            write_snapshot(run / "state.json", job.record)
+        with directory(self.root.parent) as volume:
+            if job.initial:
+                with suppress(FileExistsError):
+                    os.mkdir(self.root.name, 0o700, dir_fd=volume)
+                os.fsync(volume)
+            with directory(self.root.name, volume) as root:
+                if job.initial:
+                    os.mkdir(job.ticket.run_id, 0o700, dir_fd=root)
+                with directory(job.ticket.run_id, root) as run:
+                    if job.initial:
+                        fd = open_regular(
+                            run, "events.jsonl", os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                        )
+                        try:
+                            os.fsync(fd)
+                        finally:
+                            os.close(fd)
+                        os.fsync(root)
+                    if job.event:
+                        append_event(run, job.record)
+                    else:
+                        write_snapshot(run, job.record)

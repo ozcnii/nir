@@ -155,17 +155,28 @@ def fixture_launcher(root: Path, mode: str) -> int:
     real_replace = os.replace
     replaced_final = False
 
-    def replace(source: str | os.PathLike[str], target: str | os.PathLike[str]) -> None:
+    def replace(
+        source: str | os.PathLike[str],
+        target: str | os.PathLike[str],
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
+    ) -> None:
         nonlocal replaced_final
+        temporary = (
+            Path(source)
+            if src_dir_fd is None
+            else Path(f"/proc/self/fd/{src_dir_fd}") / source
+        )
         if (
             Path(target).name == "state.json"
-            and document(Path(source))["status"] == "finished"
+            and document(temporary)["status"] == "finished"
         ):
             if mode == "fail-before":
                 raise OSError("fixture-secret-should-not-be-stored")
             if mode == "fail-after":
                 replaced_final = True
-        real_replace(source, target)
+        real_replace(source, target, src_dir_fd=src_dir_fd, dst_dir_fd=dst_dir_fd)
 
     def fsync(fd: int) -> None:
         path = Path(os.readlink(f"/proc/self/fd/{fd}"))

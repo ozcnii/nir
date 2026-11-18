@@ -23,9 +23,16 @@ from config.control import (
     encode,
     receive,
 )
-from config.journal import JOURNAL_ROOT, JournalWriter, Ticket, timestamp
-from config.run_events import INSTANCE_ID_ENV, RUN_ID_ENV, SCHEMA_VERSION, RunnerReader
+from config.journal import JOURNAL_ROOT, JournalWriter, Ticket
+from config.run_events import (
+    INSTANCE_ID_ENV,
+    RUN_ID_ENV,
+    SCHEMA_VERSION,
+    RunnerReader,
+    timestamp,
+)
 from config.startup import web_command
+from config.volume_owner import claim_volume
 
 TICK = 0.05
 START_TIMEOUT = 10.0
@@ -175,11 +182,18 @@ class CurrentRun:
 
 
 class Supervisor:
-    def __init__(self, runner: list[str], journal_root: Path = JOURNAL_ROOT) -> None:
+    def __init__(
+        self,
+        runner: list[str],
+        journal_root: Path = JOURNAL_ROOT,
+        *,
+        recover: bool = False,
+    ) -> None:
         self.runner = runner
         self.instance_id = uuid.uuid4().hex
-        self.journal = JournalWriter(journal_root, self.instance_id)
-        self.state = "idle"
+        self.journal = JournalWriter(journal_root, self.instance_id, recover=recover)
+        self.recovering = recover
+        self.state = "unknown" if recover else "idle"
         self.reason = ""
         self.run_id: str | None = None
         self.current: CurrentRun | None = None
@@ -191,6 +205,7 @@ class Supervisor:
             "ok": ok,
             "state": self.state,
             "run_id": self.run_id,
+            "instance_id": self.instance_id,
             "cleanup_confirmed": not self.shutting_down
             and storage_fault is None
             and self.state in ("idle", "finished"),
@@ -346,6 +361,11 @@ class Supervisor:
             self.fault("invalid_runner_event")
 
     def tick(self) -> None:
+        if self.recovering:
+            if self.journal.recovery_complete():
+                self.recovering = False
+                self.state = "idle"
+            return
         fault, _ = self.journal.status()
         if fault is not None and self.state != "unknown":
             self.fault(fault)
@@ -474,6 +494,7 @@ def serve(
     runner_command: list[str],
     *,
     journal_root: Path = JOURNAL_ROOT,
+    recover: bool = False,
 ) -> int:
     # Probe both calls before spawning anything. No numerical-PID fallback.
     fd = open_pidfd(os.getpid())
@@ -482,7 +503,7 @@ def serve(
     finally:
         os.close(fd)
 
-    supervisor = Supervisor(runner_command, journal_root)
+    supervisor = Supervisor(runner_command, journal_root, recover=recover)
 
     def shutdown(_signum: int, _frame: object) -> None:
         supervisor.shutting_down = True
@@ -495,6 +516,14 @@ def serve(
 
     try:
         with ControlServer(path, supervisor) as server:
+            while supervisor.recovering and can_spawn():
+                supervisor.tick()
+                if supervisor.journal.status()[0] is not None:
+                    return 1
+                if supervisor.recovering:
+                    server.handle_request()
+            if supervisor.recovering:
+                return 1
             if not can_spawn():
                 return 0
             web = Child.spawn(web_command, permitted=can_spawn)
@@ -534,15 +563,20 @@ def serve(
 def main() -> int:
     os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings"
     os.environ.setdefault("PGCONNECT_TIMEOUT", "5")
-    preflight = subprocess.run(
-        [sys.executable, "-m", "config.startup", "--check-only"],
-        check=False,
-    )
-    if preflight.returncode:
-        return 1
     try:
+        # Held until the OS exits this launcher, even if a daemon is stuck in I/O.
+        claim_volume(JOURNAL_ROOT.parent)
+        preflight = subprocess.run(
+            [sys.executable, "-m", "config.startup", "--check-only"],
+            check=False,
+        )
+        if preflight.returncode:
+            return 1
         return serve(
-            CONTROL_PATH, web_command(), [sys.executable, "-m", "collection.runner"]
+            CONTROL_PATH,
+            web_command(),
+            [sys.executable, "-m", "collection.runner"],
+            recover=True,
         )
     except (ControlError, OSError):
         print("Launcher could not initialize local process control.", file=sys.stderr)
