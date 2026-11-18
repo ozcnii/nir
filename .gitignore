@@ -144,3 +144,10 @@ thesis/thesis.docx
 
 # macOS
 .DS_Store
+
+# Python implementation artifacts
+/implementation/.venv/
+/implementation/.mypy_cache/
+/implementation/.ruff_cache/
+/implementation/.local/
+**/__pycache__/
