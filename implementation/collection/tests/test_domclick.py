@@ -172,7 +172,8 @@ class DomclickTests(TestCase):
         # Arrange
         data = native_proposal()
         info = cast(dict[str, object], data["objectInfo"])
-        info["description"] = "Продаётся комната 9,2 м². Площадь кухни 10 м²."
+        info["description"] = "Площадь кухни 10 м²."
+        info["flatNumber"] = "25"
         address = cast(dict[str, object], data["address"])
         address["displayName"] = (
             "Россия, Самара, Солнечная улица, 7, квартира 25, комната 2"
@@ -193,6 +194,7 @@ class DomclickTests(TestCase):
 
         # Arrange
         info["roomArea"] = 9.0
+        info["description"] = "Продаётся комната 9,2 м², на фото видна кухня."
         with self.assertRaises(RejectedCard) as rejected:
             # Act
             read_native(ROOM, data)

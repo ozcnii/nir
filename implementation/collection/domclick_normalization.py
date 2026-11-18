@@ -26,7 +26,7 @@ from collection.normalization import (
     number,
     optional_integer,
 )
-from collection.room_claims import validate_room_claims
+from collection.room_claims import room_facts
 
 _REGIONS = {name.casefold(): ident for ident, name in REGIONS}
 TYPE_IDS = {
@@ -141,6 +141,17 @@ def _address(*parts: str | None) -> str | None:
                 if name:
                     names.setdefault(name.casefold(), name)
     return ", ".join(names.values()) or None
+
+
+def _with_flat_number(address: str | None, flat: str | None) -> str | None:
+    if flat and address:
+        for segment in address.split(","):
+            published = re.fullmatch(
+                r"(?:квартира|кв\.) *№? *(.+)", segment.strip(), re.IGNORECASE
+            )
+            if published and published[1].casefold() == flat.casefold():
+                return address
+    return _address(address, f"кв. {flat}" if flat else None)
 
 
 def _floors(floor: object, total: object) -> tuple[int | None, int | None]:
@@ -274,9 +285,7 @@ def normalize_native_card(
     )
     description = _text(info.get("description"), problem="invalid_description")
     if is_room:
-        validate_room_claims(description, rooms, area)
-        if rooms is not None and rooms > 1:
-            area = None
+        rooms, area = room_facts(rooms, area, description)
     if is_house:
         _check_native_house_unit(
             native_type, formatted, has_locality, description, area
@@ -292,7 +301,7 @@ def normalize_native_card(
         "property_type_id": property_type_id,
         "deal_type": deal,
         "market_segment": None,
-        "address": _address(formatted, f"кв. {flat}" if flat else None),
+        "address": _with_flat_number(formatted, flat),
         "latitude": lat,
         "longitude": lon,
         "area_m2": area,
