@@ -83,6 +83,7 @@ jobs:
       - name: Sync pinned tools
         id: tools
         run: |
+          sleep 180
           uv sync --locked --dev --python 3.13.18
           uv --version
           uv run --no-sync python --version
