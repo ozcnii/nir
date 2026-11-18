@@ -415,32 +415,48 @@ class BrowserLifecycleTests(unittest.TestCase):
         until((root / "chromium").exists)
         chromium = self.owned_fd(root, "chromium")
         worker = self.owned_fd(root, "worker")
+        worker_proc = Path(f"/proc/{(root / 'worker').read_text()}")
         until((root / "http-entered").exists)
 
         # Act
         send_pidfd(chromium, signal.SIGSTOP)
         try:
             start = time.monotonic()
+            deadline = start + 45
             response = request(
                 {"action": "stop", "run_id": initial["run_id"]}, endpoint
             )
-            outcome = self.status(endpoint, "unknown", timeout=47)
-            elapsed = time.monotonic() - start
+            outcome = self.status(
+                endpoint, "unknown", timeout=max(0.0, deadline - time.monotonic())
+            )
+            forced_elapsed = time.monotonic() - start
+            until(
+                lambda: not worker_proc.exists(),
+                timeout=max(0.0, deadline - time.monotonic()),
+            )
+            reaped_elapsed = time.monotonic() - start
+            print(
+                f"T10 hung Chromium: forced observed at {forced_elapsed:.3f}s, "
+                f"worker reaped by {reaped_elapsed:.3f}s (45s deadline)",
+                file=sys.stderr,
+            )
 
             # Assert
             self.assertEqual(response["state"], "stopping")
-            self.assertGreaterEqual(elapsed, 39.5)
-            self.assertLess(elapsed, 45)
+            self.assertGreaterEqual(forced_elapsed, 39.5)
+            self.assertLess(forced_elapsed, 45)
+            self.assertLessEqual(reaped_elapsed, 45)
             self.assertEqual(outcome["reason"], "forced_stop")
             self.assert_fenced(endpoint, outcome)
-            until(lambda: not Path(f"/proc/{(root / 'worker').read_text()}").exists())
             with self.assertRaises(ProcessLookupError):
                 send_pidfd(worker, 0)
             send_pidfd(chromium, 0)
         finally:
-            (root / "http-release").touch()
-            with suppress(ProcessLookupError):
-                send_pidfd(chromium, signal.SIGCONT)
+            try:
+                with suppress(ProcessLookupError):
+                    send_pidfd(chromium, signal.SIGCONT)
+            finally:
+                (root / "http-release").touch()
 
     def test_web_exit_stops_and_waits_for_its_runner(self) -> None:
         # Arrange
