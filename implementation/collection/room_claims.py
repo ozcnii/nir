@@ -16,12 +16,15 @@ _COUNT = re.compile(
     rf"^(?P<count>[1-9][0-9]*|{'|'.join(_WORD_COUNTS)}) +комнат(?:а|у|ы)?\b"
 )
 _IDENTIFIER = r"[0-9]+[а-я]?(?:[-/][0-9]+[а-я]?)*\b"
+_PAUSE = r" *[,—–-] *"
 _ROOM_FRAGMENT = re.compile(
     rf"{_ROOM}\b(?: +№ *(?P<room>{_IDENTIFIER}))?"
-    rf"(?: +в квартире +(?:№ *)?{_IDENTIFIER})?"
-    rf"(?: +(?:площадью +)?(?P<area>{_AMOUNT}) *{_UNIT})?"
+    rf"(?:(?: +|{_PAUSE})в квартире +(?:№ *)?{_IDENTIFIER})?"
+    rf"(?:(?: +(?:площадью +)?|{_PAUSE}площадью +)(?P<area>{_AMOUNT}) *{_UNIT})?"
 )
-_ROOM_LINK = re.compile(r" *,? +и +(?:ещ[её] +)?(?:(?:одна|одну|1) +)?")
+_ROOM_LINK = re.compile(
+    r"(?: *,? +и +|(?P<comma> *, *))(?P<extra>ещ[её] +)?(?:(?:одна|одну|1) +)?"
+)
 _TOTAL = re.compile(rf" *(?:, *)?общей площадью +({_AMOUNT}) *{_UNIT}")
 _SHARE = re.compile(r"^(?:[0-9]+/[0-9]+ +)?дол[яю]\b")
 _ALLOCATED = re.compile(
@@ -34,7 +37,7 @@ _OTHER_SCOPE = re.compile(
     r"^[ ,—-]*(?:в соседне[йм]|в друго[йм]|у сосед|не прода|не сда)"
 )
 _IMAGE = r"на (?:фото|фотографии|плане|схеме)\b"
-_DEPICTED = re.compile(rf"^(?: +{_IMAGE}| *, *{_IMAGE}(?=$|[,;]))")
+_DEPICTED = re.compile(rf"^(?:(?: +| *[—–-] *){_IMAGE}| *, *{_IMAGE}(?=$|[,;]))")
 _SEPARATE = re.compile(
     r"^[ ,—-]*(?:(?:прода[её]тся|сда[её]тся|можно купить|можно снять) +)?"
     r"(?:отдельно|не входит)\b"
@@ -69,6 +72,8 @@ def _enumerated_rooms(claim: str, first: re.Match[str]) -> tuple[int, int]:
     while link := _ROOM_LINK.match(claim, end):
         room = _ROOM_FRAGMENT.match(claim, link.end())
         if room is None:
+            break
+        if link["comma"] and not (link["extra"] or room["room"] or room["area"]):
             break
         tail = claim[room.end() :]
         if _outside_offer(tail) or _SEPARATE.match(tail):
