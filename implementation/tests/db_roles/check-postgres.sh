@@ -111,7 +111,7 @@ if f25 >"$guard_log" 2>&1; then
 fi
 # Assert
 grep -F "F25 requires the marked disposable database and app login" "$guard_log"
-test "$(admin -d "$DB_NAME" -At -c 'SELECT count(*) FROM sources')" = 0
+test "$(admin -d "$DB_NAME" -At -c "SELECT string_agg(code, ',' ORDER BY code) FROM sources")" = "avito,cian,domclick"
 
 # Arrange
 admin -c "COMMENT ON DATABASE t06_acl_test IS 'nir-f25:$NIR_T06_FIXTURE_TOKEN'"
