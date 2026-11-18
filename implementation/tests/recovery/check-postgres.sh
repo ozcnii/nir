@@ -24,10 +24,10 @@ case "${1:-}" in
     --recovered)
         # Arrange
         app=$(docker compose ps -q app)
-        read -r old_run old_instance <"$T12_FIXTURE_DIR/old-state"
+        read -r old_run old_instance good_run good_digest <"$T12_FIXTURE_DIR/old-state"
 
         # Act
-        docker exec -i "$app" python - check "$old_run" "$old_instance" <tests/recovery/check_runtime.py
+        docker exec -i "$app" python - check "$old_run" "$old_instance" "$good_run" "$good_digest" <tests/recovery/check_runtime.py
         persisted=$(admin -d "$DB_NAME" -At -c 'SELECT name FROM public.regions WHERE id = 68')
 
         # Assert

@@ -13,15 +13,17 @@ from uuid import uuid4
 
 from config import journal_history
 from config.control import encode
-from config.journal import write_snapshot
+from config.journal import write_file, write_snapshot
 from config.journal_history import (
     EVENT_FILES,
     SEGMENT_LIMIT,
+    TERMINAL_SEAL,
     JournalView,
     directory,
     read_run,
+    terminal_digest,
 )
-from config.journal_maintenance import append_event, retain_finished
+from config.journal_maintenance import append_event, retention_steps
 from config.run_events import journal_record
 
 INSTANCE = "a" * 32
@@ -35,7 +37,7 @@ BASE = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def make_run(
-    root: Path, *, order: int = 0, status: str = "finished"
+    root: Path, *, order: int = 0, status: str = "finished", confirmed: bool = True
 ) -> tuple[str, Path]:
     identifier = uuid4().hex
     run = root / identifier
@@ -59,6 +61,8 @@ def make_run(
     }
     with directory(run) as fd:
         write_snapshot(fd, record)
+        if finished and confirmed:
+            write_file(fd, TERMINAL_SEAL, terminal_digest(record))
     return identifier, run
 
 
@@ -150,6 +154,9 @@ class HistoryTests(unittest.TestCase):
         # Arrange
         healthy = [make_run(self.root, order=index) for index in range(11)]
         current, current_path = make_run(self.root, order=-100)
+        unconfirmed_id, unconfirmed = make_run(self.root, order=-30, confirmed=False)
+        mismatched_id, mismatched = make_run(self.root, order=-25)
+        (mismatched / TERMINAL_SEAL).write_bytes(b"x" * 65)
         _, running = make_run(self.root, status="running")
         _, unknown = make_run(self.root, status="unknown")
         _, bad_state = make_run(self.root, order=-20)
@@ -168,7 +175,13 @@ class HistoryTests(unittest.TestCase):
         old_id, old = healthy[0]
 
         # Act
-        view = self.read_during(old_id, lambda: retain_finished(self.root, current))
+        def retain() -> None:
+            for _ in retention_steps(self.root, current):
+                pass
+
+        view = self.read_during(old_id, retain)
+        tentative = read_run(self.root, unconfirmed_id)
+        incorrect_seal = read_run(self.root, mismatched_id)
 
         # Assert
         self.assertEqual(view.kind, "changed")
@@ -186,6 +199,11 @@ class HistoryTests(unittest.TestCase):
         ):
             self.assertTrue(path.exists())
         self.assertEqual(target.read_text(), "preserve")
+        for history in (tentative, incorrect_seal):
+            self.assertEqual(history.kind, "partial")
+            assert history.snapshot is not None
+            self.assertEqual(history.snapshot["status"], "unknown")
+            self.assertIs(history.snapshot["cleanup_confirmed"], False)
 
     def test_a_read_during_rotation_reports_the_change(self) -> None:
         # Arrange

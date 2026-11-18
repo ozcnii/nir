@@ -15,13 +15,16 @@ from typing import cast
 from unittest.mock import patch
 
 import django
+from check_history import make_run
 from django.db import connection
 
 from collection import runner
 from collection.selection import Direction, Selection, parse
+from config import journal_maintenance
 from config.collection_lock import RunSession
 from config.control import encode, request
 from config.journal import JOURNAL_ROOT
+from config.journal_history import TERMINAL_SEAL, JournalView, read_run
 from config.launcher import serve
 from config.run_events import INSTANCE_ID_ENV, RUN_ID_ENV
 
@@ -154,6 +157,16 @@ def fixture_launcher(root: Path, mode: str) -> int:
     real_fsync = os.fsync
     real_replace = os.replace
     replaced_final = False
+    real_read = read_run
+    visits = 0
+
+    def slow_history(path: Path, identifier: str, *, limit: int) -> JournalView:
+        nonlocal visits
+        if mode == "slow-retention" and visits < 2:
+            visits += 1
+            (root / f"retention-{visits}").touch()
+            until((root / f"release-retention-{visits}").exists)
+        return real_read(path, identifier, limit=limit)
 
     def replace(
         source: str | os.PathLike[str],
@@ -182,7 +195,7 @@ def fixture_launcher(root: Path, mode: str) -> int:
         path = Path(os.readlink(f"/proc/self/fd/{fd}"))
         if mode == "fail-after" and replaced_final and path.is_dir():
             raise OSError("fixture-secret-should-not-be-stored")
-        if path.name.startswith(".state-"):
+        if path.name.startswith(".state.json-"):
             status = document(path)["status"]
             if (
                 (mode.startswith("initial") and status == "starting")
@@ -205,16 +218,31 @@ def fixture_launcher(root: Path, mode: str) -> int:
     with (
         patch.object(os, "fsync", fsync),
         patch.object(os, "replace", replace),
+        patch.object(journal_maintenance, "read_run", slow_history),
     ):
         journal_root = JOURNAL_ROOT if mode == "initial-start" else root / "runs"
-        return serve(root / "control.sock", web, worker, journal_root=journal_root)
+        return serve(
+            root / "control.sock",
+            web,
+            worker,
+            journal_root=journal_root,
+            recover=mode in ("recover-existing", "slow-retention"),
+        )
 
 
 class JournalTests(unittest.TestCase):
-    def fixture(self, mode: str) -> tuple[Path, Path, subprocess.Popen[bytes]]:
-        temp = tempfile.TemporaryDirectory()
-        self.addCleanup(temp.cleanup)
-        root = Path(temp.name)
+    def fixture(
+        self, mode: str, root: Path | None = None
+    ) -> tuple[Path, Path, subprocess.Popen[bytes]]:
+        if root is None:
+            temp = tempfile.TemporaryDirectory()
+            self.addCleanup(temp.cleanup)
+            root = Path(temp.name)
+        if mode == "slow-retention":
+            journal_root = root / "runs"
+            journal_root.mkdir()
+            for order in range(11):
+                make_run(journal_root, order=order)
         endpoint = root / "control.sock"
         process = subprocess.Popen(
             [sys.executable, __file__, "launcher", str(root), mode],
@@ -227,6 +255,8 @@ class JournalTests(unittest.TestCase):
     @staticmethod
     def finish(process: subprocess.Popen[bytes], root: Path) -> None:
         (root / "sync-release").touch()
+        for index in (1, 2):
+            (root / f"release-retention-{index}").touch()
         try:
             if process.poll() is None:
                 process.terminate()
@@ -368,6 +398,14 @@ class JournalTests(unittest.TestCase):
                 run = root / "runs" / run_id
                 snapshot = document(run / "state.json")
                 events = (run / "events.jsonl").read_text()
+                unsealed = not (run / TERMINAL_SEAL).exists()
+                view = read_run(root / "runs", run_id)
+                if mode == "fail-after":
+                    process.terminate()
+                    process.wait(timeout=8)
+                    _, recovered_endpoint, _ = self.fixture("recover-existing", root)
+                    observed_state(recovered_endpoint, "idle")
+                    recovered = read_run(root / "runs", run_id)
                 with connection.cursor() as cursor:
                     cursor.execute(
                         "SELECT id FROM public.t09_probe WHERE id=%s", (identifier,)
@@ -382,6 +420,13 @@ class JournalTests(unittest.TestCase):
                 )
                 self.assertIs(failure["cleanup_confirmed"], False)
                 self.assertEqual(snapshot["status"], persisted)
+                self.assertTrue(unsealed)
+                if mode == "fail-after":
+                    assert view.snapshot is not None and recovered.snapshot is not None
+                    self.assertEqual(view.snapshot["status"], "unknown")
+                    self.assertIs(view.snapshot["cleanup_confirmed"], False)
+                    self.assertEqual(recovered.snapshot["outcome"], "error")
+                    self.assertEqual(recovered.snapshot["reason"], "app_restarted")
                 self.assertEqual(row, (identifier,))
                 self.assertNotIn("fixture-secret", events)
                 self.assertIn('"committed_writes":1', events)
@@ -466,6 +511,29 @@ class JournalTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(saved["status"], "unknown")
         self.assertIs(saved["cleanup_confirmed"], False)
+
+    def test_start_and_ack_do_not_wait_for_a_retention_scan(self) -> None:
+        # Arrange
+        root, endpoint, _ = self.fixture("slow-retention")
+        until((root / "retention-1").exists)
+        idle = observed_state(endpoint, "idle")
+
+        # Act
+        queued = request(START, endpoint)
+        (root / "release-retention-1").touch()
+        until((root / "retention-2").exists)
+        running = observed_state(endpoint, "running")
+        still_scanning = not (root / "release-retention-2").exists()
+        (root / "release-retention-2").touch()
+        request({"action": "stop", "run_id": running["run_id"]}, endpoint)
+        finished = observed_state(endpoint, "finished")
+
+        # Assert
+        self.assertIs(idle["cleanup_confirmed"], True)
+        self.assertEqual(queued["state"], "starting")
+        self.assertTrue(still_scanning)
+        self.assertEqual(running["run_id"], queued["run_id"])
+        self.assertIs(finished["cleanup_confirmed"], True)
 
     def test_reader_validates_identity_sequence_and_safe_payload_before_disk(
         self,

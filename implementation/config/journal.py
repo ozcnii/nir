@@ -6,12 +6,19 @@ import queue
 import threading
 import time
 import uuid
+from collections.abc import Generator
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
-from config.journal_history import STATE_FILE, directory, open_regular
-from config.journal_maintenance import append_event, recover_runs, retain_finished
+from config.journal_history import (
+    STATE_FILE,
+    TERMINAL_SEAL,
+    directory,
+    open_regular,
+    terminal_digest,
+)
+from config.journal_maintenance import append_event, recover_runs, retention_steps
 
 JOURNAL_ROOT = Path("/var/lib/app/runs")
 QUEUE_LIMIT = 256
@@ -35,20 +42,24 @@ class Job:
     initial: bool
 
 
-def write_snapshot(run: int, record: dict[str, object]) -> None:
-    temporary = f".state-{uuid.uuid4().hex}"
+def write_file(run: int, name: str, data: bytes) -> None:
+    temporary = f".{name}-{uuid.uuid4().hex}"
     fd = open_regular(run, temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            json.dump(record, stream, ensure_ascii=True, separators=(",", ":"))
-            stream.write("\n")
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, STATE_FILE, src_dir_fd=run, dst_dir_fd=run)
+        os.replace(temporary, name, src_dir_fd=run, dst_dir_fd=run)
         os.fsync(run)
     finally:
         with suppress(FileNotFoundError):
             os.unlink(temporary, dir_fd=run)
+
+
+def write_snapshot(run: int, record: dict[str, object]) -> None:
+    raw = json.dumps(record, ensure_ascii=True, separators=(",", ":")).encode() + b"\n"
+    write_file(run, STATE_FILE, raw)
 
 
 class JournalWriter:
@@ -59,6 +70,7 @@ class JournalWriter:
         self._state = threading.Lock()
         self._pending: dict[int, Ticket] = {}
         self._operation = 0
+        self._maintenance: Generator[None] | None = None
         self._fault: str | None = None
         self._lost = 0
         self._recovery_deadline = time.monotonic() + ACK_SECONDS if recover else None
@@ -171,7 +183,8 @@ class JournalWriter:
     def _write(self) -> None:
         if self._recovery_deadline is not None:
             try:
-                recover_runs(self.root, write_snapshot)
+                recover_runs(self.root, self._write_state)
+                self._maintenance = retention_steps(self.root)
             except OSError:
                 with self._state:
                     self._fail("journal_recovery_failed")
@@ -181,13 +194,15 @@ class JournalWriter:
                     self._recovery_deadline = None
         while True:
             try:
-                if self._closing.is_set():
+                if self._closing.is_set() or self._maintenance is not None:
                     job = self._queue.get_nowait()
                 else:
                     job = self._queue.get(timeout=0.05)
             except queue.Empty:
                 if self._closing.is_set():
+                    self._cancel_maintenance()
                     return
+                self._maintain()
                 continue
             with self._state:
                 self._expire(time.monotonic())
@@ -215,11 +230,43 @@ class JournalWriter:
                 and not job.event
                 and job.record["status"] == "finished"
             ):
-                try:
-                    retain_finished(self.root, job.ticket.run_id)
-                except OSError:
-                    with self._state:
-                        self._fail("journal_retention_failed")
+                self._cancel_maintenance()
+                self._maintenance = retention_steps(self.root, job.ticket.run_id)
+
+    def _cancel_maintenance(self) -> None:
+        if self._maintenance is not None:
+            self._maintenance.close()
+            self._maintenance = None
+
+    def _maintain(self) -> None:
+        if self._maintenance is None:
+            return
+        with self._state:
+            self._expire(time.monotonic())
+            healthy = self._fault is None
+        if not healthy:
+            self._cancel_maintenance()
+            return
+        try:
+            next(self._maintenance)
+        except StopIteration:
+            self._maintenance = None
+        except OSError:
+            self._cancel_maintenance()
+            with self._state:
+                self._fail("journal_retention_failed")
+
+    def _write_state(self, run: int, record: dict[str, object]) -> None:
+        write_snapshot(run, record)
+        if record["status"] != "finished":
+            return
+        with self._state:
+            self._expire(time.monotonic())
+            timely_snapshot = self._fault is None
+        if timely_snapshot:
+            # A surviving seal attests to the already-synced, timely snapshot.
+            # The control loop still waits for the whole writer operation's ACK.
+            write_file(run, TERMINAL_SEAL, terminal_digest(record))
 
     def _persist(self, job: Job) -> None:
         with directory(self.root.parent) as volume:
@@ -243,4 +290,4 @@ class JournalWriter:
                     if job.event:
                         append_event(run, job.record)
                     else:
-                        write_snapshot(run, job.record)
+                        self._write_state(run, job.record)

@@ -1,5 +1,6 @@
 """Controlled predecessor and probes for the real Docker recovery test."""
 
+import hashlib
 import json
 import os
 import stat
@@ -56,6 +57,10 @@ def fixture_run(raw: str) -> int:
         initialized: Callable[[], None],
     ) -> None:
         initialized()
+        one = CONTROL_PATH.parent / "complete-next"
+        if one.exists():
+            one.unlink()
+            return
         # This controlled predecessor stays in its own old process namespace.
         while not stopped():
             time.sleep(0.04)
@@ -85,6 +90,10 @@ def identify_predecessor() -> None:
     until(CONTROL_PATH.exists)
 
     # Act
+    (CONTROL_PATH.parent / "complete-next").touch()
+    good_id = str(request(START)["run_id"])
+    observed("finished")
+    good = (JOURNAL_ROOT / good_id / "state.json").read_bytes()
     request(START)
     running = observed("running")
     identifier = str(running["run_id"])
@@ -94,7 +103,9 @@ def identify_predecessor() -> None:
     # Assert
     assert stat.S_ISSOCK(CONTROL_PATH.stat().st_mode)
     assert not running["cleanup_confirmed"]
-    print(f"{identifier} {running['instance_id']}")
+    print(
+        f"{identifier} {running['instance_id']} {good_id} {hashlib.sha256(good).hexdigest()}"
+    )
 
 
 def assert_lifetime_lock() -> None:
@@ -120,12 +131,16 @@ def assert_lifetime_lock() -> None:
     assert reason == "application volume already has an owner"
 
 
-def inspect_recovered(identifier: str, old_instance: str) -> None:
+def inspect_recovered(
+    identifier: str, old_instance: str, good_id: str, good_digest: str
+) -> None:
     # Arrange
     initial = observed("idle")
     initial_dirs = {path.name for path in JOURNAL_ROOT.iterdir()}
     old = read_run(JOURNAL_ROOT, identifier)
     damaged = read_run(JOURNAL_ROOT, CORRUPT_RUN)
+    good = read_run(JOURNAL_ROOT, good_id)
+    good_bytes = (JOURNAL_ROOT / good_id / "state.json").read_bytes()
     assert_lifetime_lock()
 
     # Act
@@ -136,7 +151,9 @@ def inspect_recovered(identifier: str, old_instance: str) -> None:
     # Assert
     assert initial["instance_id"] != old_instance and initial["run_id"] is None
     assert stat.S_IMODE(CONTROL_PATH.stat().st_mode) == 0o600
-    assert initial_dirs == {identifier, CORRUPT_RUN}
+    assert initial_dirs == {identifier, CORRUPT_RUN, good_id}
+    assert good.snapshot is not None and good.snapshot["outcome"] == "completed"
+    assert hashlib.sha256(good_bytes).hexdigest() == good_digest
     assert old.snapshot is not None
     assert old.snapshot["status"] == "finished" and old.snapshot["outcome"] == "error"
     assert old.snapshot["reason"] == "app_restarted"
@@ -166,4 +183,4 @@ if __name__ == "__main__":
     if mode == "identify":
         identify_predecessor()
     elif mode == "check":
-        inspect_recovered(sys.argv[2], sys.argv[3])
+        inspect_recovered(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])

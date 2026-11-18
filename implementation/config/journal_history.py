@@ -1,5 +1,7 @@
 """Bounded, read-only journal snapshots for the admin layer."""
 
+import hashlib
+import json
 import os
 import stat
 from collections import deque
@@ -18,7 +20,8 @@ from config.volume_owner import valid_identity
 SEGMENT_LIMIT = 5 * 1024 * 1024
 EVENT_FILES = ("events.jsonl.2", "events.jsonl.1", "events.jsonl")
 STATE_FILE = "state.json"
-RUN_FILES = frozenset((*EVENT_FILES, STATE_FILE))
+TERMINAL_SEAL = "state.ack"
+RUN_FILES = frozenset((*EVENT_FILES, STATE_FILE, TERMINAL_SEAL))
 STATUSES = {"starting", "running", "stopping", "finished", "unknown"}
 OUTCOMES = {"completed", "completed_with_errors", "stopped", "error"}
 
@@ -131,9 +134,26 @@ def read_snapshot(run: int, identifier: str) -> dict[str, object]:
     return record
 
 
+def terminal_digest(snapshot: dict[str, object]) -> bytes:
+    canonical = json.dumps(
+        snapshot, ensure_ascii=True, separators=(",", ":"), sort_keys=True
+    )
+    return hashlib.sha256(canonical.encode()).hexdigest().encode() + b"\n"
+
+
+def terminal_confirmed(run: int, snapshot: dict[str, object]) -> bool:
+    if snapshot["status"] != "finished":
+        return False
+    try:
+        with os.fdopen(open_regular(run, TERMINAL_SEAL, os.O_RDONLY), "rb") as stream:
+            return stream.read(66) == terminal_digest(snapshot)
+    except OSError:
+        return False
+
+
 def file_fingerprint(run: int) -> Fingerprint:
     files = []
-    for name in (*EVENT_FILES, STATE_FILE):
+    for name in (*EVENT_FILES, STATE_FILE, TERMINAL_SEAL):
         try:
             info = os.stat(name, dir_fd=run, follow_symlinks=False)
         except FileNotFoundError:
@@ -226,6 +246,23 @@ def read_run(root: Path, identifier: str, *, limit: int = 100) -> JournalView:
             else:
                 names = tuple(name for name, *_ in before if name in EVENT_FILES)
                 view = read_events(run, names, snapshot, limit)
+                if snapshot["status"] == "finished" and not terminal_confirmed(
+                    run, snapshot
+                ):
+                    progress = cast(dict[str, object], snapshot["progress"])
+                    view = replace(
+                        view,
+                        kind="partial" if view.kind in ("ok", "empty") else view.kind,
+                        snapshot={
+                            **snapshot,
+                            "status": "unknown",
+                            "outcome": None,
+                            "reason": "cleanup_not_confirmed",
+                            "finished_at": None,
+                            "progress": {**progress, "incomplete": True},
+                            "cleanup_confirmed": False,
+                        },
+                    )
             try:
                 after = file_fingerprint(run)
                 current = os.stat(identifier, dir_fd=parent, follow_symlinks=False)

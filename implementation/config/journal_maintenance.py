@@ -1,7 +1,7 @@
 """Journal rotation, retention and restart repair, called by its single writer."""
 
 import os
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator, Iterator
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
@@ -19,6 +19,7 @@ from config.journal_history import (
     open_regular,
     read_run,
     read_snapshot,
+    terminal_confirmed,
 )
 from config.run_events import timestamp
 from config.volume_owner import valid_identity
@@ -49,19 +50,20 @@ def append_event(run: int, record: dict[str, object]) -> None:
         os.fsync(run)
 
 
-def snapshots(parent: int) -> Iterator[tuple[str, int, dict[str, object]]]:
+def snapshots(parent: int) -> Iterator[tuple[str, int, dict[str, object]] | None]:
     with os.scandir(parent) as entries:
         for entry in entries:
             if not valid_identity(entry.name) or not entry.is_dir(
                 follow_symlinks=False
             ):
+                yield None
                 continue
             try:
                 with directory(entry.name, parent) as run:
                     yield entry.name, run, read_snapshot(run, entry.name)
             except (OSError, ControlError, ValueError, InvalidSelection):
                 # Preserve an unreadable, unsupported, or corrupt history as-is.
-                continue
+                yield None
 
 
 def recover_runs(root: Path, write: SnapshotWriter) -> None:
@@ -70,8 +72,11 @@ def recover_runs(root: Path, write: SnapshotWriter) -> None:
             os.mkdir(root.name, 0o700, dir_fd=volume)
         os.fsync(volume)
         with directory(root.name, volume) as parent:
-            for _, run, snapshot in snapshots(parent):
-                if snapshot["status"] == "finished":
+            for item in snapshots(parent):
+                if item is None:
+                    continue
+                _, run, snapshot = item
+                if terminal_confirmed(run, snapshot):
                     continue
                 now = timestamp()
                 progress = cast(dict[str, object], snapshot["progress"])
@@ -88,7 +93,6 @@ def recover_runs(root: Path, write: SnapshotWriter) -> None:
                         "cleanup_confirmed": True,
                     },
                 )
-    retain_finished(root)
 
 
 def retire(root: Path, identifier: str, identity: tuple[int, int]) -> None:
@@ -119,22 +123,26 @@ def retire(root: Path, identifier: str, identity: tuple[int, int]) -> None:
         os.fsync(parent)
 
 
-def retain_finished(root: Path, current: str | None = None) -> None:
+def retention_steps(root: Path, current: str | None = None) -> Generator[None]:
+    candidates: list[tuple[datetime, str]] = []
     with directory(root) as parent:
-        candidates: list[tuple[datetime, str]] = [
-            (journal_time(snapshot["finished_at"]), identifier)
-            for identifier, _, snapshot in snapshots(parent)
-            if snapshot["status"] == "finished"
-        ]
+        for item in snapshots(parent):
+            if item is not None:
+                identifier, run, snapshot = item
+                if terminal_confirmed(run, snapshot):
+                    candidates.append(
+                        (journal_time(snapshot["finished_at"]), identifier)
+                    )
+            yield
     if len(candidates) <= KEEP_FINISHED:
         return
     retained = 0
     for _, identifier in sorted(candidates, reverse=True):
         view = read_run(root, identifier, limit=1)
-        if view.kind not in ("ok", "empty") or view.identity is None:
-            continue
-        retained += 1
-        if retained > KEEP_FINISHED and identifier != current:
-            # An independent cleanup may have withdrawn the candidate meanwhile.
-            with suppress(FileNotFoundError):
-                retire(root, identifier, view.identity)
+        if view.kind in ("ok", "empty") and view.identity is not None:
+            retained += 1
+            if retained > KEEP_FINISHED and identifier != current:
+                # An independent cleanup may have withdrawn the candidate meanwhile.
+                with suppress(FileNotFoundError):
+                    retire(root, identifier, view.identity)
+        yield
