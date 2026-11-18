@@ -3,6 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal, TypedDict
+from urllib.parse import urlsplit
 
 Deal = Literal["sale", "month_rent", "day_rent"]
 PriceKind = Literal["listed", "from"]
@@ -54,4 +55,24 @@ class ActiveSnapshot(SnapshotKey):
     photos: KnownPhotos | Unavailable
 
 
-Snapshot = ActiveSnapshot | UnavailableSnapshot
+class RemovedSnapshot(SnapshotKey):
+    state: Literal["removed"]
+
+
+Snapshot = ActiveSnapshot | RemovedSnapshot | UnavailableSnapshot
+
+
+def is_http_url(value: object) -> bool:
+    if not isinstance(value, str) or any(
+        char.isspace() or ord(char) < 32 for char in value
+    ):
+        return False
+    try:
+        url = urlsplit(value)
+        return (
+            url.scheme in ("http", "https")
+            and bool(url.hostname)
+            and url.username is None
+        )
+    except ValueError:
+        return False
