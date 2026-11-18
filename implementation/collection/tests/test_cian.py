@@ -35,7 +35,9 @@ def script(offer: dict[str, object]) -> str:
 
 
 def parsed(url: str, offer: dict[str, object], product: dict[str, object]) -> Snapshot:
-    return parse_card(url, OBSERVED_AT, [script(offer)], [json.dumps(product)])
+    return parse_card(
+        url, OBSERVED_AT, [script(offer)], [json.dumps(product)], loaded_url=url
+    )
 
 
 class CianCardTests(TestCase):
@@ -64,7 +66,7 @@ class CianCardTests(TestCase):
             context.route("**/*", serve_projection)
             page = context.new_page()
             page.goto(url)
-            result = read_card(page, OBSERVED_AT)
+            result = read_card(page, url, OBSERVED_AT)
 
         # Assert
         self.assertEqual(received, [url])
@@ -105,6 +107,7 @@ class CianCardTests(TestCase):
             ("category", None),
             ("totalArea", "47.211"),
             ("floorNumber", "2–14"),
+            ("roomsCount", 0),
         ):
             with self.subTest(field=field):
                 # Arrange: synthetic damage to a saved projection.
@@ -134,15 +137,49 @@ class CianCardTests(TestCase):
         self.assertEqual(result["photos"], {"status": "unavailable"})
 
     def test_explicit_empty_gallery_is_known(self) -> None:
-        # Arrange: synthetic empty primary gallery in both representations.
+        for primary, expected in (
+            (None, {"status": "unavailable"}),
+            ([], {"status": "known", "urls": []}),
+        ):
+            with self.subTest(primary=primary):
+                # Arrange: synthetic incomplete or confirmed empty gallery.
+                url, offer, product = projection()
+                if primary is None:
+                    del offer["photos"]
+                else:
+                    offer["photos"] = primary
+                product["image"] = []
+                offer["description"] = "Тест: ремонт не требуется.   Площадь 47,21 м²."
+
+                # Act
+                result = parsed(url, offer, product)
+
+                # Assert
+                assert result["state"] == "active"
+                self.assertEqual(result["photos"], expected)
+                self.assertEqual(result["description"], offer["description"])
+
+    def test_redirect_cannot_change_the_publication_key(self) -> None:
+        # Arrange: the browser finishes on B after a request for A.
         url, offer, product = projection()
-        offer["photos"] = []
-        product["image"] = []
+        requested = url.replace("330631159", "330631158")
 
         # Act
-        result = parsed(url, offer, product)
+        result = parse_card(
+            requested,
+            OBSERVED_AT,
+            [script(offer)],
+            [json.dumps(product)],
+            loaded_url=url,
+        )
 
         # Assert
-        self.assertEqual(result["state"], "active")
-        assert result["state"] == "active"
-        self.assertEqual(result["photos"], {"status": "known", "urls": []})
+        self.assertEqual(
+            result,
+            {
+                "source_code": "cian",
+                "external_id": "330631158",
+                "observed_at": OBSERVED_AT,
+                "state": "unavailable",
+            },
+        )

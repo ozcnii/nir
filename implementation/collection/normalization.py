@@ -129,10 +129,8 @@ def _photos(
         return {"status": "known", "urls": []}
     if (
         not isinstance(images, list)
-        or (
-            published is not None
-            and (not isinstance(published, list) or len(published) != len(images))
-        )
+        or not isinstance(published, list)
+        or len(published) != len(images)
         or not all(_photo_url(url) for url in cast(list[object], images))
     ):
         return {"status": "unavailable"}
@@ -189,6 +187,9 @@ def normalize_cian_card(
     )
     if floor is not None and floors is not None and floor > floors:
         raise RejectedCard("floor_above_building")
+    rooms = optional_integer(offer.get("roomsCount"), minimum=0)
+    if rooms == 0:
+        raise RejectedCard("unconfirmed_studio")
     description = offer.get("description")
     if description is not None and not isinstance(description, str):
         raise RejectedCard("invalid_description")
@@ -207,7 +208,7 @@ def normalize_cian_card(
         "area_m2": decimal_2(area, minimum=Decimal("0.01"), maximum=Decimal("1e10"))
         if area is not None
         else None,
-        "rooms": optional_integer(offer.get("roomsCount"), minimum=0),
+        "rooms": rooms,
         "floor": floor,
         "floors_total": floors,
         "land_area_m2": None,

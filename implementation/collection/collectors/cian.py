@@ -73,12 +73,14 @@ def _product(scripts: Iterable[str], key: str) -> dict[str, object]:
 
 
 def parse_card(
-    url: str,
+    requested_url: str,
     observed_at: datetime,
     config_scripts: Iterable[str],
     product_scripts: Iterable[str],
+    *,
+    loaded_url: str,
 ) -> Snapshot:
-    external_id = card_key(url)
+    external_id = card_key(requested_url)
     if external_id is None or observed_at.utcoffset() is None:
         raise RejectedCard("invalid_identity")
     key: SnapshotKey = {
@@ -86,18 +88,23 @@ def parse_card(
         "external_id": external_id,
         "observed_at": observed_at,
     }
+    if card_key(loaded_url) != external_id:
+        return {**key, "state": "unavailable"}
     data = _state(config_scripts)
     if not data:
         return {**key, "state": "unavailable"}
 
-    return normalize_cian_card(url, key, data, _product(product_scripts, external_id))
+    return normalize_cian_card(
+        loaded_url, key, data, _product(product_scripts, external_id)
+    )
 
 
-def read_card(page: Page, observed_at: datetime) -> Snapshot:
+def read_card(page: Page, requested_url: str, observed_at: datetime) -> Snapshot:
     """Read the current page after navigation, without requesting media."""
     return parse_card(
-        page.url,
+        requested_url,
         observed_at,
         page.locator("script:not([src])").all_text_contents(),
         page.locator('script[type="application/ld+json"]').all_text_contents(),
+        loaded_url=page.url,
     )

@@ -44,7 +44,18 @@
     },
     "bargainTerms": {
       "price": 7246735
-    }
+    },
+    "photos": [
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ]
   },
   "product": {
     "@type": "Product",

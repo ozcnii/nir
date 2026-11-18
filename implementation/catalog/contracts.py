@@ -30,8 +30,8 @@ class SnapshotKey(TypedDict):
     observed_at: datetime
 
 
-class InactiveSnapshot(SnapshotKey):
-    state: Literal["removed", "unavailable"]
+class UnavailableSnapshot(SnapshotKey):
+    state: Literal["unavailable"]
 
 
 class ActiveSnapshot(SnapshotKey):
@@ -54,4 +54,4 @@ class ActiveSnapshot(SnapshotKey):
     photos: KnownPhotos | Unavailable
 
 
-Snapshot = ActiveSnapshot | InactiveSnapshot
+Snapshot = ActiveSnapshot | UnavailableSnapshot
