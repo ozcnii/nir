@@ -28,6 +28,7 @@ jobs:
         run: |
           app=true
           paths=$(mktemp)
+          trap 'rm -f "$paths"' EXIT
           if [[ "$EVENT" == pull_request ]]; then
             BASE=$(git merge-base "$BASE" "$HEAD_SHA") || BASE=
           fi
@@ -53,6 +54,25 @@ jobs:
     needs: classify
     if: needs.classify.outputs.app == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: implementation
+        shell: bash
+    services:
+      postgres:
+        image: postgres:17.12-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: ci-django-disposable
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres -d postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -60,9 +80,98 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: '0.13.9'
-      - run: uv --directory implementation sync --locked --dev
-      - run: uv --project implementation run --no-sync pre-commit validate-config
-      - run: bash implementation/scripts/check-style.sh --types
+      - name: Sync pinned tools
+        id: tools
+        run: |
+          uv sync --locked --dev --python 3.13.18
+          uv --version
+          uv run --no-sync python --version
+      - name: Check style and types
+        id: static
+        run: |
+          uv run --no-sync pre-commit validate-config ../.pre-commit-config.yaml
+          bash scripts/check-style.sh --types
+      - name: Install the pinned Playwright Chromium
+        id: chromium
+        run: uv run --no-sync playwright install --with-deps --no-shell chromium
+      - name: Check Django, migrations and application behavior
+        id: django
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
+          DB_NAME: postgres
+          POSTGRES_PASSWORD: ci-django-disposable
+        run: |
+          uv run --no-sync python - <<'PYCODE'
+          import os
+          import psycopg
+
+          with psycopg.connect(
+              user="postgres", password=os.environ["POSTGRES_PASSWORD"],
+              dbname=os.environ["DB_NAME"], host=os.environ["DB_HOST"],
+              port=os.environ["DB_PORT"],
+          ) as connection:
+              print(f"Django test service PostgreSQL server_version_num={connection.info.server_version}")
+              assert connection.info.server_version == 170012
+          PYCODE
+          uv run --no-sync python manage.py check
+          uv run --no-sync python manage.py makemigrations --check --dry-run
+          uv run --no-sync python manage.py test --verbosity 2
+      - name: Check host-runner leases and journal history
+        id: local_suites
+        run: |
+          uv run --no-sync python -m unittest discover -s tests/host_runner -v
+          PYTHONPATH=. uv run --no-sync python tests/journal/check_history.py
+      - name: Check the disposable Compose fixtures
+        id: compose
+        run: |
+          docker version --format '{{.Server.Version}}'
+          docker compose version
+          export UV_PROJECT_ENVIRONMENT
+          UV_PROJECT_ENVIRONMENT=$(uv run --no-sync python -c 'import sys; print(sys.prefix)')
+          fixtures=$(mktemp -d)
+          # Each suite owns the stack keyed by its distinct worktree path. The
+          # hosted runner disposes of any test volumes intentionally kept by a suite.
+          for suite in db_roles startup launcher browser recovery stack; do
+            echo "::group::Compose fixture: $suite"
+            worktree="$fixtures/$suite"
+            GIT_LFS_SKIP_SMUDGE=1 git worktree add --detach "$worktree" HEAD
+            (
+              cd "$worktree/implementation"
+              export POSTGRES_PASSWORD DB_MIGRATOR_PASSWORD DB_APP_PASSWORD DJANGO_SECRET_KEY
+              POSTGRES_PASSWORD=$(openssl rand -hex 24)
+              DB_MIGRATOR_PASSWORD=$(openssl rand -hex 24)
+              DB_APP_PASSWORD=$(openssl rand -hex 24)
+              DJANGO_SECRET_KEY=$(openssl rand -hex 32)
+              bash "tests/$suite/check-postgres.sh"
+            )
+            git worktree remove "$worktree"
+            echo '::endgroup::'
+          done
+          rmdir "$fixtures"
+      - name: Record failed phases
+        if: failure()
+        working-directory: ${{ runner.temp }}
+        env:
+          TOOLS: ${{ steps.tools.outcome }}
+          STATIC: ${{ steps.static.outcome }}
+          CHROMIUM: ${{ steps.chromium.outcome }}
+          DJANGO: ${{ steps.django.outcome }}
+          LOCAL_SUITES: ${{ steps.local_suites.outcome }}
+          COMPOSE: ${{ steps.compose.outcome }}
+        run: |
+          printf 'SHA: %s\nTools: %s\nStatic: %s\nChromium: %s\nDjango: %s\nHost/journal: %s\nCompose: %s\n' \
+            "$GITHUB_SHA" "$TOOLS" "$STATIC" "$CHROMIUM" "$DJANGO" "$LOCAL_SUITES" "$COMPOSE" \
+            > quality-phases.txt
+      - name: Upload safe failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: quality-phases-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-phases.txt
+          if-no-files-found: ignore
+          retention-days: 7
   quality:
     needs: [classify, app-checks]
     if: always()
@@ -72,11 +181,17 @@ jobs:
       APP_NEEDED: ${{ needs.classify.outputs.app }}
       APP_RESULT: ${{ needs.app-checks.result }}
     steps:
-      - shell: bash
+      - name: Evaluate required job results
+        if: always() && !cancelled()
+        shell: bash
         run: |
+          echo "classify=$CLASSIFY app_required=$APP_NEEDED app_checks=$APP_RESULT"
           [[ "$CLASSIFY" == success ]] || exit 1
           case "$APP_NEEDED:$APP_RESULT" in
-            true:success) echo 'Initial application checks passed.' ;;
+            true:success) echo 'Current application checks passed.' ;;
             false:skipped) echo 'Application checks were not needed.' ;;
             *) exit 1 ;;
           esac
+      - name: Reject cancellation
+        if: cancelled()
+        run: exit 1

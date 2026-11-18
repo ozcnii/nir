@@ -64,7 +64,7 @@ release_fixture() {
     if [[ "$(docker volume inspect --format '{{index .Labels "org.nir.fixture.token"}}' "$db_volume")" == "$NIR_PG_FIXTURE_TOKEN" ]]; then
         docker volume rm "$db_volume" >/dev/null
     fi
-    for name in old-container old-state probe; do
+    for name in old-container old-state live-probe offline-probe offline-started; do
         if [[ -f "$T12_FIXTURE_DIR/$name" ]]; then unlink "$T12_FIXTURE_DIR/$name"; fi
     done
     rmdir "$T12_FIXTURE_DIR"
@@ -77,24 +77,41 @@ fi
 docker volume create --label "com.docker.compose.project=$project" \
     --label com.docker.compose.volume=app_data \
     --label "org.nir.fixture.token=$NIR_PG_FIXTURE_TOKEN" "$app_volume" >/dev/null
+test "$(docker volume inspect --format '{{index .Labels "com.docker.compose.project"}} {{index .Labels "org.nir.fixture.token"}}' "$app_volume")" = "$project $NIR_PG_FIXTURE_TOKEN"
 owned_app_volume=true
 uv run --locked python -m host_runner --db-only -- bash "$0" --seed
 old=$(cat "$T12_FIXTURE_DIR/old-container")
 
-# Act
-if uv run --locked python -m host_runner -- true >"$T12_FIXTURE_DIR/probe" 2>&1; then
+# Act: request a managed app while its volume is still in use.
+if uv run --locked python -m host_runner -- true >"$T12_FIXTURE_DIR/live-probe" 2>&1; then
     echo "Recovery started while a previous app_data user was live." >&2
-    exit 1
-fi
-if env -u DOCKER_CONTEXT DOCKER_HOST="unix://$T12_FIXTURE_DIR/unavailable.sock" \
-    uv run --locked python -m host_runner -- true >>"$T12_FIXTURE_DIR/probe" 2>&1; then
-    echo "Recovery started without a reachable Docker Engine." >&2
     exit 1
 fi
 
 # Assert
-grep -F 'An application volume user has not stopped' "$T12_FIXTURE_DIR/probe"
-grep -F 'unavailable.sock' "$T12_FIXTURE_DIR/probe"
+grep -F 'An application volume user has not stopped' "$T12_FIXTURE_DIR/live-probe"
+test "$(docker container inspect --format '{{.State.Running}}' "$old")" = true
+
+# Arrange: point Docker at a known absent endpoint and verify the client fails.
+offline_socket="$T12_FIXTURE_DIR/unavailable.sock"
+offline_docker=(env -u DOCKER_CONTEXT "DOCKER_HOST=unix://$offline_socket")
+test ! -e "$offline_socket"
+# Formatting daemon info can exit zero without a daemon on some CLI releases.
+if "${offline_docker[@]}" docker container ls --quiet >/dev/null 2>&1; then
+    echo "Docker unexpectedly connected using the unavailable fixture endpoint." >&2
+    exit 1
+fi
+
+# Act: request a lease whose task would leave a marker if it started.
+if "${offline_docker[@]}" uv run --locked python -m host_runner -- \
+    touch "$T12_FIXTURE_DIR/offline-started" >"$T12_FIXTURE_DIR/offline-probe" 2>&1; then
+    echo "Recovery started without a reachable Docker Engine." >&2
+    exit 1
+fi
+
+# Assert: the runner rejected the lease, never started the task and left the app live.
+grep -m 1 '^host_runner: ' "$T12_FIXTURE_DIR/offline-probe"
+test ! -e "$T12_FIXTURE_DIR/offline-started"
 test "$(docker container inspect --format '{{.State.Running}}' "$old")" = true
 
 # Act
