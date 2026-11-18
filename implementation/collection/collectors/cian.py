@@ -121,6 +121,8 @@ def capture_page(page: Page, url: str, deadline: float) -> EmbeddedPage:
                 || trimSlash(location.pathname) !== trimSlash(expected.pathname);
             const captcha = trimSlash(location.pathname) === "/cian-captcha"
                 || document.title.toLowerCase().includes("captcha");
+            // Bootstrap scripts can mention this card before its published data arrives.
+            if (!redirected && !captcha && document.readyState !== "complete") return false;
             const scripts = Array.from(document.scripts).filter(script => !script.src);
             const config = scripts.map(script => script.textContent).filter(text =>
                 text.includes("_cianConfig") && text.includes("frontend-offer-card")
