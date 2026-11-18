@@ -1,14 +1,19 @@
 """Narrow runner-to-launcher event schema and the private PIPE reader."""
 
+from __future__ import annotations
+
 import os
 import re
 import select
 import threading
-from typing import IO, cast
+from datetime import UTC, datetime
+from typing import IO, TYPE_CHECKING, cast
 
 from catalog.reference_data_v1 import SOURCE_CODES
 from config.control import MAX_MESSAGE, ControlError, decode, encode
-from config.journal import JournalWriter, timestamp
+
+if TYPE_CHECKING:
+    from config.journal import JournalWriter
 
 RUN_ID_ENV = "NIR_RUN_ID"
 INSTANCE_ID_ENV = "NIR_INSTANCE_ID"
@@ -47,10 +52,19 @@ PUBLICATION_KEY = re.compile(
 )
 
 
+def timestamp() -> str:
+    return datetime.now(UTC).isoformat(timespec="milliseconds")
+
+
 def validate_event(
     raw: bytes, instance_id: str, run_id: str, sequence: int
 ) -> dict[str, object]:
-    message = decode(raw)
+    return validate_message(decode(raw), instance_id, run_id, sequence)
+
+
+def validate_message(
+    message: dict[str, object], instance_id: str, run_id: str, sequence: int
+) -> dict[str, object]:
     event = message.get("event")
     reason = message.get("reason")
     core = {"event", "reason", "schema_version", "run_id", "instance_id", "seq"}

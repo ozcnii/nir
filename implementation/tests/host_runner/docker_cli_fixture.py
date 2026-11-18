@@ -19,6 +19,12 @@ def main() -> int:
     match args:
         case ["info", "--format", "{{.ID}}"]:
             print("fixture-engine")
+        case ["container", "ls", *_options, selector] if selector.startswith("volume="):
+            if (directory / "volume-probe-failed").exists():
+                return 1
+            for key, container in containers.items():
+                if container.get("volume") == selector.removeprefix("volume="):
+                    print(key)
         case ["container", "ls", *_options, selector]:
             project = selector.split("=")[2]
             for key, container in containers.items():
@@ -40,6 +46,8 @@ def main() -> int:
         ]:
             generation = os.environ["NIR_RUNNER_GENERATION"]
             port = os.environ["APP_PORT"]
+            proof = os.environ.get("NIR_HOST_RECOVERY_GENERATION")
+            assert proof == (generation if "app" in services else "")
             for name in services:
                 cid = f"{generation}-{name}"
                 containers[cid] = {

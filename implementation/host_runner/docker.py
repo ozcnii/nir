@@ -10,6 +10,8 @@ PROJECT = "com.docker.compose.project"
 SERVICE = "com.docker.compose.service"
 ONEOFF = "com.docker.compose.oneoff"
 GENERATION = "org.nir.runner.generation"
+GENERATION_ENV = "NIR_RUNNER_GENERATION"
+RECOVERY_ENV = "NIR_HOST_RECOVERY_GENERATION"
 SERVICES = ("app", "db")
 
 
@@ -114,7 +116,34 @@ class Docker:
             )
         return containers
 
+    def verify_app_volume_stopped(self) -> None:
+        # This includes one-offs and containers from other Compose projects.
+        volume = f"{self.project}_app_data"
+        ids = self.command(
+            "container",
+            "ls",
+            "--all",
+            "--quiet",
+            "--no-trunc",
+            "--filter",
+            f"volume={volume}",
+        ).splitlines()
+        if not ids:
+            return
+        records = cast(
+            list[dict[str, object]],
+            json.loads(self.command("container", "inspect", *ids)),
+        )
+        if {record["Id"] for record in records} != set(ids):
+            raise DockerError("Cannot verify users of the application volume")
+        for record in records:
+            state = cast(dict[str, object], record["State"])
+            if state.get("Status") != "exited" or state.get("Running") is not False:
+                raise DockerError("An application volume user has not stopped")
+
     def start(self, generation: str, port: str, db_only: bool) -> None:
+        if not db_only:
+            self.verify_app_volume_stopped()
         self.command(
             "compose",
             "--file",
@@ -125,7 +154,12 @@ class Docker:
             "--wait",
             "--no-recreate",
             *(("db",) if db_only else SERVICES),
-            env={**os.environ, "NIR_RUNNER_GENERATION": generation, "APP_PORT": port},
+            env={
+                **os.environ,
+                GENERATION_ENV: generation,
+                RECOVERY_ENV: "" if db_only else generation,
+                "APP_PORT": port,
+            },
         )
 
     def preflight_failure(self, container_id: str) -> str | None:
