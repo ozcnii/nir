@@ -243,7 +243,7 @@ def _classify(
     if not postfix and offer in (None, "Продам"):
         if family == _ROOM:
             share = params.get("Условия продажи") == "Продажа доли"
-            if (room_heading(item_title) or share) and (
+            if room_heading(item_title) and (
                 share or offer == "Продам" or "на продажу" in page_title
             ):
                 return "sale", None
