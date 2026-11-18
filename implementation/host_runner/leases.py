@@ -156,11 +156,16 @@ class LeaseStore:
             or not all(item.running for item in containers)
         ):
             raise LeaseError("Project containers are not a running app/db or db stack")
+        if not by_service["db"].healthy:
+            raise LeaseError("PostgreSQL is not healthy")
         if db_only:
             return None
-        if "app" not in by_service or by_service["app"].url is None:
+        app = by_service.get("app")
+        if app is None or app.url is None:
             raise LeaseError("No running app with a single loopback port")
-        return by_service["app"].url
+        if not app.healthy:
+            raise LeaseError("App startup healthcheck has not passed")
+        return app.url
 
     def acquire(
         self,
@@ -234,12 +239,15 @@ class LeaseStore:
             state["containers"] = {item.id: item.labels for item in containers}
             state["leases"][token] = self.owner(owner_birth)
             self.save(state)
-        except (DockerError, LeaseError, OSError):
+        except (DockerError, LeaseError, OSError) as error:
             # Read the last committed transaction. A failed stopping transaction
             # is already recoverable and must not get a second destructive attempt.
-            recorded = self.load() if managed else None
-            if recorded is not None and recorded["phase"] == "starting":
-                self.stop(recorded, docker)
+            try:
+                recorded = self.load() if managed else None
+                if recorded is not None and recorded["phase"] == "starting":
+                    self.stop(recorded, docker)
+            except (DockerError, LeaseError, OSError) as cleanup_error:
+                error.add_note(f"Startup cleanup failed: {cleanup_error}")
             raise
         return url, state["generation"]
 
@@ -248,15 +256,25 @@ class LeaseStore:
     ) -> list[Container]:
         explicit = os.environ.get("APP_PORT")
         try:
-            docker.start(generation, explicit or "8000", db_only)
+            try:
+                docker.start(generation, explicit or "8000", db_only)
+            except DockerError as error:
+                if db_only or explicit or not docker.port_conflict(error):
+                    raise
+                self.stop(state, docker)
+                state["phase"] = "starting"
+                state["containers"] = {}
+                self.save(state)
+                docker.start(generation, "0", db_only)
         except DockerError as error:
-            if db_only or explicit or not docker.port_conflict(error):
-                raise
-            self.stop(state, docker)
-            state["phase"] = "starting"
-            state["containers"] = {}
-            self.save(state)
-            docker.start(generation, "0", db_only)
+            if not db_only:
+                with suppress(DockerError, LeaseError):
+                    for container in self.owned(state, docker):
+                        if container.service == "app":
+                            reason = docker.preflight_failure(container.id)
+                            if reason is not None:
+                                error.add_note(reason)
+            raise
         return self.owned(state, docker)
 
     def register_group(self, token: str, group: int) -> None:

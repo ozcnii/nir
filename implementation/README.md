@@ -39,7 +39,7 @@ uv run --locked python -m host_runner --db-only -- <команда задачи>
 `DJANGO_SECRET_KEY`. Секреты передаются из локального окружения или
 игнорируемого файла `.env` и отсутствуют в образе.
 
-### Подготовка выделенной БД
+### Первый запуск
 
 Передайте `DB_APP_PASSWORD` и `DB_MIGRATOR_PASSWORD` через окружение
 оператора. Если имя БД отличается от `catalog`, передайте там же `DB_NAME`.
@@ -50,16 +50,26 @@ uv run --locked python -m host_runner --db-only -- <команда задачи>
 uv run --locked python -m host_runner --db-only -- bash -ec '
     docker compose build app
     bash scripts/prepare-db.sh
-    docker compose run --rm --no-deps -T app python -m config.db_roles check
+    docker compose run --rm --no-deps app python manage.py createsuperuser
+    docker compose run --rm --no-deps -T app python -m config.startup --check-only
 '
 ```
 
 Одноразовый процесс bootstrap проверяет подключение, существующие роли, владельцев
 и схему до изменений. Он создаёт недостающие роли и выделенную БД. Затем скрипт
-запускает штатный `migrate` под `migrator` и восстанавливает явную матрицу прав. Повтор сохраняет данные и пароли существующих ролей.
-Конфликт владельца останавливает подготовку. `config.db_roles check` читает
-метаданные под ролью `app`. Первый запуск администратора сайта и preflight
-перед web входят в T08.
+запускает штатный `migrate` под `migrator` и восстанавливает явную матрицу прав.
+`createsuperuser` — отдельная команда оператора под ролью `app`. Введите пароль
+в интерактивном запросе Django. При повторной подготовке используйте
+`prepare-db.sh` и `config.startup --check-only`, чтобы сохранить созданного
+администратора и данные.
+
+После завершения DB-only аренды можно запустить app и базу обычным host runner.
+При каждом запуске app проверяет применённые миграции и права роли `app`.
+При ошибке проверка завершает процесс с причиной. После успешной проверки
+стартует Django, и host runner публикует адрес после успешного healthcheck.
+Обычный перезапуск не применяет миграции, не загружает справочники и не запускает
+сбор. Для отдельной проверки первого запуска на новом проверочном томе из worktree
+используйте `bash tests/startup/check-postgres.sh` с временными паролями.
 
 ### Восстановление стандартных записей
 

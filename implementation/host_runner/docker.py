@@ -22,6 +22,7 @@ class Container:
     id: str
     labels: dict[str, str]
     running: bool
+    healthy: bool
     url: str | None
 
     @property
@@ -35,7 +36,12 @@ class Docker:
         self.project = project
         self.lock_fd = lock_fd
 
-    def command(self, *args: str, env: dict[str, str] | None = None) -> str:
+    def command(
+        self,
+        *args: str,
+        env: dict[str, str] | None = None,
+        include_stderr: bool = False,
+    ) -> str:
         # The CLI keeps the same flock if the runner dies during a mutation.
         result = subprocess.run(
             ["docker", *args],
@@ -51,7 +57,10 @@ class Docker:
             raise DockerError(
                 result.stderr.strip() or f"Docker returned {result.returncode}"
             )
-        return result.stdout.strip()
+        output = result.stdout
+        if include_stderr:
+            output += result.stderr
+        return output.strip()
 
     def daemon(self) -> str:
         identity = self.command("info", "--format", "{{.ID}}")
@@ -83,7 +92,8 @@ class Docker:
             labels = config["Labels"]
             if labels.get(ONEOFF, "").lower() == "true":
                 continue
-            state = cast(dict[str, bool], record["State"])
+            state = cast(dict[str, object], record["State"])
+            health = state.get("Health")
             network = cast(
                 dict[str, dict[str, list[dict[str, str]]]], record["NetworkSettings"]
             )
@@ -94,7 +104,13 @@ class Docker:
                 if 0 < port <= 65535:
                     url = f"http://127.0.0.1:{port}"
             containers.append(
-                Container(str(record["Id"]), labels, state["Running"], url)
+                Container(
+                    str(record["Id"]),
+                    labels,
+                    state["Running"] is True,
+                    isinstance(health, dict) and health.get("Status") == "healthy",
+                    url,
+                )
             )
         return containers
 
@@ -110,6 +126,19 @@ class Docker:
             "--no-recreate",
             *(("db",) if db_only else SERVICES),
             env={**os.environ, "NIR_RUNNER_GENERATION": generation, "APP_PORT": port},
+        )
+
+    def preflight_failure(self, container_id: str) -> str | None:
+        logs = self.command(
+            "container", "logs", "--tail", "20", container_id, include_stderr=True
+        )
+        return next(
+            (
+                line
+                for line in reversed(logs.splitlines())
+                if line.startswith("Runtime preflight failed: ")
+            ),
+            None,
         )
 
     @staticmethod

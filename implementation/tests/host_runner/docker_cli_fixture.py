@@ -51,7 +51,7 @@ def main() -> int:
                             "org.nir.runner.generation": generation,
                         }
                     },
-                    "State": {"Running": True},
+                    "State": {"Running": True, "Health": {"Status": "healthy"}},
                     "NetworkSettings": {
                         "Ports": {
                             "8000/tcp": [

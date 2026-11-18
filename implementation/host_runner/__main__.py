@@ -215,6 +215,8 @@ def main() -> int:
         return run(Path(__file__).resolve().parents[1], command, args.db_only)
     except (DockerError, LeaseError, OSError, ValueError, KeyError) as error:
         print(f"host_runner: {error}", file=sys.stderr)
+        for note in getattr(error, "__notes__", ()):
+            print(note, file=sys.stderr)
         return 1
 
 
