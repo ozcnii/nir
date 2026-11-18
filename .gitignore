@@ -145,8 +145,9 @@ thesis/thesis.docx
 # macOS
 .DS_Store
 
-# Local host-runner leases and locks
-/.local/runtime/
-
-# Python bytecode
-__pycache__/
+# Python implementation artifacts
+/implementation/.venv/
+/implementation/.mypy_cache/
+/implementation/.ruff_cache/
+/implementation/.local/
+**/__pycache__/

@@ -7,6 +7,8 @@
 [8.5](bachelor-thesis/QUALITY-8.5-PROPOSAL.md).
 При расхождении сокращённого изложения проверяй принятый подробный контракт.
 
+Все пути исходников и Python-команды относятся к [implementation/](implementation/README.md).
+
 ## Ответственность
 
 - `collection.collectors`: чтение встроенных данных площадок через Playwright,

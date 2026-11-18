@@ -4,40 +4,40 @@ repos:
     hooks:
       - id: lock
         name: Check uv lock
-        entry: uv lock --check
+        entry: uv --directory implementation lock --check
         language: unsupported
-        files: '^(pyproject\.toml|uv\.lock|\.python-version|\.pre-commit-config\.yaml)$'
+        files: '^(implementation/(pyproject\.toml|uv\.lock|\.python-version)|\.pre-commit-config\.yaml)$'
         pass_filenames: false
       - id: environment
         name: Check prepared uv environment
-        entry: uv sync --locked --check --dev
+        entry: uv --directory implementation sync --locked --check --dev
         language: unsupported
-        files: '^(pyproject\.toml|uv\.lock|\.python-version|\.pre-commit-config\.yaml|manage\.py$|(config|catalog|collection|host_runner|tests)/.*\.py$|(catalog|collection)/templates/.*\.html$)'
+        files: '^(\.pre-commit-config\.yaml$|implementation/(pyproject\.toml$|uv\.lock$|\.python-version$|manage\.py$|(config|catalog|collection|host_runner|tests)/.*\.py$|(catalog|collection)/templates/.*\.html$|scripts/[^/]+\.sh$))'
         pass_filenames: false
         fail_fast: true
       - id: ruff-lint
         name: Check staged Python lint
-        entry: uv run --no-sync ruff check --no-fix
+        entry: bash implementation/scripts/check-staged.sh ruff-lint
         language: unsupported
-        files: '^(manage\.py$|(config|catalog|collection|host_runner|tests)/.*\.py$)'
+        files: '^implementation/(manage\.py$|(config|catalog|collection|host_runner|tests)/.*\.py$)'
       - id: ruff-format
         name: Check staged Python formatting
-        entry: uv run --no-sync ruff format --check
+        entry: bash implementation/scripts/check-staged.sh ruff-format
         language: unsupported
-        files: '^(manage\.py$|(config|catalog|collection|host_runner|tests)/.*\.py$)'
+        files: '^implementation/(manage\.py$|(config|catalog|collection|host_runner|tests)/.*\.py$)'
       - id: djlint-lint
         name: Check staged Django template lint
-        entry: uv run --no-sync djlint --lint
+        entry: bash implementation/scripts/check-staged.sh djlint-lint
         language: unsupported
-        files: '^(catalog|collection)/templates/.*\.html$'
+        files: '^implementation/(catalog|collection)/templates/.*\.html$'
       - id: djlint-format
         name: Check staged Django template formatting
-        entry: uv run --no-sync djlint --check
+        entry: bash implementation/scripts/check-staged.sh djlint-format
         language: unsupported
-        files: '^(catalog|collection)/templates/.*\.html$'
+        files: '^implementation/(catalog|collection)/templates/.*\.html$'
       - id: profile
         name: Check full lint and format profile after configuration changes
-        entry: bash .github/scripts/check-style.sh
+        entry: bash implementation/scripts/check-style.sh
         language: unsupported
-        files: '^(pyproject\.toml|uv\.lock|\.python-version|\.pre-commit-config\.yaml)$'
+        files: '^(\.pre-commit-config\.yaml$|implementation/(pyproject\.toml|uv\.lock|\.python-version|scripts/[^/]+\.sh)$)'
         pass_filenames: false
