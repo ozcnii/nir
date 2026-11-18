@@ -289,6 +289,44 @@ class SnapshotTests(TestCase):
             self.assertEqual(result.outcome, "created")
             self.assertEqual(len({a.property_id, b.property_id, result.property_id}), 3)
 
+    def test_b_uses_only_complete_layout_claims_and_the_full_seller_text(self) -> None:
+        layout = "Кухня 28 м², спальня 24 м²"
+        cases = (
+            (
+                f"{layout}\nПерепланировка не предусмотрена.",
+                f"{layout} Перепланировка не предусмотрена.",
+                True,
+            ),
+            (f"{layout}, обе отсутствуют.", f"{layout}, обе отсутствуют.", False),
+            (
+                "Спальня 24 м² (она же комната 24 м²).",
+                "Спальня 24 м² (она же комната 24 м²).",
+                False,
+            ),
+            (f"{layout}, без комиссии.", f"{layout}, возможна ипотека.", False),
+        )
+        with as_app() as connection:
+            for index, (first_text, second_text, attach) in enumerate(cases):
+                with self.subTest(index=index):
+                    # Arrange
+                    first = {
+                        **card(f"95000900{index}"),
+                        "address": f"Самара, улица Гагарина, {100 + index}",
+                        "description": first_text,
+                    }
+                    second = {
+                        **first,
+                        "source_code": "domclick",
+                        "description": second_text,
+                    }
+
+                    # Act
+                    original = self.accept(connection, first)
+                    result = self.accept(connection, second)
+
+                    # Assert
+                    self.assertEqual(result.property_id == original.property_id, attach)
+
     def test_matching_description_patch_and_preserved_originals(self) -> None:
         # Arrange: published address/measurements of the F07 pair, with synthetic
         # seller wording. The optional city district is present on only one side.

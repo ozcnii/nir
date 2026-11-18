@@ -19,28 +19,28 @@ from catalog.matching_address import (
 )
 
 FLAT_ID = 1
-_ROOMS = re.compile(
-    r"(?<!\w)(кухня-гостиная|кухня|гостиная|спальня|комната|прихожая|"
+_LAYOUT_ITEM = re.compile(
+    r"(?<!\w)(?P<room>кухня-гостиная|кухня|гостиная|спальня|комната|прихожая|"
     r"коридор|санузел|ванная|гардеробная|кабинет|детская)"
-    r"(?:\s*№\s*([1-9][0-9]*))?(?:-\s*|\s*(?:[:=]\s*|-\s+)?)"
-    r"([0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.?\s*м)\b"
+    r"(?:\s*№\s*(?P<ordinal>[1-9][0-9]*))?(?:-\s*|\s*(?:[:=]\s*|-\s+)?)"
+    r"(?P<area>[0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.?\s*м)\b"
+    r"|\b(?:без комиссии|возможна ипотека|перепланировка не предусмотрена"
+    r"|не предусмотрена перепланировка)\b"
+)
+_LIST_SEPARATOR = re.compile(r"\s*(?:[,;]\s*(?:и\s+)?|и\s+)|\s+")
+_FOREIGN_HEADING = re.compile(
+    r"(?:(?:на )?фото |планировка )?соседн\w*\s+квартир\w*\b\s*[:–-]?\s*"
 )
 _OTHER_UNIT = re.compile(
     r"\b(?:соседн\w*|друг\w*|аналогичн\w*|типов\w*)\s+(?:квартир\w*|кв\b)"
     r"|\b(?:у|планировка|квартира)\s+соседей\b"
     r"|\b(?:нескольк\w*|разн\w*|друг\w*|типов\w*|вариант\w*)\s+планиров"
 )
-_OFFERED_UNIT = re.compile(r"\b(?:продаваем\w*|предлагаем\w*|сдаваем\w*)\s+квартир\w*")
-_UNASSERTED = re.compile(
-    r"\b(?:не\s+(?:предусмотр\w*|выдел\w*|буд\w*|име\w*|существ\w*)"
-    r"|возможно|отсутству\w*"
-    r"|(?:можно|планируется)\s+(?:сделать|выделить|устроить)\w*"
-    r"|нет\s+(?:(?:таких|указанных)\s+)?помещени\w*)\b"
+_OFFERED_UNIT = re.compile(
+    r"(?:в (?:продаваемой|предлагаемой|сдаваемой) квартире"
+    r"|планировка (?:продаваемой|предлагаемой|сдаваемой) квартиры)\b\s*[:–-]?\s*"
 )
-_SENTENCE_END = re.compile(
-    rf"[.!?](?![0-9])|\n(?=[^\n]*(?:{_OTHER_UNIT.pattern}|{_OFFERED_UNIT.pattern}))"
-)
-_CLAUSE_END = re.compile(r",(?![0-9])|;")
+_SENTENCE_END = re.compile(r"[.!?](?![0-9])")
 _SQUARE_METERS = re.compile(r"\bкв\.\s*м\b")
 _TYPOGRAPHY = str.maketrans(
     {
@@ -90,39 +90,58 @@ class Match:
 
 def _seller(value: str | None) -> str:
     normalized = unicodedata.normalize("NFC", value or "").lower()
-    return _EMOJI.sub(" ", normalized.translate(_TYPOGRAPHY))
+    return " ".join(_EMOJI.sub(" ", normalized.translate(_TYPOGRAPHY)).split())
+
+
+def _layout_assertions(
+    text: str,
+) -> list[tuple[tuple[str, str | None], Decimal]] | None:
+    measurements: list[tuple[tuple[str, str | None], Decimal]] = []
+    end = 0
+    for item in _LAYOUT_ITEM.finditer(text):
+        gap = text[end : item.start()]
+        if (end and not _LIST_SEPARATOR.fullmatch(gap)) or (not end and gap.strip()):
+            return None
+        end = item.end()
+        room = item["room"]
+        if room is not None:
+            area = Decimal(item["area"].replace(",", "."))
+            if area <= 0:
+                return None
+            measurements.append(((room, item["ordinal"]), area))
+    return measurements if not text[end:].strip() else None
 
 
 def _has_layout(text: str) -> bool:
-    rooms: set[tuple[str, str]] = set()
+    rooms: dict[tuple[str, str | None], set[Decimal]] = {}
     on_offer = True
     for sentence in _SENTENCE_END.split(_SQUARE_METERS.sub("м²", text)):
+        sentence = sentence.strip()
+        if heading := _FOREIGN_HEADING.match(sentence):
+            on_offer = False
+            sentence = sentence[heading.end() :]
         if _OTHER_UNIT.search(sentence):
             on_offer = False
-        clauses = [clause.strip() for clause in _CLAUSE_END.split(sentence)]
-        claims = [(clause, _ROOMS.findall(clause)) for clause in clauses]
-        denied = any(
-            (
-                _UNASSERTED.search(clause)
-                if measurements
-                else _UNASSERTED.fullmatch(clause)
-            )
-            for clause, measurements in claims
-        )
-        for clause, measurements in claims:
-            other = _OTHER_UNIT.search(clause)
-            if other or _OFFERED_UNIT.search(clause):
-                on_offer = not other
-            if on_offer and not denied and not clause.startswith("не "):
-                rooms.update(
-                    (name, ordinal)
-                    for name, ordinal, size in measurements
-                    if Decimal(size.replace(",", ".")) > 0
-                )
+            continue
+        if heading := _OFFERED_UNIT.match(sentence):
+            on_offer = True
+            sentence = sentence[heading.end() :]
+        if not on_offer:
+            continue
+        for room, area in _layout_assertions(sentence) or ():
+            rooms.setdefault(room, set()).add(area)
 
-    if ("кухня-гостиная", "") in rooms:
-        rooms.difference_update({("кухня", ""), ("гостиная", "")})
-    return len(rooms) >= 2
+    if ("кухня-гостиная", None) in rooms:
+        rooms.pop(("кухня", None), None)
+        rooms.pop(("гостиная", None), None)
+    numbered_kinds = {kind for kind, ordinal in rooms if ordinal is not None}
+    return (
+        sum(
+            len(areas) == 1 and (ordinal is not None or kind not in numbered_kinds)
+            for (kind, ordinal), areas in rooms.items()
+        )
+        >= 2
+    )
 
 
 def _patch(
@@ -197,7 +216,6 @@ def choose_flat(
     incoming: ActiveSnapshot, address: Address, candidates: list[Candidate], region: str
 ) -> Match | None:
     seller = _seller(incoming["description"])
-    description = " ".join(seller.split())
     detailed = _has_layout(seller)
     unit = address.detail("квартира")
     numbered: list[tuple[Address, str]] = []
@@ -209,16 +227,10 @@ def choose_flat(
         if other is None or not same_house(address, other):
             continue
         other_unit = other.detail("квартира")
-        equal_texts = (
-            [
-                formatted
-                for formatted in map(_seller, candidate.descriptions)
-                if " ".join(formatted.split()) == description
-            ]
-            if detailed
-            else []
+        same_text = detailed and any(
+            _seller(text) == seller for text in candidate.descriptions
         )
-        if equal_texts and other_unit is not None:
+        if same_text and other_unit is not None:
             numbered.append((other, other_unit))
         if details_conflict(address, other):
             continue
@@ -235,7 +247,7 @@ def choose_flat(
             continue
         by_number = unit is not None and other_unit is not None
         if by_number or (
-            any(map(_has_layout, equal_texts))
+            same_text
             and incoming["area_m2"] is not None
             and incoming["area_m2"] == candidate.facts["area_m2"]
             and incoming["floor"] is not None
