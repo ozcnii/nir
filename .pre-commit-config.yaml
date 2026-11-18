@@ -12,32 +12,32 @@ repos:
         name: Check prepared uv environment
         entry: uv --directory implementation sync --locked --check --dev
         language: unsupported
-        files: '^(\.pre-commit-config\.yaml$|implementation/(pyproject\.toml$|uv\.lock$|\.python-version$|.*\.py$|(catalog|collection)/templates/.*\.html$|scripts/[^/]+\.sh$))'
+        files: '^(\.pre-commit-config\.yaml$|implementation/(pyproject\.toml$|uv\.lock$|\.python-version$|.*\.py$|app/(catalog|collection)/templates/.*\.html$|tools/[^/]+\.sh$))'
         pass_filenames: false
         fail_fast: true
       - id: ruff-lint
         name: Check staged Python lint
-        entry: bash implementation/scripts/check-staged.sh ruff-lint
+        entry: bash implementation/tools/check-staged.sh ruff-lint
         language: unsupported
         files: '^implementation/(.*\.py$)'
       - id: ruff-format
         name: Check staged Python formatting
-        entry: bash implementation/scripts/check-staged.sh ruff-format
+        entry: bash implementation/tools/check-staged.sh ruff-format
         language: unsupported
         files: '^implementation/(.*\.py$)'
       - id: djlint-lint
         name: Check staged Django template lint
-        entry: bash implementation/scripts/check-staged.sh djlint-lint
+        entry: bash implementation/tools/check-staged.sh djlint-lint
         language: unsupported
-        files: '^implementation/(catalog|collection)/templates/.*\.html$'
+        files: '^implementation/app/(catalog|collection)/templates/.*\.html$'
       - id: djlint-format
         name: Check staged Django template formatting
-        entry: bash implementation/scripts/check-staged.sh djlint-format
+        entry: bash implementation/tools/check-staged.sh djlint-format
         language: unsupported
-        files: '^implementation/(catalog|collection)/templates/.*\.html$'
+        files: '^implementation/app/(catalog|collection)/templates/.*\.html$'
       - id: profile
         name: Check full lint and format profile after configuration changes
-        entry: bash implementation/scripts/check-style.sh
+        entry: bash implementation/tools/check-style.sh
         language: unsupported
-        files: '^(\.pre-commit-config\.yaml$|implementation/(pyproject\.toml|uv\.lock|\.python-version|scripts/[^/]+\.sh)$)'
+        files: '^(\.pre-commit-config\.yaml$|implementation/(pyproject\.toml|uv\.lock|\.python-version|tools/[^/]+\.sh)$)'
         pass_filenames: false

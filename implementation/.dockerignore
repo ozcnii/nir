@@ -2,15 +2,8 @@
 !.python-version
 !pyproject.toml
 !uv.lock
-!manage.py
-!config/
-!config/**
-!runtime/
-!runtime/**
-!catalog/
-!catalog/**
-!collection/
-!collection/**
+!app/
+!app/**
 **/__pycache__/
 **/*.py[cod]
 **/.env*
