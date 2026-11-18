@@ -182,7 +182,7 @@ def fixture_runner(root: Path, raw_selection: str) -> int:
 def fixture_launcher(root: Path, endpoint: Path) -> int:
     web = [sys.executable, __file__, "web", str(root)]
     worker = [sys.executable, __file__, "worker", str(root)]
-    return serve(endpoint, web, worker)
+    return serve(endpoint, web, worker, journal_root=root / "runs")
 
 
 class BrowserLifecycleTests(unittest.TestCase):
@@ -334,6 +334,16 @@ class BrowserLifecycleTests(unittest.TestCase):
                 request({"action": "stop", "run_id": run["run_id"]}, endpoint)
                 (root / "write-release").touch()
                 result = self.status(endpoint, "finished")
+                journal_dir = root / "runs" / str(run["run_id"])
+                records = [
+                    json.loads(line)
+                    for line in (journal_dir / "events.jsonl").read_text().splitlines()
+                ]
+                progress = [
+                    row["committed_writes"]
+                    for row in records
+                    if row["event"] == "progress"
+                ]
                 with connection.cursor() as cursor:
                     cursor.execute(
                         "SELECT id FROM public.t10_probe WHERE id IN (%s, %s) ORDER BY id",
@@ -345,6 +355,7 @@ class BrowserLifecycleTests(unittest.TestCase):
                 self.assertEqual(result["reason"], "stopped")
                 expected = (attempted, sentinel) if mode == "commit" else (sentinel,)
                 self.assertEqual(rows, expected)
+                self.assertEqual(progress, [1] if mode == "commit" else [])
                 self.assertFalse((root / "requests").exists())
                 self.observed_cleanup(root, ())
 
