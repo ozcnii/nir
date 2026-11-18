@@ -9,7 +9,6 @@ from typing import cast
 from urllib.parse import urlsplit
 
 from playwright.sync_api import Page
-from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from catalog.contracts import (
     Deal,
@@ -19,6 +18,7 @@ from catalog.contracts import (
 )
 from collection.avito_normalization import normalize_avito_card
 from collection.browser import NAVIGATION_TIMEOUT_MS
+from collection.collectors.page_data import wait_for_card_data
 from collection.normalization import RejectedCard, as_object
 
 _CARD_PATH = re.compile(
@@ -121,10 +121,8 @@ def read_card(
         raise RejectedCard("invalid_identity")
     if deadline is None:
         deadline = time.monotonic() + NAVIGATION_TIMEOUT_MS / 1000
-    remaining_ms = (deadline - time.monotonic()) * 1000
-    if remaining_ms <= 0:
-        raise PlaywrightTimeout("Card attempt deadline elapsed")
-    handle = page.wait_for_function(
+    data = wait_for_card_data(
+        page,
         r"""requested => {
             const expected = new URL(requested);
             const trimSlash = path => path.replace(/\/$/, "");
@@ -177,16 +175,10 @@ def read_card(
                 }
             });
         }""",
+        deadline,
         arg=requested_url,
-        timeout=remaining_ms,
     )
-    try:
-        serialized = cast(str, handle.json_value())
-    finally:
-        handle.dispose()
-    if time.monotonic() >= deadline:
-        raise PlaywrightTimeout("Card attempt deadline elapsed")
-    data = as_object(json.loads(serialized, parse_float=Decimal))
+    data = as_object(json.loads(cast(str, data), parse_float=Decimal))
     return parse_card(
         requested_url,
         observed_at,
