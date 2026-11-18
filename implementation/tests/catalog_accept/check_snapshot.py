@@ -92,6 +92,103 @@ class SnapshotTests(TestCase):
 
         self.accept = accept_snapshot
 
+    def test_matching_rooms_requires_full_address_and_common_fact(self) -> None:
+        # Arrange
+        address = "Самара, улица Солнечная, дом 7, квартира 25, комната 2"
+        first: ActiveSnapshot = {
+            **card("room-first"),
+            "property_type_id": 2,
+            "address": address,
+            "area_m2": Decimal("9.00"),
+        }
+        second = {**first, "source_code": "domclick", "external_id": "room-second"}
+        different: tuple[Mapping[str, object], ...] = (
+            {"address": address.replace("комната 2", "комната 3")},
+            {"address": address.removesuffix(", комната 2")},
+            {"address": address.replace(", квартира 25", "")},
+            {"area_m2": Decimal("9.20")},
+            {"rooms": 2},
+            {"rooms": None},
+            {"area_m2": None, "floor": None},
+        )
+        with as_app() as connection:
+            # Act
+            a = self.accept(connection, first)
+            b = self.accept(connection, second)
+            others = [
+                self.accept(
+                    connection, {**second, **changes, "external_id": f"room-{index}"}
+                )
+                for index, changes in enumerate(different)
+            ]
+
+        # Assert
+        self.assertEqual(a.outcome, "created")
+        self.assertEqual(b.outcome, "created")
+        self.assertEqual(a.property_id, b.property_id)
+        self.assertNotEqual(a.ad_id, b.ad_id)
+        self.assertEqual({result.outcome for result in others}, {"created"})
+        self.assertEqual(
+            len({a.property_id, *(result.property_id for result in others)}),
+            len(different) + 1,
+        )
+
+    def test_repeated_room_does_not_change_unit_or_complete_partial_chain(self) -> None:
+        # Arrange
+        building = "Самара, улица Ставропольская, дом 130"
+        address = f"{building}, квартира 25"
+        source: ActiveSnapshot = {
+            **card("room-repeated"),
+            "property_type_id": 2,
+            "address": address,
+            "area_m2": Decimal("12"),
+        }
+        partial: ActiveSnapshot = {
+            **later(source, 1),
+            "address": f"{building}, комната 2",
+        }
+        conflict: ActiveSnapshot = {
+            **later(source, 2),
+            "rooms": 2,
+            "price": price("7000000"),
+            "photos": {"status": "known", "urls": []},
+        }
+        full: ActiveSnapshot = {
+            **later(source, 3),
+            "address": f"{address}, комната 2",
+        }
+        moved: ActiveSnapshot = {
+            **later(full, 4),
+            "address": f"{address}, комната 3",
+        }
+        with as_app() as connection:
+            # Act
+            first = self.accept(connection, source)
+            next_result = self.accept(connection, partial)
+            same_time = self.accept(
+                connection, {**conflict, "observed_at": partial["observed_at"]}
+            )
+            old_time = self.accept(connection, {**conflict, "observed_at": START})
+            new_conflict = self.accept(connection, conflict)
+            stored = connection.execute(
+                """
+                SELECT p.address, p.rooms, a.observed_at, a.photos,
+                       (SELECT count(*) FROM price_history WHERE ad_id=a.id)
+                FROM ads a JOIN properties p ON p.id=a.property_id WHERE a.id=%s
+                """,
+                (first.ad_id,),
+            ).fetchone()
+            confirmed = self.accept(connection, full)
+            changed_unit = self.accept(connection, moved)
+
+        # Assert
+        self.assertEqual(first.property_id, next_result.property_id)
+        self.assertEqual((same_time.outcome, old_time.outcome), ("ignored", "stale"))
+        self.assertEqual(new_conflict.outcome, "conflict")
+        self.assertEqual(stored, (address, 1, partial["observed_at"], [PHOTO], 1))
+        self.assertEqual(confirmed.outcome, "updated")
+        self.assertEqual(changed_unit.outcome, "conflict")
+
     def test_matching_apartment_numbers_and_unique_candidate(self) -> None:
         # Arrange: one exact A match and two contradictory existing room counts.
         address = "Самарская область, Самара, ул. Гагарина, 17а, кв. 25"

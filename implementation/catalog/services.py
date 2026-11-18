@@ -21,14 +21,16 @@ from catalog.contracts import (
 )
 from catalog.matching import (
     FLAT_ID,
+    ROOM_ID,
     Match,
     PropertyFacts,
     choose_flat,
     repeated_flat_patch,
 )
 from catalog.matching_address import parse_address
+from catalog.matching_room import choose_room, repeated_room_patch
 from catalog.models import DealType, MarketSegment, PriceKind, PropertyType, Region
-from catalog.queries import flat_candidates, property_for_update
+from catalog.queries import matching_candidates, property_for_update
 from catalog.reference_data_v1 import REGIONS, SOURCE_CODES
 from config.collection_lock import try_delete_lock
 from config.control import CONTROL_PATH, ControlError, request
@@ -240,7 +242,9 @@ def accept_snapshot(
             return Receipt(
                 "updated" if previous[4] else "unchanged", previous[0], previous[1]
             )
-        if not _active_valid(snapshot):
+        if not _active_valid(snapshot) or (
+            snapshot.get("property_type_id") == ROOM_ID and snapshot.get("rooms") == 0
+        ):
             return Receipt("rejected", reason="invalid_active_snapshot")
         active_data = cast(ActiveSnapshot, snapshot)
         references = connection.execute(
@@ -255,16 +259,17 @@ def accept_snapshot(
             return Receipt("rejected", reason="unknown_reference")
         match: Match | None = None
         region = _REGION_NAMES.get(active_data["region_id"])
+        property_type = active_data["property_type_id"]
         if previous is not None:
             property_id = cast(int, previous[1])
             saved = property_for_update(connection, property_id)
-            if (
-                saved["property_type_id"] == FLAT_ID
-                or active_data["property_type_id"] == FLAT_ID
+            if saved["property_type_id"] in (FLAT_ID, ROOM_ID) or property_type in (
+                FLAT_ID,
+                ROOM_ID,
             ):
                 if (
                     saved["region_id"] != active_data["region_id"]
-                    or saved["property_type_id"] != active_data["property_type_id"]
+                    or saved["property_type_id"] != property_type
                 ):
                     return Receipt(
                         "conflict",
@@ -272,23 +277,31 @@ def accept_snapshot(
                         property_id,
                         reason="property_scope_changed",
                     )
-                if region is not None:
+                if property_type == ROOM_ID:
+                    patch = repeated_room_patch(saved, active_data, region)
+                    conflict_reason = "room_unit_changed"
+                elif region is not None:
                     patch = repeated_flat_patch(saved, active_data, region)
-                    if patch is None:
-                        return Receipt(
-                            "conflict",
-                            previous[0],
-                            property_id,
-                            reason="apartment_address_changed",
-                        )
-                    match = Match(property_id, patch)
-        elif active_data["property_type_id"] == FLAT_ID and region is not None:
-            address = parse_address(active_data["address"], region)
+                    conflict_reason = "apartment_address_changed"
+                else:
+                    return _store_active(connection, active_data, previous, None)
+                if patch is None:
+                    return Receipt(
+                        "conflict", previous[0], property_id, reason=conflict_reason
+                    )
+                match = Match(property_id, patch)
+        elif property_type in (FLAT_ID, ROOM_ID) and region is not None:
+            address = parse_address(
+                active_data["address"], region, room=property_type == ROOM_ID
+            )
             if address is not None:
-                match = choose_flat(
+                choose = choose_flat if property_type == FLAT_ID else choose_room
+                match = choose(
                     active_data,
                     address,
-                    flat_candidates(connection, active_data["region_id"]),
+                    matching_candidates(
+                        connection, active_data["region_id"], property_type
+                    ),
                     region,
                 )
         return _store_active(connection, active_data, previous, match)

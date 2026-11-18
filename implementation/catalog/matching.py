@@ -10,8 +10,8 @@ from typing import TypedDict
 from catalog.contracts import ActiveSnapshot
 from catalog.matching_address import (
     Address,
+    address_conflicts,
     address_patch,
-    apartment_address_conflicts,
     details_conflict,
     mentions_unit,
     parse_address,
@@ -19,6 +19,7 @@ from catalog.matching_address import (
 )
 
 FLAT_ID = 1
+ROOM_ID = 2
 _LAYOUT_ITEM = re.compile(
     r"(?<!\w)(?P<room>кухня-гостиная|кухня|гостиная|спальня|комната|прихожая|"
     r"коридор|санузел|ванная|гардеробная|кабинет|детская)"
@@ -179,7 +180,7 @@ def _has_layout(text: str) -> bool:
     )
 
 
-def _patch(
+def property_patch(
     previous: PropertyFacts, incoming: PropertyFacts, address: str | None
 ) -> PropertyFacts:
     floor = previous["floor"] if previous["floor"] is not None else incoming["floor"]
@@ -219,13 +220,13 @@ def repeated_flat_patch(
         and incoming["address"] is not None
     ):
         # The current address may hold stronger evidence than the parser can resolve.
-        return _patch(previous, previous, None)
+        return property_patch(previous, previous, None)
     if new is None and incoming["address"] is not None:
         if mentions_unit(incoming["address"]):
             # A unit qualifier in an unparseable chain cannot establish compatibility.
             return None
-        return _patch(previous, previous, None)
-    if old is not None and new is not None and apartment_address_conflicts(old, new):
+        return property_patch(previous, previous, None)
+    if old is not None and new is not None and address_conflicts(old, new):
         return None
     address = (
         address_patch(old, new, previous["address"])
@@ -234,7 +235,7 @@ def repeated_flat_patch(
         if previous["address"] is None
         else None
     )
-    return _patch(previous, incoming, address)
+    return property_patch(previous, incoming, address)
 
 
 def _is_template(house: Address, numbered: list[tuple[Address, str]]) -> bool:
@@ -300,7 +301,7 @@ def choose_flat(
     candidate, house = valid[0]
     return Match(
         candidate.property_id,
-        _patch(
+        property_patch(
             candidate.facts,
             incoming,
             address_patch(house, address, candidate.facts["address"]),

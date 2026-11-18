@@ -61,8 +61,8 @@ def property_for_update(
     return cast(SavedProperty, row)
 
 
-def flat_candidates(
-    connection: Connection[TupleRow], region_id: int
+def matching_candidates(
+    connection: Connection[TupleRow], region_id: int, property_type_id: int
 ) -> list[Candidate]:
     with connection.cursor(row_factory=dict_row) as cursor:
         rows = cursor.execute(
@@ -73,11 +73,12 @@ def flat_candidates(
                      array_agg(ads.description) FILTER (WHERE ads.description IS NOT NULL),
                      ARRAY[]::text[]
                    ) AS descriptions
-            FROM properties LEFT JOIN ads ON ads.property_id=properties.id
+            FROM properties
+            LEFT JOIN ads ON ads.property_id=properties.id AND properties.property_type_id=%s
             WHERE region_id=%s AND property_type_id=%s AND address IS NOT NULL
             GROUP BY properties.id
             """,
-            (region_id, FLAT_ID),
+            (FLAT_ID, region_id, property_type_id),
         ).fetchall()
     return [
         Candidate(

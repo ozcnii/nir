@@ -25,7 +25,14 @@ _TAGS = {
     "строение": "строение",
     "подъезд": "подъезд",
 }
+_ROOM_TAGS = {
+    **_TAGS,
+    "комната дома": "комната дома",
+    "комн": "комната",
+    "комната": "комната",
+}
 _TAG = re.compile(rf"({'|'.join(_TAGS)})\.?\s*(?:№\s*)?({_NUMBER}|[а-я])\Z")
+_ROOM_TAG = re.compile(rf"({'|'.join(_ROOM_TAGS)})\.?\s*(?:№\s*)?({_NUMBER}|[а-я])\Z")
 _STREET_TYPES = (
     "улица",
     "проспект",
@@ -118,7 +125,9 @@ class Address:
         return (self.locality, self.street, self.number)
 
 
-def parse_address(value: str | None, region: str) -> Address | None:
+def parse_address(
+    value: str | None, region: str, *, room: bool = False
+) -> Address | None:
     if not value:
         return None
     parts = [item.strip() for item in value.split(",")]
@@ -130,12 +139,14 @@ def parse_address(value: str | None, region: str) -> Address | None:
         return None
     detail_start = len(parts)
     details: dict[str, tuple[str, str]] = {}
+    tags, tag = (_ROOM_TAGS, _ROOM_TAG) if room else (_TAGS, _TAG)
     for index, part in enumerate(normalized[first:], first):
-        match = _TAG.fullmatch(part)
+        match = tag.fullmatch(part)
         if match:
-            name, number = _TAGS[match[1]], match[2]
+            name, number = tags[match[1]], match[2]
             if name in details or (
-                name in ("квартира", "подъезд") and not _UNIT_NUMBER.fullmatch(number)
+                name not in ("корпус", "строение")
+                and not _UNIT_NUMBER.fullmatch(number)
             ):
                 return None
             details[name] = number, parts[index]
@@ -228,16 +239,21 @@ def same_house(left: Address, right: Address) -> bool:
     )
 
 
-def details_conflict(previous: Address, incoming: Address) -> bool:
+def details_conflict(
+    previous: Address, incoming: Address, *, ignore: str | None = None
+) -> bool:
     return any(
         previous.details[name][0] != incoming.details[name][0]
         for name in previous.details.keys() & incoming.details.keys()
+        if name != ignore
     )
 
 
-def apartment_address_conflicts(previous: Address, incoming: Address) -> bool:
+def address_conflicts(
+    previous: Address, incoming: Address, *, ignore: str | None = None
+) -> bool:
     return _location_conflicts(previous, incoming) or details_conflict(
-        previous, incoming
+        previous, incoming, ignore=ignore
     )
 
 
