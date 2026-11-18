@@ -11,10 +11,13 @@ from unittest import TestCase, main
 
 import django
 import psycopg
+from django.db import IntegrityError
+from django.db import connection as django_connection
+from fixture_database import require_fixture_database
 from psycopg import Connection
 from psycopg.rows import TupleRow
 
-from catalog.contracts import ActiveSnapshot, KnownPrice
+from app.catalog.contracts import ActiveSnapshot, KnownPrice, SnapshotResult
 
 START = datetime(2026, 11, 18, 12, tzinfo=UTC)
 PHOTO = "https://images.example.test/card.jpg?size=40"
@@ -22,18 +25,13 @@ PHOTO = "https://images.example.test/card.jpg?size=40"
 
 @contextmanager
 def as_app() -> Iterator[Connection[TupleRow]]:
-    with psycopg.connect(
-        dbname=os.environ["DB_NAME"],
-        user="app",
-        password=os.environ["DB_APP_PASSWORD"],
-        host=os.environ["DB_HOST"],
-        port=os.environ["DB_PORT"],
-        autocommit=True,
-    ) as connection:
-        assert connection.execute(
-            "SELECT current_database(), current_user, session_user, current_setting('server_version_num')"
-        ).fetchone() == ("t15_catalog_test", "app", "app", "170012")
-        yield connection
+    with django_connection.cursor() as cursor:
+        require_fixture_database(cursor)
+    # Use the Django-managed session for setup and independent SQL assertions.
+    try:
+        yield django_connection.connection
+    finally:
+        django_connection.close()
 
 
 def price(amount: str = "8000000") -> KnownPrice:
@@ -87,8 +85,37 @@ def state(source: ActiveSnapshot, value: str, minute: int = 1) -> Mapping[str, o
 
 
 class SnapshotTests(TestCase):
+    def test_active_collection_blocks_another_run_and_reference_deletion(self) -> None:
+        from app.catalog.locks import CollectionBusy, run_session
+        from app.catalog.models import Region
+        from app.catalog.references import delete_references
+
+        # Arrange
+        with as_app():
+            reference_id = Region.objects.create(name="Test collection lock").pk
+
+        def compete() -> None:
+            with self.subTest(operation="second collection"):
+                with self.assertRaises(CollectionBusy), run_session():
+                    self.fail("A second collection started")
+            try:
+                with self.subTest(operation="delete unused reference"):
+                    with self.assertRaises(CollectionBusy):
+                        delete_references("regions", [reference_id])
+            finally:
+                django_connection.close()
+
+        # Act: contention must use independent PostgreSQL sessions.
+        with run_session(), ThreadPoolExecutor(max_workers=1) as callers:
+            callers.submit(compete).result(timeout=10)
+        # Act
+        deleted = delete_references("regions", [reference_id])
+
+        # Assert
+        self.assertEqual(deleted, 1)
+
     def setUp(self) -> None:
-        from catalog.services import accept_snapshot
+        from app.catalog.publications import accept_snapshot
 
         self.accept = accept_snapshot
 
@@ -116,10 +143,10 @@ class SnapshotTests(TestCase):
             "area_m2": None,
             "floor": None,
         }
-        with as_app() as connection:
+        with as_app():
             # Act
             a, b, c, d, e, f = (
-                self.accept(connection, data)
+                self.accept(data)
                 for data in (
                     first,
                     common,
@@ -155,7 +182,7 @@ class SnapshotTests(TestCase):
                 "На фото соседняя квартира. Кухня 28 м²; спальня 24 м².",
             ),
         )
-        with as_app() as connection:
+        with as_app():
             for index, (address, description) in enumerate(cases):
                 with self.subTest(address=address):
                     # Arrange: identical offers whose address or sizes lack attribution.
@@ -167,8 +194,8 @@ class SnapshotTests(TestCase):
                     second = {**first, "source_code": "domclick"}
 
                     # Act
-                    left = self.accept(connection, first)
-                    right = self.accept(connection, second)
+                    left = self.accept(first)
+                    right = self.accept(second)
 
                     # Assert
                     self.assertEqual(
@@ -189,9 +216,9 @@ class SnapshotTests(TestCase):
         }
         with as_app() as connection:
             # Act
-            original = self.accept(connection, first)
-            attached = self.accept(connection, second)
-            separate = self.accept(connection, other)
+            original = self.accept(first)
+            attached = self.accept(second)
+            separate = self.accept(other)
             saved = connection.execute(
                 "SELECT address FROM properties WHERE id=%s", (original.property_id,)
             ).fetchone()
@@ -209,8 +236,8 @@ class SnapshotTests(TestCase):
             ("Самара, Кировский район", "Самара, Ленинский район", "ул. Лесная", True),
             ("с. Лесное", "с. Лесное", "ул. Садовая", False),
         )
-        seller = "Кухня 28 м²; спальня 24 м²; без комиссии."
-        with as_app() as connection:
+        seller = "Кухня 28 м²; спальня 24 м²."
+        with as_app():
             for index, (locality, other, street, should_attach) in enumerate(cases):
                 with self.subTest(locality=locality, other=other, street=street):
                     # Arrange: the numbered competitor differs in floor;
@@ -241,10 +268,10 @@ class SnapshotTests(TestCase):
                     }
 
                     # Act
-                    known = self.accept(connection, first)
-                    self.accept(connection, competitor)
-                    self.accept(connection, another)
-                    matched = self.accept(connection, incoming)
+                    known = self.accept(first)
+                    self.accept(competitor)
+                    self.accept(another)
+                    matched = self.accept(incoming)
 
                     # Assert
                     self.assertEqual(
@@ -277,13 +304,13 @@ class SnapshotTests(TestCase):
             "address": "Самара, ул. Садовая, 105, кв. 25",
             "description": seller,
         }
-        with as_app() as connection:
+        with as_app():
             # Act
-            a = self.accept(connection, with_number)
-            b = self.accept(connection, without_number)
-            self.accept(connection, {**later(without_number, 1), "description": seller})
-            self.accept(connection, other_district)
-            result = self.accept(connection, incoming)
+            a = self.accept(with_number)
+            b = self.accept(without_number)
+            self.accept({**later(without_number, 1), "description": seller})
+            self.accept(other_district)
+            result = self.accept(incoming)
 
             # Assert
             self.assertEqual(result.outcome, "created")
@@ -293,15 +320,15 @@ class SnapshotTests(TestCase):
         layout = "Кухня 28 м², спальня 24 м²"
         cases = (
             (
-                f"{layout}\nПерепланировка не предусмотрена.",
-                f"{layout} Перепланировка не предусмотрена.",
+                "Кухня 28,5 м²,\nспальня 24 м².",
+                "Кухня 28.5 м², спальня 24 м².",
                 True,
             ),
             (f"{layout}, обе отсутствуют.", f"{layout}, обе отсутствуют.", False),
             (
                 f"Планировка: {layout}. Эти помещения не требуют ремонта.",
                 f"Планировка: {layout}. Эти помещения не требуют ремонта.",
-                True,
+                False,
             ),
             (
                 f"{layout}. Эти помещения отсутствуют.",
@@ -313,9 +340,9 @@ class SnapshotTests(TestCase):
                 "Спальня 24 м² (она же комната 24 м²).",
                 False,
             ),
-            (f"{layout}, без комиссии.", f"{layout}, возможна ипотека.", False),
+            (f"{layout}, кабинет 9 м².", f"{layout}, кабинет 10 м².", False),
         )
-        with as_app() as connection:
+        with as_app():
             for index, (first_text, second_text, attach) in enumerate(cases):
                 with self.subTest(index=index):
                     # Arrange
@@ -331,8 +358,8 @@ class SnapshotTests(TestCase):
                     }
 
                     # Act
-                    original = self.accept(connection, first)
-                    result = self.accept(connection, second)
+                    original = self.accept(first)
+                    result = self.accept(second)
 
                     # Assert
                     self.assertEqual(result.property_id == original.property_id, attach)
@@ -349,7 +376,7 @@ class SnapshotTests(TestCase):
             "rooms": None,
             "floor": 12,
             "floors_total": 20,
-            "description": "Кухня-гостиная 28 м², спальня 24 м², без комиссии.",
+            "description": "Кухня-гостиная 28 м², спальня 24 м².",
         }
         incoming: ActiveSnapshot = {
             **card("950000011"),
@@ -359,7 +386,7 @@ class SnapshotTests(TestCase):
             "rooms": 3,
             "floor": 12,
             "floors_total": 20,
-            "description": "⭐ КУХНЯ-ГОСТИНАЯ 28 м²,\n\nспальня 24 м², без комиссии.",
+            "description": "⭐ КУХНЯ-ГОСТИНАЯ 28 м²,\n\nспальня 24 м².",
         }
         another = {
             **incoming,
@@ -373,24 +400,21 @@ class SnapshotTests(TestCase):
 
         with as_app() as connection:
             # Act
-            first = self.accept(connection, source)
-            with self.assertRaises(psycopg.errors.CheckViolation):
-                self.accept(connection, {**incoming, "price": price("12345")})
+            first = self.accept(source)
+            with self.assertRaises(IntegrityError):
+                self.accept({**incoming, "price": price("12345")})
             rolled_back = connection.execute(
                 "SELECT address, rooms FROM properties WHERE id=%s",
                 (first.property_id,),
             ).fetchone()
-            attached = self.accept(connection, incoming)
-            separate = [
-                self.accept(connection, data) for data in (another, numberless, empty)
-            ]
-            preserved = self.accept(connection, repeat)
+            attached = self.accept(incoming)
+            separate = [self.accept(data) for data in (another, numberless, empty)]
+            preserved = self.accept(repeat)
             stale = self.accept(
-                connection, {**shifted, "observed_at": START - timedelta(minutes=1)}
+                {**shifted, "observed_at": START - timedelta(minutes=1)}
             )
-            conflict = self.accept(connection, shifted)
+            conflict = self.accept(shifted)
             ambiguous_repeat = self.accept(
-                connection,
                 {**shifted, "address": f"{short_address}, кв. 26, кв. 27", "rooms": 4},
             )
             qualified_address = f"{short_address}, квартира 25/1"
@@ -400,9 +424,8 @@ class SnapshotTests(TestCase):
                 "address": qualified_address,
                 "rooms": None,
             }
-            qualified_created = self.accept(connection, qualified)
+            qualified_created = self.accept(qualified)
             conflicting_qualifier = self.accept(
-                connection,
                 {
                     **qualified,
                     "observed_at": repeat["observed_at"],
@@ -441,6 +464,8 @@ class SnapshotTests(TestCase):
             )
 
     def test_create_repeat_and_price_state_changes(self) -> None:
+        from app.catalog.models import Ad
+
         # Arrange
         source = card("940000001")
         with as_app() as connection:
@@ -454,17 +479,17 @@ class SnapshotTests(TestCase):
 
             # Act
             receipts = [
-                self.accept(connection, snap)
+                self.accept(snap)
                 for snap in (source, unchanged, qualifier, changed, returned)
             ]
-            ad = connection.execute(
-                """
-                SELECT ads.id, property_id, observed_at, photos, photos_observed_at, area_m2
-                FROM ads JOIN properties ON properties.id=ads.property_id
-                WHERE source_code='cian' AND external_id=%s
-                """,
-                (source["external_id"],),
-            ).fetchone()
+            ad = Ad.objects.values_list(
+                "id",
+                "property_id",
+                "observed_at",
+                "photos",
+                "photos_observed_at",
+                "property__area_m2",
+            ).get(source_id="cian", external_id=source["external_id"])
             history = connection.execute(
                 "SELECT price_rub, price_kind FROM price_history WHERE ad_id=%s ORDER BY observed_at",
                 (receipts[0].ad_id,),
@@ -508,10 +533,12 @@ class SnapshotTests(TestCase):
             )
 
     def test_time_precedes_incompatible_deal_and_missing_payload(self) -> None:
+        from app.catalog.models import Ad
+
         # Arrange
         source = card("940000002")
-        with as_app() as connection:
-            created = self.accept(connection, source)
+        with as_app():
+            created = self.accept(source)
             receipts_input = []
             for minute in (-1, 0, 1):
                 conflicting = later(source, minute)
@@ -523,37 +550,47 @@ class SnapshotTests(TestCase):
                 {**later(source, 2), "description": value}
                 for value in ("broken\x00text", "broken\ud800text")
             ]
-            invalid_photo = {
-                **later(source, 2),
-                "photos": {
-                    "status": "known",
-                    "urls": ["https://cdn.example.test:bad/a.jpg"],
-                },
-            }
+            invalid_photos = [
+                {**later(source, 2), "photos": {"status": "known", "urls": [url]}}
+                for url in (
+                    "https://cdn.example.test:bad/a.jpg",
+                    "https://cdn_bad.example.test/a.jpg",
+                )
+            ]
             invalid_removal = dict(state(source, "removed", 2))
             del invalid_removal["url"]
             incompatible_removal = {
                 **state(source, "removed", 2),
                 "deal_type": "month_rent",
             }
+            bad_host = invalid_photos[-1]
+            unknown_region = {**bad_host, "region_id": 2**62}
+            changed_scope = {**bad_host, "property_type_id": 2}
+            malformed_gallery = {
+                **unknown_region,
+                "photos": {"status": "known", "urls": ["not-a-url"]},
+            }
 
             # Act
+            malformed_result = self.accept(malformed_gallery)
             results = [
-                self.accept(connection, snap)
+                self.accept(snap)
                 for snap in (
                     *receipts_input,
                     invalid,
                     *invalid_text,
-                    invalid_photo,
+                    *invalid_photos,
+                    unknown_region,
+                    changed_scope,
                     invalid_removal,
                     incompatible_removal,
                     state(source, "unavailable"),
                 )
             ]
-            ad = connection.execute(
-                "SELECT deal_type, observed_at, is_active, photos FROM ads WHERE id=%s",
-                (created.ad_id,),
-            ).fetchone()
+            assert created.ad_id is not None
+            ad = Ad.objects.values_list(
+                "deal_type", "observed_at", "is_active", "photos"
+            ).get(pk=created.ad_id)
 
             # Assert
             self.assertEqual(
@@ -567,11 +604,18 @@ class SnapshotTests(TestCase):
                     "rejected",
                     "rejected",
                     "rejected",
+                    "rejected",
+                    "conflict",
+                    "rejected",
                     "conflict",
                     "unavailable",
                 ],
             )
             conflict = results[2]
+            self.assertEqual(results[7].reason, "invalid_active_snapshot")
+            self.assertEqual(results[8].reason, "unknown_reference")
+            self.assertEqual(malformed_result.reason, "invalid_active_snapshot")
+            self.assertEqual(results[9].reason, "property_scope_changed")
             self.assertEqual(conflict.reason, "deal_type_changed")
             self.assertEqual(
                 (conflict.previous_deal_type, conflict.incoming_deal_type),
@@ -580,6 +624,8 @@ class SnapshotTests(TestCase):
             self.assertEqual(ad, ("sale", START, True, [PHOTO]))
 
     def test_removed_and_photo_states_preserve_identity_and_history(self) -> None:
+        from app.catalog.models import Ad
+
         # Arrange
         source = card("940000003")
         missing_photo = later(source, 1)
@@ -587,26 +633,34 @@ class SnapshotTests(TestCase):
         missing_photo["photos"] = {"status": "unavailable"}
         empty_photo = later(missing_photo, 3)
         empty_photo["photos"] = {"status": "known", "urls": []}
+        no_gallery = card("940000013")
+        no_gallery["photos"] = {"status": "unavailable"}
         with as_app() as connection:
             # Act
-            missing_ad = self.accept(connection, state(source, "removed"))
-            created = self.accept(connection, source)
-            unchanged = self.accept(connection, missing_photo)
-            removed = self.accept(connection, state(source, "removed", 2))
-            middle = connection.execute(
-                "SELECT is_active, photos, photos_observed_at FROM ads WHERE id=%s",
-                (created.ad_id,),
-            ).fetchone()
-            restored = self.accept(connection, empty_photo)
-            final = connection.execute(
-                "SELECT is_active, photos, photos_observed_at FROM ads WHERE id=%s",
-                (created.ad_id,),
-            ).fetchone()
+            created_without_photos = self.accept(no_gallery)
+            assert created_without_photos.ad_id is not None
+            initial_gallery = Ad.objects.values_list(
+                "photos", "photos_observed_at"
+            ).get(pk=created_without_photos.ad_id)
+            missing_ad = self.accept(state(source, "removed"))
+            created = self.accept(source)
+            unchanged = self.accept(missing_photo)
+            removed = self.accept(state(source, "removed", 2))
+            assert created.ad_id is not None
+            middle = Ad.objects.values_list(
+                "is_active", "photos", "photos_observed_at"
+            ).get(pk=created.ad_id)
+            restored = self.accept(empty_photo)
+            final = Ad.objects.values_list(
+                "is_active", "photos", "photos_observed_at"
+            ).get(pk=created.ad_id)
             history = connection.execute(
                 "SELECT count(*) FROM price_history WHERE ad_id=%s", (created.ad_id,)
             ).fetchone()
 
             # Assert
+            self.assertEqual(created_without_photos.outcome, "created")
+            self.assertEqual(initial_gallery, ([], None))
             self.assertEqual(missing_ad.outcome, "not_found")
             self.assertEqual(unchanged.outcome, "unchanged")
             self.assertEqual(removed.outcome, "updated")
@@ -626,12 +680,15 @@ class SnapshotTests(TestCase):
         with as_app() as connection:
             before = connection.execute("SELECT count(*) FROM properties").fetchone()
 
-            with self.assertRaises(psycopg.errors.CheckViolation) as failure:
+            with self.assertRaises(IntegrityError) as failure:
                 # Act
-                self.accept(connection, source)
+                self.accept(source)
 
             # Assert
-            self.assertEqual(failure.exception.diag.constraint_name, "t15_fail_fixture")
+            cause = failure.exception.__cause__
+            self.assertIsInstance(cause, psycopg.errors.CheckViolation)
+            assert isinstance(cause, psycopg.errors.CheckViolation)
+            self.assertEqual(cause.diag.constraint_name, "t15_fail_fixture")
             self.assertEqual(
                 connection.execute("SELECT count(*) FROM properties").fetchone(), before
             )
@@ -642,35 +699,57 @@ class SnapshotTests(TestCase):
                 ).fetchone()
             )
 
-    def test_concurrent_repeats_serialize_on_real_database(self) -> None:
-        # Arrange
-        source = card("940000005")
-        ready = Barrier(2)
+    def test_concurrent_first_snapshots_on_real_database(self) -> None:
+        from app.catalog.models import PriceHistory
 
-        def submit() -> tuple[str, int | None, int | None]:
-            with as_app() as connection:
-                ready.wait(timeout=5)
-                result = self.accept(connection, source)
-                return result.outcome, result.ad_id, result.property_id
+        for different_sources in (False, True):
+            with self.subTest(different_sources=different_sources):
+                # Arrange
+                first = card("940000005")
+                second = first
+                if different_sources:
+                    first = {
+                        **first,
+                        "external_id": "940000016",
+                        "address": "Самара, улица Гагарина, 999, кв. 31",
+                    }
+                    second = {**first, "source_code": "domclick"}
+                ready = Barrier(2)
 
-        # Act
-        with ThreadPoolExecutor(max_workers=2) as callers:
-            calls = [callers.submit(submit), callers.submit(submit)]
-            results = [call.result(timeout=10) for call in calls]
-        with as_app() as connection:
-            count = connection.execute(
-                "SELECT count(*) FROM price_history WHERE ad_id=%s", (results[0][1],)
-            ).fetchone()
+                def submit(
+                    snapshot: ActiveSnapshot, barrier: Barrier
+                ) -> SnapshotResult:
+                    with as_app():
+                        barrier.wait(timeout=5)
+                        return self.accept(snapshot)
 
-        # Assert
-        self.assertEqual(
-            sorted(result[0] for result in results), ["created", "ignored"]
-        )
-        self.assertEqual(results[0][1:], results[1][1:])
-        self.assertEqual(count, (1,))
+                # Act
+                with ThreadPoolExecutor(max_workers=2) as callers:
+                    calls = [
+                        callers.submit(submit, snapshot, ready)
+                        for snapshot in (first, second)
+                    ]
+                    results = [call.result(timeout=10) for call in calls]
+
+                # Assert
+                self.assertEqual(results[0].property_id, results[1].property_id)
+                ad_ids = {
+                    result.ad_id for result in results if result.ad_id is not None
+                }
+                outcomes = sorted(result.outcome for result in results)
+                self.assertEqual(
+                    outcomes,
+                    ["created"] * 2 if different_sources else ["created", "ignored"],
+                )
+                self.assertEqual(len(ad_ids), 2 if different_sources else 1)
+                with as_app():
+                    self.assertEqual(
+                        PriceHistory.objects.filter(ad_id__in=ad_ids).count(),
+                        len(ad_ids),
+                    )
 
 
 if __name__ == "__main__":
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.config.settings")
     django.setup()
     main(verbosity=2)
