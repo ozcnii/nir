@@ -26,9 +26,9 @@ from collection.browser import (
     browser_pages,
 )
 from collection.selection import Direction, InvalidSelection, Selection, parse, validate
-from config.collection_lock import LockBusy, LockLost, RunSession, run_session
-from config.control import ADMISSION_FD, ControlError, decode, encode
-from config.run_events import INSTANCE_ID_ENV, RUN_ID_ENV, SCHEMA_VERSION
+from runtime.control import ADMISSION_FD, ControlError, decode, encode
+from runtime.postgres_locks import LockBusy, LockLost, RunSession, run_session
+from runtime.run_events import INSTANCE_ID_ENV, RUN_ID_ENV, SCHEMA_VERSION
 
 TRANSPORT_ERRORS = (
     "net::ERR_CONNECTION_CLOSED",

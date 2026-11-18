@@ -5,30 +5,7 @@ cd "$(dirname "$0")/../.."
 source tests/disposable-postgres.sh
 
 if [[ ${1:-} != --leased ]]; then
-    # Arrange
-    export DB_NAME=t10_browser_test
-    export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
-    export DB_APP_PASSWORD="$(openssl rand -hex 24)"
-    export DB_MIGRATOR_PASSWORD="$(openssl rand -hex 24)"
-    export DJANGO_SECRET_KEY="$(openssl rand -hex 32)"
-    reserve_disposable_postgres
-    volume=$(docker volume ls --filter "label=org.nir.fixture.token=$NIR_PG_FIXTURE_TOKEN" --format '{{.Name}}')
-    release_fixture() {
-        local label
-        label=$(docker volume inspect --format '{{index .Labels "org.nir.fixture.token"}}' "$volume")
-        if [[ "$label" == "$NIR_PG_FIXTURE_TOKEN" ]]; then
-            docker volume rm "$volume" >/dev/null
-        fi
-    }
-    trap release_fixture EXIT
-
-    # Act
-    uv run --locked python -m host_runner --db-only -- bash "$0" --leased
-
-    # Assert
-    project=$(docker volume inspect --format '{{index .Labels "com.docker.compose.project"}}' "$volume")
-    test -z "$(docker ps -aq --filter "label=com.docker.compose.project=$project")"
-    test "$(docker volume inspect --format '{{index .Labels "org.nir.fixture.token"}}' "$volume")" = "$NIR_PG_FIXTURE_TOKEN"
+    run_disposable_postgres_with_cleanup t10_browser_test bash "$0" --leased
     exit 0
 fi
 
@@ -65,7 +42,7 @@ trap cleanup_app EXIT
 docker exec "$app" python -c '
 import time
 from pathlib import Path
-from config.control import CONTROL_PATH, request
+from runtime.control import CONTROL_PATH, request
 
 deadline = time.monotonic() + 15
 fixture = Path("/run/app/app-term")

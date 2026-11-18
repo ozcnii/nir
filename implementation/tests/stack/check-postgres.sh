@@ -129,7 +129,7 @@ import django
 from django.db import connection
 from importlib.metadata import version
 
-from config.control import request
+from runtime.control import request
 
 os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings"
 django.setup()

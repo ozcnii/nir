@@ -31,6 +31,34 @@ run_disposable_postgres() {
     exec uv run --locked python -m host_runner --db-only -- "$@"
 }
 
+run_disposable_postgres_with_cleanup() (
+    # Arrange
+    export DB_NAME="$1"
+    shift
+    export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+    export DB_APP_PASSWORD="$(openssl rand -hex 24)"
+    export DB_MIGRATOR_PASSWORD="$(openssl rand -hex 24)"
+    export DJANGO_SECRET_KEY="$(openssl rand -hex 32)"
+    reserve_disposable_postgres
+    volume=$(docker volume ls --filter "label=org.nir.fixture.token=$NIR_PG_FIXTURE_TOKEN" --format '{{.Name}}')
+    release_fixture() {
+        local label
+        label=$(docker volume inspect --format '{{index .Labels "org.nir.fixture.token"}}' "$volume")
+        if [[ "$label" == "$NIR_PG_FIXTURE_TOKEN" ]]; then
+            docker volume rm "$volume" >/dev/null
+        fi
+    }
+    trap release_fixture EXIT
+
+    # Act
+    uv run --locked python -m host_runner --db-only -- "$@"
+
+    # Assert
+    project=$(docker volume inspect --format '{{index .Labels "com.docker.compose.project"}}' "$volume")
+    test -z "$(docker ps -aq --filter "label=com.docker.compose.project=$project")"
+    test "$(docker volume inspect --format '{{index .Labels "org.nir.fixture.token"}}' "$volume")" = "$NIR_PG_FIXTURE_TOKEN"
+)
+
 admin() {
     docker compose exec -T db sh -c \
         'PGREQUIREAUTH=scram-sha-256 PGPASSWORD="$POSTGRES_PASSWORD" exec psql -X -h db -U postgres -d postgres -v ON_ERROR_STOP=1 "$@"' sh "$@"

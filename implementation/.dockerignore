@@ -5,6 +5,8 @@
 !manage.py
 !config/
 !config/**
+!runtime/
+!runtime/**
 !catalog/
 !catalog/**
 !collection/

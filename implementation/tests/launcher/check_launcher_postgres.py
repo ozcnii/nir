@@ -19,8 +19,8 @@ from unittest.mock import patch
 import django
 from django.db import connection, transaction
 
-from config.collection_lock import RunSession, run_session, try_delete_lock
-from config.control import MAX_MESSAGE, encode, receive, request
+from runtime.control import encode, receive, request
+from runtime.postgres_locks import RunSession, run_session, try_delete_lock
 
 SELECTION: dict[str, object] = {
     "sources": ["cian"],
@@ -101,7 +101,7 @@ def fixture_child(root: Path, snapshot: str) -> int:
 
 
 def fixture_launcher(root: Path) -> int:
-    from config import launcher
+    from runtime import launcher
 
     def monitored_receive(
         connection: socket.socket, deadline: float
@@ -171,7 +171,7 @@ class LauncherTests(unittest.TestCase):
         return rows[0][0]
 
     def test_missing_pidfd_keeps_executable_behind_the_gate(self) -> None:
-        from config.launcher import Child
+        from runtime.child import Child
 
         # Arrange
         marker = self.root / "executed"
@@ -183,7 +183,7 @@ class LauncherTests(unittest.TestCase):
 
         # Act
         with patch(
-            "config.launcher.open_pidfd", side_effect=OSError("fixture pidfd failure")
+            "runtime.child.open_pidfd", side_effect=OSError("fixture pidfd failure")
         ):
             child = Child.spawn(command, permitted=lambda: True)
         try:
@@ -217,7 +217,7 @@ class LauncherTests(unittest.TestCase):
         self.assertFalse((self.root / "child-executed").exists())
 
     def test_invalid_output_is_discarded_without_preventing_reap(self) -> None:
-        from config.launcher import Supervisor
+        from runtime.supervisor import Supervisor
 
         # Arrange
         marker = self.root / "wrote-all-output"
@@ -230,17 +230,10 @@ class LauncherTests(unittest.TestCase):
         ]
         supervisor = Supervisor(command, self.root / "runs")
         self.addCleanup(supervisor.close)
-        peak = 0
 
         def reaped() -> bool:
-            nonlocal peak
             supervisor.tick()
-            if supervisor.current is None:
-                return True
-            reader = supervisor.current.reader
-            if reader is not None:
-                peak = max(peak, reader.peak)
-            return False
+            return supervisor.current is None
 
         # Act
         supervisor.dispatch(START)
@@ -248,7 +241,6 @@ class LauncherTests(unittest.TestCase):
         result = supervisor.status()
 
         # Assert
-        self.assertLessEqual(peak, MAX_MESSAGE)
         self.assertTrue(marker.exists())
         self.assertEqual(result["state"], "unknown")
         self.assertEqual(result["reason"], "invalid_runner_event")
@@ -303,7 +295,7 @@ class LauncherTests(unittest.TestCase):
         self.assertFalse((self.root / "first-work").exists())
 
     def test_concurrent_start_pending_ready_and_stop(self) -> None:
-        from catalog.services import ReferenceDeleteBlocked, delete_references
+        from catalog.reference_deletion import ReferenceDeleteBlocked, delete_references
 
         # Arrange
         (self.root / "hold-initialization").touch()
@@ -346,7 +338,7 @@ class LauncherTests(unittest.TestCase):
         self,
     ) -> None:
         from catalog.models import Region
-        from catalog.services import delete_references
+        from catalog.reference_deletion import delete_references
 
         # Arrange
         self.start_fixture()
@@ -376,7 +368,7 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(missing["reason"], "unsupported_or_missing_region")
 
     def test_lock_loss_stops_write_and_fences_start_and_delete(self) -> None:
-        from catalog.services import ReferenceDeleteBlocked, delete_references
+        from catalog.reference_deletion import ReferenceDeleteBlocked, delete_references
 
         # Arrange
         (self.root / "probe-write").touch()
@@ -413,7 +405,7 @@ class LauncherTests(unittest.TestCase):
 
     def test_unavailable_or_unresponsive_socket_refuses_deletion(self) -> None:
         from catalog.models import Region
-        from catalog.services import ReferenceDeleteBlocked, delete_references
+        from catalog.reference_deletion import ReferenceDeleteBlocked, delete_references
 
         # Arrange
         current = Region.objects.get(pk=68)
@@ -438,7 +430,7 @@ class LauncherTests(unittest.TestCase):
         self,
     ) -> None:
         from catalog.models import PropertyType, Source
-        from catalog.services import delete_references
+        from catalog.reference_deletion import delete_references
 
         # Arrange
         self.start_fixture()

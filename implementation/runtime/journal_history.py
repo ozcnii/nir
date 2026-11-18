@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import Literal, cast
 
 from collection.selection import InvalidSelection, parse
-from config.control import MAX_MESSAGE, ControlError, decode
-from config.run_events import LEVELS, SCHEMA_VERSION, STAGES, validate_message
-from config.volume_owner import valid_identity
+from runtime.control import MAX_MESSAGE, ControlError, decode
+from runtime.run_events import LEVELS, SCHEMA_VERSION, STAGES, validate_message
+from runtime.volume_owner import valid_identity
 
 SEGMENT_LIMIT = 5 * 1024 * 1024
 EVENT_FILES = ("events.jsonl.2", "events.jsonl.1", "events.jsonl")

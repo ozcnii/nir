@@ -11,14 +11,14 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
-from config.journal_history import (
+from runtime.journal_history import (
     STATE_FILE,
     TERMINAL_SEAL,
     directory,
     open_regular,
     terminal_digest,
 )
-from config.journal_maintenance import append_event, recover_runs, retention_steps
+from runtime.journal_maintenance import append_event, recover_runs, retention_steps
 
 JOURNAL_ROOT = Path("/var/lib/app/runs")
 QUEUE_LIMIT = 256

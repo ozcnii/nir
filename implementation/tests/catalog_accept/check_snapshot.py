@@ -523,19 +523,22 @@ class SnapshotTests(TestCase):
                 {**later(source, 2), "description": value}
                 for value in ("broken\x00text", "broken\ud800text")
             ]
-            invalid_photo = {
-                **later(source, 2),
-                "photos": {
-                    "status": "known",
-                    "urls": ["https://cdn.example.test:bad/a.jpg"],
-                },
-            }
+            invalid_photos = [
+                {**later(source, 2), "photos": {"status": "known", "urls": [url]}}
+                for url in (
+                    "https://cdn.example.test:bad/a.jpg",
+                    "https://cdn_bad.example.test/a.jpg",
+                )
+            ]
             invalid_removal = dict(state(source, "removed", 2))
             del invalid_removal["url"]
             incompatible_removal = {
                 **state(source, "removed", 2),
                 "deal_type": "month_rent",
             }
+            bad_host = invalid_photos[-1]
+            unknown_region = {**bad_host, "region_id": 2**62}
+            changed_scope = {**bad_host, "property_type_id": 2}
 
             # Act
             results = [
@@ -544,7 +547,9 @@ class SnapshotTests(TestCase):
                     *receipts_input,
                     invalid,
                     *invalid_text,
-                    invalid_photo,
+                    *invalid_photos,
+                    unknown_region,
+                    changed_scope,
                     invalid_removal,
                     incompatible_removal,
                     state(source, "unavailable"),
@@ -567,11 +572,17 @@ class SnapshotTests(TestCase):
                     "rejected",
                     "rejected",
                     "rejected",
+                    "rejected",
+                    "conflict",
+                    "rejected",
                     "conflict",
                     "unavailable",
                 ],
             )
             conflict = results[2]
+            self.assertEqual(results[7].reason, "invalid_active_snapshot")
+            self.assertEqual(results[8].reason, "unknown_reference")
+            self.assertEqual(results[9].reason, "property_scope_changed")
             self.assertEqual(conflict.reason, "deal_type_changed")
             self.assertEqual(
                 (conflict.previous_deal_type, conflict.incoming_deal_type),

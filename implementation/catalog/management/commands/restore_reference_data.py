@@ -13,7 +13,7 @@ from catalog.reference_data_v1 import (
     SEQUENCE_FLOORS,
     SOURCE_CODES,
 )
-from config.db_roles import RoleError, validate_owners
+from runtime.db_roles import RoleError, validate_owners
 
 
 class Command(BaseCommand):

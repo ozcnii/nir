@@ -5,7 +5,7 @@ import os
 import stat
 from pathlib import Path
 
-from config.control import ControlError
+from runtime.control import ControlError
 
 
 def valid_identity(value: object) -> bool:

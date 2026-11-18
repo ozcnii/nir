@@ -45,9 +45,7 @@ class SavedProperty(PropertyFacts):
     property_type_id: int
 
 
-def property_for_update(
-    connection: Connection[TupleRow], property_id: int
-) -> SavedProperty:
+def saved_property(connection: Connection[TupleRow], property_id: int) -> SavedProperty:
     with connection.cursor(row_factory=dict_row) as cursor:
         row = cursor.execute(
             """

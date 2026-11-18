@@ -9,7 +9,10 @@ from psycopg import Connection, sql
 from psycopg.conninfo import make_conninfo
 
 from config.database import postgres_database
-from config.db_roles import RoleError, validate_database_owners
+from runtime.db_roles import RoleError, validate_database_owners
+
+# Stable key for serializing role and database creation in the maintenance database.
+_ROLE_BOOTSTRAP_LOCK = (1981687401, 1)
 
 
 def authenticate(role: str, password: str, database: str) -> None:
@@ -81,7 +84,9 @@ def bootstrap() -> None:
         autocommit=True,
     ) as admin:
         # The session lock lives in the maintenance database across CREATE DATABASE.
-        admin.execute("SELECT pg_catalog.pg_advisory_lock(1981687401, 1)")
+        admin.execute(
+            "SELECT pg_catalog.pg_advisory_lock(%s, %s)", _ROLE_BOOTSTRAP_LOCK
+        )
         admin.execute("SET search_path = pg_catalog")
         limit = admin.execute("SHOW max_identifier_length").fetchone()
         if (

@@ -1,4 +1,4 @@
-"""Check the runtime database and start the local Django server."""
+"""Check that the runtime database is ready before starting the container."""
 
 import argparse
 import os
@@ -34,7 +34,7 @@ def preflight() -> bool:
         return False
 
     acl = subprocess.run(
-        [sys.executable, "-m", "config.db_roles", "check"],
+        [sys.executable, "-m", "runtime.db_roles", "check"],
         capture_output=True,
         text=True,
         check=False,
@@ -60,15 +60,11 @@ def web_command() -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-only", action="store_true")
-    args = parser.parse_args()
+    parser.parse_args()
     os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings"
     os.environ.setdefault("PGCONNECT_TIMEOUT", "5")
 
-    if not preflight():
-        return 1
-    if not args.check_only:
-        os.execv(sys.executable, web_command())
-    return 0
+    return 0 if preflight() else 1
 
 
 if __name__ == "__main__":

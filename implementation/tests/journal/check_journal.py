@@ -20,13 +20,13 @@ from django.db import connection
 
 from collection import runner
 from collection.selection import Direction, Selection, parse
-from config import journal_maintenance
-from config.collection_lock import RunSession
-from config.control import encode, request
-from config.journal import JOURNAL_ROOT
-from config.journal_history import TERMINAL_SEAL, JournalView, read_run
-from config.launcher import serve
-from config.run_events import INSTANCE_ID_ENV, RUN_ID_ENV
+from runtime import journal_maintenance
+from runtime.control import encode, request
+from runtime.journal import JOURNAL_ROOT
+from runtime.journal_history import TERMINAL_SEAL, JournalView, read_run
+from runtime.launcher import serve
+from runtime.postgres_locks import RunSession
+from runtime.run_events import INSTANCE_ID_ENV, RUN_ID_ENV
 
 START: dict[str, object] = {
     "action": "start",
@@ -350,7 +350,7 @@ class JournalTests(unittest.TestCase):
                     self.assertFalse((root / "worker-pid").exists())
 
     def test_final_ack_is_required_after_cleanup(self) -> None:
-        from catalog.services import ReferenceDeleteBlocked, delete_references
+        from catalog.reference_deletion import ReferenceDeleteBlocked, delete_references
 
         # Arrange
         root, endpoint, _ = self.fixture("finish")

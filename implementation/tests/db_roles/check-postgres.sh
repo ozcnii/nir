@@ -11,7 +11,7 @@ assert_disposable_postgres
 export DB_NAME=t06_acl_test
 
 runtime_check() {
-    docker compose run --rm --no-deps -T app python -m config.db_roles check
+    docker compose run --rm --no-deps -T app python -m runtime.db_roles check
 }
 f25() {
     docker compose run --rm --no-deps -T -e DB_MIGRATOR_PASSWORD -e NIR_PG_FIXTURE_TOKEN \

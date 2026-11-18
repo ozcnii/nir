@@ -11,12 +11,12 @@ from pathlib import Path
 
 from collection import runner
 from collection.selection import Direction, Selection, parse
-from config.collection_lock import RunSession
-from config.control import CONTROL_PATH, ControlError, request
-from config.journal import JOURNAL_ROOT
-from config.journal_history import read_run
-from config.launcher import serve
-from config.volume_owner import claim_volume
+from runtime.control import CONTROL_PATH, ControlError, request
+from runtime.journal import JOURNAL_ROOT
+from runtime.journal_history import read_run
+from runtime.launcher import serve
+from runtime.postgres_locks import RunSession
+from runtime.volume_owner import claim_volume
 
 START: dict[str, object] = {
     "action": "start",

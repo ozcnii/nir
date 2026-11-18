@@ -1,15 +1,13 @@
-"""Transactional catalog mutations and reference deletion fencing."""
+"""Accept and persist normalized publication snapshots."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from pathlib import Path
 from typing import Literal, cast
 
-from django.db import transaction
 from psycopg import Connection
-from psycopg.rows import TupleRow
+from psycopg.rows import TupleRow, class_row
 from psycopg.types.json import Jsonb
 
 from catalog.contracts import (
@@ -27,46 +25,10 @@ from catalog.matching import (
     repeated_flat_patch,
 )
 from catalog.matching_address import parse_address
-from catalog.models import DealType, MarketSegment, PriceKind, PropertyType, Region
-from catalog.queries import flat_candidates, property_for_update
+from catalog.models import DealType, MarketSegment, PriceKind
+from catalog.queries import flat_candidates, saved_property
 from catalog.reference_data_v1 import REGIONS, SOURCE_CODES
-from config.collection_lock import try_delete_lock
-from config.control import CONTROL_PATH, ControlError, request
-
-
-class ReferenceDeleteBlocked(RuntimeError):
-    pass
-
-
-def delete_references(
-    reference: str,
-    ids: Sequence[int],
-    *,
-    socket_path: Path = CONTROL_PATH,
-) -> int:
-    if reference not in ("regions", "property_types"):
-        raise ValueError("unsupported reference dictionary")
-    with transaction.atomic():
-        if not try_delete_lock():
-            raise ReferenceDeleteBlocked("collection or reference deletion is active")
-        try:
-            status = request({"action": "status"}, socket_path)
-        except ControlError as error:
-            raise ReferenceDeleteBlocked("collection status is unavailable") from error
-        if (
-            status.get("ok") is not True
-            or status.get("state") not in ("idle", "finished")
-            or status.get("cleanup_confirmed") is not True
-        ):
-            raise ReferenceDeleteBlocked("collection cleanup has not been confirmed")
-        records = (
-            Region.objects.filter(pk__in=ids)
-            if reference == "regions"
-            else PropertyType.objects.filter(pk__in=ids)
-        )
-        deleted, _ = records.delete()
-        return deleted
-
+from runtime.postgres_locks import CATALOG_WRITE_LOCK
 
 Outcome = Literal[
     "created",
@@ -79,7 +41,6 @@ Outcome = Literal[
     "not_found",
     "unavailable",
 ]
-_CATALOG_WRITE_KEY = (0x4E4952, 2)
 _REGION_NAMES = dict(REGIONS)
 
 
@@ -94,11 +55,26 @@ class Receipt:
     incoming_deal_type: Deal | None = None
 
 
-def _text(value: object) -> bool:
+@dataclass(frozen=True)
+class _StoredAd:
+    id: int
+    property_id: int
+    deal_type: Deal
+    observed_at: datetime
+    is_active: bool
+    url: str
+    market_segment: str | None
+    description: str | None
+    photos: list[str]
+
+
+def _nonblank_database_text(value: object) -> bool:
     return is_database_text(value) and bool(value.strip())
 
 
-def _decimal(value: object, minimum: str, maximum: str, digits: int) -> bool:
+def _decimal_fits_column(
+    value: object, minimum: str, maximum: str, digits: int
+) -> bool:
     if not isinstance(value, Decimal) or not value.is_finite():
         return False
     return Decimal(minimum) <= value <= Decimal(maximum) and value == value.quantize(
@@ -121,7 +97,7 @@ def _physical_valid(data: Mapping[str, object]) -> bool:
         <= data.keys()
     ):
         return False
-    if data["address"] is not None and not _text(data["address"]):
+    if data["address"] is not None and not _nonblank_database_text(data["address"]):
         return False
     if (data["latitude"] is None) != (data["longitude"] is None):
         return False
@@ -132,7 +108,9 @@ def _physical_valid(data: Mapping[str, object]) -> bool:
         ("land_area_m2", "0.01", "999999999999.99", 2),
     ):
         value = data[key]
-        if value is not None and not _decimal(value, minimum, maximum, digits):
+        if value is not None and not _decimal_fits_column(
+            value, minimum, maximum, digits
+        ):
             return False
     for key, lower_bound in (("rooms", 0), ("floor", -32768), ("floors_total", 1)):
         value = data[key]
@@ -145,20 +123,17 @@ def _physical_valid(data: Mapping[str, object]) -> bool:
 
 
 def _active_valid(data: Mapping[str, object]) -> bool:
-    if (
-        not {"description", "market_segment", "price", "photos"} <= data.keys()
-        or not is_http_url(data.get("url"))
-        or data.get("deal_type") not in DealType.values
-        or (
-            data["market_segment"] is not None
-            and data["market_segment"] not in MarketSegment.values
-        )
-        or (
-            data["description"] is not None
-            and not is_database_text(data["description"])
-        )
-        or not _physical_valid(data)
-    ):
+    if not {"description", "market_segment", "price", "photos"} <= data.keys():
+        return False
+    if not is_http_url(data.get("url")) or data.get("deal_type") not in DealType.values:
+        return False
+    segment = data["market_segment"]
+    if segment is not None and segment not in MarketSegment.values:
+        return False
+    description = data["description"]
+    if description is not None and not is_database_text(description):
+        return False
+    if not _physical_valid(data):
         return False
     for key in ("region_id", "property_type_id"):
         identifier = data.get(key)
@@ -171,7 +146,7 @@ def _active_valid(data: Mapping[str, object]) -> bool:
         price.get("status") == "known"
         and price.get("currency") == "RUB"
         and price.get("price_kind") in PriceKind.values
-        and _decimal(price.get("price_rub"), "0", "99999999999999.99", 2)
+        and _decimal_fits_column(price.get("price_rub"), "0", "99999999999999.99", 2)
     )
     urls = photos.get("urls")
     photos_ok = photos.get("status") == "unavailable" or (
@@ -193,7 +168,7 @@ def accept_snapshot(
     state = snapshot.get("state")
     if (
         source not in SOURCE_CODES
-        or not _text(external_id)
+        or not _nonblank_database_text(external_id)
         or not isinstance(observed_at, datetime)
         or observed_at.utcoffset() is None
         or state not in ("active", "removed", "unavailable")
@@ -203,29 +178,34 @@ def accept_snapshot(
         return Receipt("unavailable")
 
     with connection.transaction():
-        connection.execute("SELECT pg_advisory_xact_lock(%s, %s)", _CATALOG_WRITE_KEY)
-        previous = connection.execute(
-            """
-            SELECT id, property_id, deal_type, observed_at, is_active,
-                   url, market_segment, description, photos
-            FROM ads WHERE source_code=%s AND external_id=%s
-            """,
-            (source, external_id),
-        ).fetchone()
-        if previous is not None:
-            ad_id, property_id, _, seen, *_ = previous
-            if observed_at <= seen:
-                return Receipt(
-                    "ignored" if observed_at == seen else "stale", ad_id, property_id
-                )
+        connection.execute("SELECT pg_advisory_xact_lock(%s, %s)", CATALOG_WRITE_LOCK)
+        with connection.cursor(row_factory=class_row(_StoredAd)) as cursor:
+            previous = cursor.execute(
+                """
+                SELECT id, property_id, deal_type, observed_at, is_active,
+                       url, market_segment, description, photos
+                FROM ads WHERE source_code=%s AND external_id=%s
+                """,
+                (source, external_id),
+            ).fetchone()
+        if previous is not None and observed_at <= previous.observed_at:
+            return Receipt(
+                "ignored" if observed_at == previous.observed_at else "stale",
+                previous.id,
+                previous.property_id,
+            )
         deal = snapshot.get("deal_type")
-        if previous is not None and deal in DealType.values and deal != previous[2]:
+        if (
+            previous is not None
+            and deal in DealType.values
+            and deal != previous.deal_type
+        ):
             return Receipt(
                 "conflict",
-                previous[0],
-                previous[1],
+                previous.id,
+                previous.property_id,
                 reason="deal_type_changed",
-                previous_deal_type=cast(Deal, previous[2]),
+                previous_deal_type=previous.deal_type,
                 incoming_deal_type=cast(Deal, deal),
             )
         if state == "removed":
@@ -235,29 +215,40 @@ def accept_snapshot(
                 return Receipt("not_found")
             connection.execute(
                 "UPDATE ads SET is_active=false, observed_at=%s WHERE id=%s",
-                (observed_at, previous[0]),
+                (observed_at, previous.id),
             )
             return Receipt(
-                "updated" if previous[4] else "unchanged", previous[0], previous[1]
+                "updated" if previous.is_active else "unchanged",
+                previous.id,
+                previous.property_id,
             )
         if not _active_valid(snapshot):
             return Receipt("rejected", reason="invalid_active_snapshot")
         active_data = cast(ActiveSnapshot, snapshot)
-        references = connection.execute(
+        photos = active_data["photos"]
+        checks = connection.execute(
             """
-            SELECT EXISTS(SELECT FROM sources WHERE code=%(source_code)s)
+            SELECT public.catalog_photos_valid(%(photo_urls)s),
+                   EXISTS(SELECT FROM sources WHERE code=%(source_code)s)
                AND EXISTS(SELECT FROM regions WHERE id=%(region_id)s)
                AND EXISTS(SELECT FROM property_types WHERE id=%(property_type_id)s)
             """,
-            active_data,
+            {
+                **active_data,
+                "photo_urls": Jsonb(
+                    photos["urls"] if photos["status"] == "known" else []
+                ),
+            },
         ).fetchone()
-        if references != (True,):
+        assert checks is not None
+        photos_valid, references_exist = checks
+        if not references_exist:
             return Receipt("rejected", reason="unknown_reference")
         match: Match | None = None
         region = _REGION_NAMES.get(active_data["region_id"])
         if previous is not None:
-            property_id = cast(int, previous[1])
-            saved = property_for_update(connection, property_id)
+            property_id = previous.property_id
+            saved = saved_property(connection, property_id)
             if (
                 saved["property_type_id"] == FLAT_ID
                 or active_data["property_type_id"] == FLAT_ID
@@ -268,7 +259,7 @@ def accept_snapshot(
                 ):
                     return Receipt(
                         "conflict",
-                        previous[0],
+                        previous.id,
                         property_id,
                         reason="property_scope_changed",
                     )
@@ -277,7 +268,7 @@ def accept_snapshot(
                     if patch is None:
                         return Receipt(
                             "conflict",
-                            previous[0],
+                            previous.id,
                             property_id,
                             reason="apartment_address_changed",
                         )
@@ -291,13 +282,15 @@ def accept_snapshot(
                     flat_candidates(connection, active_data["region_id"]),
                     region,
                 )
+        if not photos_valid:
+            return Receipt("rejected", reason="invalid_active_snapshot")
         return _store_active(connection, active_data, previous, match)
 
 
 def _store_active(
     connection: Connection[TupleRow],
     data: ActiveSnapshot,
-    previous: TupleRow | None,
+    previous: _StoredAd | None,
     match: Match | None,
 ) -> Receipt:
     photo_state = data["photos"]
@@ -340,14 +333,19 @@ def _store_active(
         ad_id = cast(int, ad[0])
         changed = False
     else:
-        ad_id, property_id = previous[:2]
+        ad_id, property_id = previous.id, previous.property_id
         changed = (
             True,
             data["url"],
             data["market_segment"],
             data["description"],
-        ) != previous[4:8]
-        changed |= known_photos and photos != previous[8]
+        ) != (
+            previous.is_active,
+            previous.url,
+            previous.market_segment,
+            previous.description,
+        )
+        changed |= known_photos and photos != previous.photos
         if match is not None:
             changed |= _apply_property_patch(connection, match.property_id, match.patch)
         connection.execute(

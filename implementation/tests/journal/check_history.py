@@ -11,10 +11,10 @@ from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
-from config import journal_history
-from config.control import encode
-from config.journal import write_file, write_snapshot
-from config.journal_history import (
+from runtime import journal_history
+from runtime.control import encode
+from runtime.journal import write_file, write_snapshot
+from runtime.journal_history import (
     EVENT_FILES,
     SEGMENT_LIMIT,
     TERMINAL_SEAL,
@@ -23,8 +23,8 @@ from config.journal_history import (
     read_run,
     terminal_digest,
 )
-from config.journal_maintenance import append_event, retention_steps
-from config.run_events import journal_record
+from runtime.journal_maintenance import append_event, retention_steps
+from runtime.run_events import journal_record
 
 INSTANCE = "a" * 32
 SELECTION = {

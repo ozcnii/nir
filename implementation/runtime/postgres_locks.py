@@ -1,4 +1,4 @@
-"""One PostgreSQL advisory key shared by collection and reference deletion."""
+"""PostgreSQL advisory keys and ownership of the collection session."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -7,7 +7,10 @@ import psycopg
 from django.db import connection
 from psycopg.rows import TupleRow, tuple_row
 
-KEY = (0x4E4952, 1)
+# Keep the namespace and IDs stable while other processes may hold these locks.
+_LOCK_NAMESPACE = int.from_bytes(b"NIR")
+_COLLECTION_LOCK = (_LOCK_NAMESPACE, 1)
+CATALOG_WRITE_LOCK = (_LOCK_NAMESPACE, 2)
 
 
 class LockBusy(RuntimeError):
@@ -34,7 +37,7 @@ class RunSession:
                       AND mode = 'ExclusiveLock' AND granted
                 )
                 """,
-                KEY,
+                _COLLECTION_LOCK,
             ).fetchone()
         except psycopg.Error as error:
             raise LockLost("collection session is unavailable") from error
@@ -70,7 +73,9 @@ def run_session() -> Iterator[RunSession]:
         autocommit=True,
         row_factory=tuple_row,
     ) as session:
-        result = session.execute("SELECT pg_try_advisory_lock(%s, %s)", KEY).fetchone()
+        result = session.execute(
+            "SELECT pg_try_advisory_lock(%s, %s)", _COLLECTION_LOCK
+        ).fetchone()
         if result != (True,):
             raise LockBusy("collection advisory key is already held")
         yield RunSession(session)
@@ -79,6 +84,6 @@ def run_session() -> Iterator[RunSession]:
 def try_delete_lock() -> bool:
     # The caller owns the surrounding transaction and retains the key through commit.
     with connection.cursor() as cursor:
-        cursor.execute("SELECT pg_try_advisory_xact_lock(%s, %s)", KEY)
+        cursor.execute("SELECT pg_try_advisory_xact_lock(%s, %s)", _COLLECTION_LOCK)
         row: object = cursor.fetchone()
         return row == (True,)

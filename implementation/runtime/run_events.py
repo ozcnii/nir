@@ -10,10 +10,10 @@ from datetime import UTC, datetime
 from typing import IO, TYPE_CHECKING, cast
 
 from catalog.reference_data_v1 import SOURCE_CODES
-from config.control import MAX_MESSAGE, ControlError, decode, encode
+from runtime.control import MAX_MESSAGE, ControlError, decode, encode
 
 if TYPE_CHECKING:
-    from config.journal import JournalWriter
+    from runtime.journal import JournalWriter
 
 RUN_ID_ENV = "NIR_RUN_ID"
 INSTANCE_ID_ENV = "NIR_INSTANCE_ID"
@@ -155,7 +155,6 @@ class RunnerReader:
         self._progress = 0
         self._invalid = False
         self._drained = False
-        self._peak = 0
         self._reaped = threading.Event()
         self._closing = threading.Event()
         self._thread = threading.Thread(
@@ -170,10 +169,6 @@ class RunnerReader:
         with self._state:
             events, self._control = self._control, []
             return events, self._progress, self._invalid, self._drained
-
-    @property
-    def peak(self) -> int:
-        return self._peak
 
     def reaped(self) -> None:
         self._reaped.set()
@@ -204,7 +199,6 @@ class RunnerReader:
                             break
                         continue
                     buffer.extend(chunk)
-                    self._peak = max(self._peak, len(buffer))
                     try:
                         if terminal:
                             raise ControlError("bytes after terminal event")

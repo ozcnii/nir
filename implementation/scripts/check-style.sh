@@ -4,15 +4,14 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 paths=$(mktemp)
 trap 'rm -f "$paths"' EXIT
-git ls-files -z -- manage.py config catalog collection host_runner tests > "$paths"
+git ls-files --cached -z -- . > "$paths"
 
 python_files=()
 templates=()
 while IFS= read -r -d '' path; do
     [[ -f "$path" ]] || continue
     case "$path" in
-        manage.py|config/*.py|catalog/*.py|collection/*.py|host_runner/*.py|tests/*.py)
-            python_files+=("$path") ;;
+        *.py) python_files+=("$path") ;;
         catalog/templates/*.html|collection/templates/*.html) templates+=("$path") ;;
     esac
 done < "$paths"

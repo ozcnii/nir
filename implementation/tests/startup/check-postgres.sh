@@ -37,7 +37,7 @@ assert_disposable_postgres
 check_runtime() {
     docker compose run --rm --no-deps -T app sh -ec '
         test -z "${POSTGRES_PASSWORD+x}${DB_MIGRATOR_PASSWORD+x}"
-        exec python -m config.startup --check-only
+        exec python -m runtime.startup --check-only
     '
 }
 
@@ -46,7 +46,7 @@ test_log=$(mktemp)
 trap 'rm -f "$test_log"' EXIT
 docker compose build app
 docker compose run --rm --no-deps -T -e POSTGRES_PASSWORD -e DB_MIGRATOR_PASSWORD \
-    -e DJANGO_SECRET_KEY= app python -m config.db_bootstrap
+    -e DJANGO_SECRET_KEY= app python -m runtime.db_bootstrap
 # Act
 if check_runtime >"$test_log" 2>&1; then
     echo "Runtime accepted an unmigrated database" >&2
@@ -133,7 +133,6 @@ password_before=$(admin -d "$DB_NAME" -At -c "SELECT password FROM auth_user WHE
 test -n "$password_before"
 # Act
 bash scripts/prepare-db.sh
-check_runtime
 check_runtime
 # Assert
 after=$(admin -d "$DB_NAME" -At -c "

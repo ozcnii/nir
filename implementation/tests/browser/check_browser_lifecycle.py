@@ -22,9 +22,10 @@ from psycopg.rows import TupleRow
 
 from collection.runner import BrowserWork, run_with_browser
 from collection.selection import Direction, Selection, parse
-from config.collection_lock import try_delete_lock
-from config.control import CONTROL_PATH, request
-from config.launcher import open_pidfd, send_pidfd, serve
+from runtime.child import open_pidfd, send_pidfd
+from runtime.control import CONTROL_PATH, request
+from runtime.launcher import serve
+from runtime.postgres_locks import try_delete_lock
 
 START: dict[str, object] = {
     "action": "start",
@@ -237,7 +238,7 @@ class BrowserLifecycleTests(unittest.TestCase):
             self.assertTrue(try_delete_lock())
 
     def assert_fenced(self, endpoint: Path, status: dict[str, object]) -> None:
-        from catalog.services import ReferenceDeleteBlocked, delete_references
+        from catalog.reference_deletion import ReferenceDeleteBlocked, delete_references
 
         self.assertIs(status["cleanup_confirmed"], False)
         self.assertIs(request(START, endpoint)["ok"], False)

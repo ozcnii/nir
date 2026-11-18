@@ -13,9 +13,9 @@ fi
 export DB_NAME="${DB_NAME:-catalog}"
 
 docker compose run --rm --no-deps -T -e POSTGRES_PASSWORD -e DB_MIGRATOR_PASSWORD \
-    -e DJANGO_SECRET_KEY= app python -m config.db_bootstrap
+    -e DJANGO_SECRET_KEY= app python -m runtime.db_bootstrap
 
 # Avoid passing runtime passwords or Django's secret key to the migrator.
 docker compose run --rm --no-deps -T -e DB_MIGRATOR_PASSWORD \
     -e DB_APP_PASSWORD= -e DJANGO_SECRET_KEY= app \
-    sh -ec 'python manage.py migrate --settings=config.settings_migrator && python -m config.db_roles apply'
+    sh -ec 'python manage.py migrate --settings=config.settings_migrator && python -m runtime.db_roles apply'

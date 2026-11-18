@@ -10,7 +10,8 @@
 |---|---|
 | Извлечение и нормализация карточек | [collection](collection/) |
 | Справочники, данные объявлений, сопоставление | [catalog](catalog/) |
-| Настройки Django, запуск и управление сбором внутри контейнера | [config](config/) |
+| Настройки Django и маршруты | [config](config/) |
+| Подготовка БД, запуск контейнера, управление сбором и журнал | [runtime](runtime/) |
 | Управление арендой локального стека | [host_runner](host_runner/) |
 | Контейнерный образ, профиль Chromium и конфигурация сервисов | [docker](docker/), [compose.yaml](compose.yaml) |
 | Команды поддержки и интеграционные проверки | [scripts](scripts/), [tests](tests/) |
@@ -65,7 +66,7 @@ uv run --locked python -m host_runner --db-only -- bash -ec '
     docker compose build app
     bash scripts/prepare-db.sh
     docker compose run --rm --no-deps app python manage.py createsuperuser
-    docker compose run --rm --no-deps -T app python -m config.startup --check-only
+    docker compose run --rm --no-deps -T app python -m runtime.startup --check-only
 '
 ```
 
@@ -74,7 +75,7 @@ uv run --locked python -m host_runner --db-only -- bash -ec '
 запускает штатный `migrate` под `migrator` и восстанавливает явную матрицу прав.
 `createsuperuser` — отдельная команда оператора под ролью `app`. Введите пароль
 в интерактивном запросе Django. При повторной подготовке используйте
-`prepare-db.sh` и `config.startup --check-only`, чтобы сохранить созданного
+`prepare-db.sh` и `runtime.startup --check-only`, чтобы сохранить созданного
 администратора и данные.
 
 После завершения DB-only аренды можно запустить app и базу обычным host runner.
@@ -116,11 +117,11 @@ bash tests/db_roles/check-postgres.sh
 
 ## Управление сбором
 
-Контейнер запускает `config.launcher` под Docker init. Лаунчер выполняет проверку
-подготовки БД из `config.startup` и управляет дочерними web-процессом и
+Контейнер запускает `runtime.launcher` под Docker init. Лаунчер выполняет проверку
+подготовки БД из `runtime.startup` и управляет дочерними web-процессом и
 `collection.runner`. Внутренний интерфейс в `/run/app/control.sock` принимает
 один JSON-пакет с завершающим переводом строки, до 4 КиБ, в пределах 250 мс.
-Через `config.control.request` можно вызвать `{"action":"status"}`, старт
+Через `runtime.control.request` можно вызвать `{"action":"status"}`, старт
 `{"action":"start","selection":{...}}` или остановку
 `{"action":"stop","run_id":"..."}`. Снимок выбора содержит непустые списки
 `sources`, `regions`, `categories` и `deal_types`. Успешный запрос старта
@@ -128,7 +129,7 @@ bash tests/db_roles/check-postgres.sh
 процесса, взятой сессионной блокировки PostgreSQL и проверки выбора. Пока
 адаптеры источников не реализованы, рабочий runner отклоняет все направления.
 
-`catalog.services.delete_references` удерживает транзакционную блокировку того
+`catalog.reference_deletion.delete_references` удерживает транзакционную блокировку того
 же ключа, запрашивает свежее состояние и удаляет записи только после
 подтверждённой очистки. Потеря сессии сбора запрещает дальнейшие операции
 сбора и удаление справочников до подтверждения безопасного состояния.
@@ -174,7 +175,7 @@ Playwright и DB-сессии. Linux позволяет раннеру дожд�
 
 Writer хранит текущий сегмент JSONL до 5 МиБ и два предыдущих сегмента.
 Сохраняются десять последних подтверждённых завершений и защищённые истории.
-`config.journal_history.read_run` возвращает различимые состояния пустого,
+`runtime.journal_history.read_run` возвращает различимые состояния пустого,
 частичного, повреждённого, недоступного и изменившегося журнала.
 
 Проверки T12 из `implementation/` в отдельном worktree

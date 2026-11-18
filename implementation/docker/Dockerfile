@@ -24,10 +24,11 @@ RUN apt-get update \
 
 COPY manage.py ./
 COPY config/ config/
+COPY runtime/ runtime/
 COPY catalog/ catalog/
 COPY collection/ collection/
 
 ENV HOME=/home/app
 USER 10001:10001
 
-CMD ["python", "-m", "config.launcher"]
+CMD ["python", "-m", "runtime.launcher"]

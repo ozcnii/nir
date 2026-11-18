@@ -16,11 +16,11 @@ from collection.one_card import CardReadFailed, collect_cian_card
 from collection.runner import BrowserWork, run_with_browser
 from collection.selection import Direction, Selection, parse
 from collection.tests.test_cian import projection, script
-from config.control import CONTROL_PATH, ControlError, decode, request
-from config.journal import JOURNAL_ROOT
-from config.launcher import serve
-from config.run_events import RUN_ID_ENV
-from config.startup import preflight, web_command
+from runtime.control import CONTROL_PATH, ControlError, decode, request
+from runtime.journal import JOURNAL_ROOT
+from runtime.launcher import serve
+from runtime.run_events import RUN_ID_ENV
+from runtime.startup import preflight, web_command
 
 URL = "https://samara.cian.ru/sale/flat/330631159/"
 REJECT_NEXT = CONTROL_PATH.parent / "reject-next"

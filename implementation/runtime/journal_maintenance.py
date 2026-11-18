@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import cast
 
 from collection.selection import InvalidSelection
-from config.control import ControlError, encode
-from config.journal_history import (
+from runtime.control import ControlError, encode
+from runtime.journal_history import (
     EVENT_FILES,
     RUN_FILES,
     SEGMENT_LIMIT,
@@ -21,8 +21,8 @@ from config.journal_history import (
     read_snapshot,
     terminal_confirmed,
 )
-from config.run_events import timestamp
-from config.volume_owner import valid_identity
+from runtime.run_events import timestamp
+from runtime.volume_owner import valid_identity
 
 KEEP_FINISHED = 10
 SnapshotWriter = Callable[[int, dict[str, object]], None]
