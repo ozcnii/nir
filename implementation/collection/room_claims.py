@@ -19,7 +19,8 @@ _COUNT = re.compile(
 _IDENTIFIER = r"[0-9]+[а-я]?(?:[-/][0-9]+[а-я]?)*\b"
 _PAUSE = r" *[,—–-] *"
 _ROOM_TAG = rf"№ *(?P<room>{_IDENTIFIER})"
-_APARTMENT = rf"(?:(?: +|{_PAUSE})в квартире +(?:№ *)?(?P<apartment>{_IDENTIFIER}))?"
+_APARTMENT_LOCATION = rf"(?: +|{_PAUSE})в квартире +(?:№ *)?"
+_APARTMENT = rf"(?:{_APARTMENT_LOCATION}(?P<apartment>{_IDENTIFIER}))?"
 _ROOM_FRAGMENT = re.compile(
     rf"(?P<single>отдельн(?:ая|ую) +)?(?P<noun>{_ROOM})\b"
     rf"(?: +{_ROOM_TAG})?{_APARTMENT}"
@@ -38,15 +39,17 @@ _SHARE = re.compile(r"^(?:[0-9]+/[0-9]+ +)?дол[яю]\b")
 _ALLOCATED_UNIT = r"(?=(?:комната +№ ?[1-9][0-9]*|(?:одна|1) комната)\b)"
 _ALLOCATED = re.compile(
     r"^(?:доля: |(?:[0-9]+/[0-9]+ +)?дол[яю], которо[йю] "
-    rf"(?:по соглашению )?соответствует ){_ALLOCATED_UNIT}"
+    rf"(?:по соглашению )?(?P<negated>не +)?соответствует ){_ALLOCATED_UNIT}"
 )
 _RELATED_ALLOCATION = re.compile(
-    r"^(?:за (?:ней|(?:этой|предлагаемой) долей)|по соглашению(?: о пользовании)?)"
-    rf" +закреплена +{_ALLOCATED_UNIT}"
+    r"^(?P<holder_negated>не +)?(?:за (?:ней|(?:этой|предлагаемой) долей)"
+    r"|(?:этой|предлагаемой) доле|по соглашению(?: о пользовании)?)"
+    rf"[ ,—–-]+(?P<negated>не +)?(?:закреплена|соответствует) +{_ALLOCATED_UNIT}"
 )
-_OTHER_HOLDER = re.compile(
-    r"^[ ,—–-]*(?:за +(?!этой долей\b|предлагаемой долей\b|продавцом\b)"
-    r"|принадлежит +другому\b)"
+_CONFLICTING_ALLOCATION = re.compile(
+    r"^[ ,—–-]*(?:не +(?:за|принадлежит|закреплена|соответствует)\b"
+    r"|(?:закреплена +)?за +(?!этой долей\b|предлагаемой долей\b|ней\b|продавцом\b)"
+    r"|принадлежит +(?!продавцу\b))"
 )
 _NOT_ALLOCATED = re.compile(r"\b(?:без выделения|не выделен[ао]?)\b")
 _OTHER_SCOPE = re.compile(
@@ -56,8 +59,9 @@ _IMAGE = r"на (?:[а-я0-9-]+ +){0,2}(?:фото|фотографи[ия]х?|�
 _DEPICTED = re.compile(rf"^(?:(?: +| *[—–-] *){_IMAGE}| *, *{_IMAGE}(?=$|[,;]))")
 _SEPARATE = re.compile(
     r"^[ ,—–-]*(?:котор(?:ую|ые) +)?"
-    r"(?:(?:прода[её]тся|сда[её]тся|можно купить|можно снять) +)?"
-    r"(?:отдельно|не входит)\b"
+    r"(?:(?:прода[её]тся|сда[её]тся|можно купить|можно снять)"
+    rf"(?:{_APARTMENT_LOCATION}(?P<before>{_IDENTIFIER}))? +)?"
+    rf"(?:отдельно|не входит)\b{_APARTMENT}"
 )
 _AREA_STATEMENT = re.compile(
     rf"^площадь (?:продаваемой|предлагаемой|сдаваемой) комнаты\b"
@@ -153,10 +157,25 @@ def _room_ref(match: re.Match[str]) -> RoomRef | None:
     return (match["room"], match["apartment"]) if match["room"] else None
 
 
-def _same_room(left: RoomRef, right: RoomRef) -> bool:
+def _compatible_rooms(left: RoomRef, right: RoomRef) -> bool:
     return left[0] == right[0] and (
         left[1] is None or right[1] is None or left[1] == right[1]
     )
+
+
+def _separate_room(member: re.Match[str], separate: re.Match[str]) -> RoomRef | None:
+    apartments = {
+        apartment
+        for apartment in (
+            member["apartment"],
+            separate["before"],
+            separate["apartment"],
+        )
+        if apartment is not None
+    }
+    if member["room"] and len(apartments) == 1:
+        return member["room"], next(iter(apartments))
+    return None
 
 
 def _claim_fields(claim: str) -> RoomClaim:
@@ -229,8 +248,8 @@ def room_facts(
                 )
             continue
         member = _ROOM_FRAGMENT.match(claim)
-        if member and _SEPARATE.match(claim[member.end() :]):
-            if room := _room_ref(member):
+        if member and (separate_sale := _SEPARATE.match(claim[member.end() :])):
+            if room := _separate_room(member, separate_sale):
                 separate.add(room)
             continue
         allocation = None
@@ -245,6 +264,8 @@ def room_facts(
                 continue
             claim = claim[allocation.end() :]
         elif share and (allocation := _RELATED_ALLOCATION.match(claim)):
+            if allocation["holder_negated"]:
+                raise RejectedCard("unconfirmed_room_unit")
             claim = claim[allocation.end() :]
         elif not offer and index >= len(headings):
             if index != len(headings):
@@ -260,9 +281,10 @@ def room_facts(
         if allocation is not None:
             allocated_room = _ROOM_FRAGMENT.search(claim)
             if (
-                evidence.rooms != 1
+                allocation["negated"]
+                or evidence.rooms != 1
                 or allocated_room is None
-                or _OTHER_HOLDER.match(claim[allocated_room.end() :])
+                or _CONFLICTING_ALLOCATION.match(claim[allocated_room.end() :])
             ):
                 raise RejectedCard("unconfirmed_room_unit")
             allocations.add(evidence.room)
@@ -285,7 +307,7 @@ def room_facts(
     count = next(iter(counts), None)
     if count == 1:
         for room in offered:
-            if any(not _same_room(room, other) for other in offered):
+            if any(not _compatible_rooms(room, other) for other in offered):
                 reason = "unconfirmed_room_unit" if share else "conflicting_room_count"
                 raise RejectedCard(reason)
     if count is not None and count > 1:
@@ -294,14 +316,17 @@ def room_facts(
         candidates = [
             (room, value)
             for room, value in measurements
-            if room is None or not any(_same_room(room, other) for other in separate)
+            # A separate sale cannot erase evidence about the offered room.
+            if room not in separate
+            or any(_compatible_rooms(room, subject) for subject in offered)
         ]
         subjects = offered or {room for room, _ in candidates if room is not None}
         comparable = {room_area} if room_area is not None else set()
         comparable.update(
             value
             for room, value in candidates
-            if room is None or all(_same_room(room, subject) for subject in subjects)
+            if room is None
+            or all(_compatible_rooms(room, subject) for subject in subjects)
         )
     if len(comparable) > 1:
         raise RejectedCard("conflicting_room_area")
