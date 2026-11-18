@@ -1,5 +1,5 @@
 {
-  "provenance": "2026-11-18 Playwright public card field projections. Only selected published structured fields. Addresses retain subject only; seller descriptions and gallery URLs are omitted here.",
+  "provenance": "2026-11-18 Playwright public card field projections. Only selected published structured fields. Addresses retain subject only; seller descriptions and gallery URLs are omitted here. The 319653899 line includes the identified seller area sentence from rooms62-2026-11-17/cian319653899-all-area-room-fields.json.",
   "cases": [
     {
       "case": "resale_flat",
@@ -92,7 +92,8 @@
           "price": 1400000,
           "priceType": "all",
           "currency": "rur"
-        }
+        },
+        "description": "Продаётся комната 9,2 м² в светлой, спокойной квартире."
       },
       "offerPrice": "1 400 000 ₽",
       "product": {

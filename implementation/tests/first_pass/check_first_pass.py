@@ -15,7 +15,7 @@ from playwright.sync_api import Route
 from collection.one_card import CardReadFailed, collect_cian_card
 from collection.runner import BrowserWork, run_with_browser
 from collection.selection import Direction, Selection, parse
-from collection.tests.test_cian import projection, script
+from collection.tests.test_cian import NEW_BUILD_PRICE_LABEL, projection, script
 from config.control import CONTROL_PATH, ControlError, decode, request
 from config.journal import JOURNAL_ROOT
 from config.launcher import serve
@@ -47,7 +47,7 @@ def route_fixture(work: BrowserWork) -> list[tuple[str, datetime]]:
     if REJECT_NEXT.exists():
         offer["description"] = "reject\x00this"
     html = (
-        f"<script>{script(offer)}</script>"
+        f"<script>{script(offer, NEW_BUILD_PRICE_LABEL)}</script>"
         f'<script type="application/ld+json">{json.dumps(product)}</script>'
         '<img src="/first-pass-probe.jpg">'
     )

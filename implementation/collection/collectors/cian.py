@@ -202,6 +202,47 @@ class _Nuxt:
         return self._decode(value, 12)
 
 
+def _partner_product(
+    documents: list[dict[str, object]],
+    images: object,
+    expected_key: str,
+    internal_url: str,
+) -> dict[str, object]:
+    products = [item for item in documents if item.get("@type") == "Product"]
+    if len(products) != 1 or not isinstance(images, list) or not images:
+        return {}
+    product = products[0]
+    # The observed Product has no card URL or SKU. Its image is the first image
+    # of the verified Nuxt entity, which binds its tariff label to that entity.
+    first_path = as_object(cast(list[object], images)[0]).get("path")
+    if not isinstance(first_path, str) or product.get("image") != first_path:
+        return {}
+
+    for item in (product, as_object(product.get("offers"))):
+        for field in ("sku", "productID", "identifier"):
+            if field in item and str(item[field]) != expected_key.removeprefix(
+                "/detail/"
+            ):
+                return {}
+        for field in ("url", "@id", "mainEntityOfPage"):
+            if field not in item:
+                continue
+            identity = item[field]
+            if isinstance(identity, dict):
+                identity = as_object(identity).get("@id")
+            if not isinstance(identity, str):
+                return {}
+            route = _route(identity)
+            page_url = identity.split("#", 1)[0].split("?", 1)[0]
+            if page_url != internal_url and (
+                route is None
+                or route.kind != "partner"
+                or route.external_id != expected_key
+            ):
+                return {}
+    return product
+
+
 def _parse_partner(
     url: str,
     key: SnapshotKey,
@@ -219,8 +260,8 @@ def _parse_partner(
         actual = nuxt.read(*path, "id")
         if type(actual) is not int or str(actual) != identifier:
             return unavailable
-        internal_url = nuxt.read(*path, "url")
-        if internal_url != f"https://sutochno.ru/front/searchapp/detail/{identifier}":
+        internal_url = f"https://sutochno.ru/front/searchapp/detail/{identifier}"
+        if nuxt.read(*path, "url") != internal_url:
             return unavailable
         if nuxt.read(*path, "status", "name") != "approved":
             return unavailable
@@ -262,6 +303,7 @@ def _parse_partner(
         images,
         price_context,
         documents,
+        _partner_product(documents, images, key["external_id"], internal_url),
     )
 
 

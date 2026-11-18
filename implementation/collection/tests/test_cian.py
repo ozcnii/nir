@@ -13,6 +13,8 @@ from collection.collectors.cian import card_key, parse_card, read_card
 from collection.normalization import RejectedCard
 
 FIXTURE = Path(__file__).with_name("fixtures") / "cian-330631159.json"
+# Published offerPrice on the new-build card sampled on 2026-11-18.
+NEW_BUILD_PRICE_LABEL = "7 246 735 ₽"
 OBSERVED_AT = datetime(2026, 11, 18, 12, tzinfo=UTC)
 
 
@@ -40,7 +42,11 @@ def script(offer: dict[str, object], price_label: object = None) -> str:
 
 def parsed(url: str, offer: dict[str, object], product: dict[str, object]) -> Snapshot:
     return parse_card(
-        url, OBSERVED_AT, [script(offer)], [json.dumps(product)], loaded_url=url
+        url,
+        OBSERVED_AT,
+        [script(offer, NEW_BUILD_PRICE_LABEL)],
+        [json.dumps(product)],
+        loaded_url=url,
     )
 
 
@@ -49,7 +55,7 @@ class CianCardTests(TestCase):
         # Arrange: reconstruct the inline envelope around the saved projection.
         url, offer, product = projection()
         html = (
-            f"<script>{script(offer)}</script>"
+            f"<script>{script(offer, NEW_BUILD_PRICE_LABEL)}</script>"
             f'<script type="application/ld+json">{json.dumps(product)}</script>'
         )
         received: list[str] = []
@@ -190,7 +196,6 @@ class CianCardTests(TestCase):
     def test_replay_published_native_directions(self) -> None:
         expectations = {
             "resale_flat": (1, "sale", "resale", "110.00", 3, None, "listed"),
-            "sale_room": (2, "sale", None, "9.00", 1, None, "listed"),
             "sale_house": (3, "sale", None, "90.90", None, "2700.00", "listed"),
             "month_flat": (1, "month_rent", None, "40.00", 1, None, "listed"),
             "month_room": (2, "month_rent", None, "14.00", 1, None, "listed"),
@@ -207,6 +212,23 @@ class CianCardTests(TestCase):
                 name = cast(str, case["case"])
                 url = cast(str, case["url"])
                 offer = cast(dict[str, object], case["offer"])
+
+                if name == "sale_room":
+                    # 319653899 publishes 9.0 in roomArea and explicitly
+                    # offers the room as 9.2 m² in the seller text.
+                    with self.assertRaises(RejectedCard) as rejected:
+                        # Act
+                        parse_card(
+                            url,
+                            OBSERVED_AT,
+                            [script(offer, case["offerPrice"])],
+                            [json.dumps(case["product"])],
+                            loaded_url=url,
+                        )
+
+                    # Assert
+                    self.assertEqual(str(rejected.exception), "conflicting_room_area")
+                    continue
 
                 # Act
                 snapshot = parse_card(
@@ -247,6 +269,65 @@ class CianCardTests(TestCase):
                     self.assertEqual(actual_price["price_rub"], Decimal(expected_price))
                 else:
                     self.assertEqual(snapshot["price"], {"status": "unavailable"})
+
+    def test_room_area_is_not_compared_to_the_kitchen_or_flat(self) -> None:
+        # Arrange: the seller expressly states only a kitchen and a flat area.
+        _, offer, product = projection()
+        url = "https://samara.cian.ru/sale/flat/330631159/"
+        offer.update(
+            category="roomSale",
+            roomArea="9.0",
+            roomsForSaleCount=1,
+            description="Площадь кухни 9,2 м². Общая площадь квартиры 68,8 м².",
+        )
+
+        # Act
+        snapshot = parsed(url, offer, product)
+
+        # Assert
+        assert snapshot["state"] == "active"
+        self.assertEqual(snapshot["area_m2"], Decimal("9.00"))
+
+    def test_missing_native_label_cannot_turn_from_into_listed(self) -> None:
+        for deal, category, unit in (
+            ("sale", "flatSale", "₽"),
+            ("rent", "flatRent", "₽/мес."),
+        ):
+            with self.subTest(deal=deal):
+                # Arrange: the amount, currency, Product type and priceType stay equal.
+                original, offer, product = projection()
+                url = original.replace("/sale/", f"/{deal}/")
+                terms = cast(dict[str, object], offer["bargainTerms"])
+                terms["priceType"] = "all"
+                if deal == "rent":
+                    terms["paymentPeriod"] = "monthly"
+                offer.update(category=category, dealType=deal)
+                cast(dict[str, object], product["offers"])["url"] = url
+                result = []
+                for price_label in (f"от 7 246 735 {unit}", None, f"7 246 735 {unit}"):
+                    # Act
+                    snapshot = parse_card(
+                        url,
+                        OBSERVED_AT,
+                        [script(offer, price_label)],
+                        [json.dumps(product)],
+                        loaded_url=url,
+                    )
+                    assert snapshot["state"] == "active"
+                    result.append(snapshot["price"])
+
+                # Assert
+                first, missing, last = result
+                assert first["status"] == last["status"] == "known"
+                self.assertEqual(
+                    (first["price_rub"], first["price_kind"]),
+                    (Decimal("7246735"), "from"),
+                )
+                self.assertEqual(missing, {"status": "unavailable"})
+                self.assertEqual(
+                    (last["price_rub"], last["price_kind"]),
+                    (Decimal("7246735"), "listed"),
+                )
 
     def test_unavailable_for_conflicting_embedded_identifier(self) -> None:
         for field in ("id", "cianId"):
@@ -454,6 +535,7 @@ def partner_card(
     product = {
         "@type": "Product",
         "description": f"Цена {amount} RUB {label_unit}.",
+        "image": "//static.sutochno.ru/example.jpg?a=b",
         "offers": {
             "@type": "AggregateOffer",
             "priceCurrency": "RUB",
@@ -537,6 +619,39 @@ class CianPartnerTests(TestCase):
 
                 # Act
                 snapshot = parse_card(url, OBSERVED_AT, config, product, loaded_url=url)
+
+                # Assert
+                assert snapshot["state"] == "active"
+                self.assertEqual(snapshot["price"], {"status": "unavailable"})
+
+    def test_partner_price_cannot_be_corroborated_for_a_foreign_publication(
+        self,
+    ) -> None:
+        for change in (
+            {"sku": 124},
+            {"url": "https://cian.sutochno.ru/detail/124"},
+            {"@id": "https://sutochno.ru/front/searchapp/detail/124#product"},
+            {"mainEntityOfPage": {"@id": "https://cian.sutochno.ru/detail/124"}},
+            {"offers": {"url": "https://cian.sutochno.ru/detail/124"}},
+            {"image": "//static.sutochno.ru/foreign.jpg"},
+        ):
+            with self.subTest(change=change):
+                # Arrange: same daily amount and otherwise unchanged valid Product.
+                url, config, scripts = partner_card(
+                    123, name="Комната рядом с парком", hotel=None, amount=5800
+                )
+                product = cast(dict[str, object], json.loads(scripts[0]))
+                if "offers" in change:
+                    cast(dict[str, object], product["offers"]).update(
+                        cast(dict[str, object], change["offers"])
+                    )
+                else:
+                    product.update(change)
+
+                # Act
+                snapshot = parse_card(
+                    url, OBSERVED_AT, config, [json.dumps(product)], loaded_url=url
+                )
 
                 # Assert
                 assert snapshot["state"] == "active"

@@ -136,14 +136,9 @@ def _price(
         return {"status": "unavailable"}
     label = " ".join(display.casefold().split()) if isinstance(display, str) else ""
     unit = {"sale": "₽", "month_rent": "₽/мес.", "day_rent": "₽/сут."}[deal]
-    if label and not label.endswith(unit):
+    if not label.endswith(unit):
         return {"status": "unavailable"}
-    payment_period = bargain.get("paymentPeriod")
-    if (
-        (deal == "day_rent" and not label)
-        or (deal == "month_rent" and payment_period not in (None, "monthly"))
-        or (deal == "month_rent" and not label and payment_period != "monthly")
-    ):
+    if deal == "month_rent" and bargain.get("paymentPeriod") not in (None, "monthly"):
         return {"status": "unavailable"}
     try:
         price = decimal_2(
@@ -155,10 +150,9 @@ def _price(
             and decimal_2(stated, minimum=Decimal(0), maximum=Decimal("1e14")) != price
         ):
             return {"status": "unavailable"}
-        if label:
-            displayed_amount = label.removeprefix("от ").removesuffix(unit).strip()
-            if number(displayed_amount) != price:
-                return {"status": "unavailable"}
+        displayed_amount = label.removeprefix("от ").removesuffix(unit).strip()
+        if number(displayed_amount) != price:
+            return {"status": "unavailable"}
     except RejectedCard:
         return {"status": "unavailable"}
     kind: PriceKind = "from" if label.startswith("от ") else "listed"
@@ -192,6 +186,11 @@ _CIAN_REGIONS = {
     (4609, "Саратовская область"): 69,
 }
 _M2_MAX = Decimal("1e10")
+_SALE_ROOM_AREA = re.compile(
+    r"(?:^|[.!?]\s+|\n\s*)Прода[её]тся\s+комната\s+"
+    r"([0-9]+(?:[.,][0-9]+)?)\s*м²(?=\s|[.,;!?]|$)",
+    re.IGNORECASE,
+)
 
 
 def cian_area(value: object) -> Decimal | None:
@@ -275,6 +274,14 @@ def normalize_cian_card(
     )
     if rooms == 0:
         raise RejectedCard("unconfirmed_studio")
+    area = cian_area(offer.get("roomArea" if room else "totalArea"))
+    description = cian_description(offer.get("description"))
+    if room and deal == "sale" and rooms == 1 and area is not None and description:
+        # Only an explicit sentence about the offered room can contradict roomArea.
+        if any(
+            number(match[1]) != area for match in _SALE_ROOM_AREA.finditer(description)
+        ):
+            raise RejectedCard("conflicting_room_area")
 
     return {
         **key,
@@ -287,12 +294,12 @@ def normalize_cian_card(
         "address": ", ".join(names),
         "latitude": latitude,
         "longitude": longitude,
-        "area_m2": cian_area(offer.get("roomArea" if room else "totalArea")),
+        "area_m2": area,
         "rooms": rooms,
         "floor": floor,
         "floors_total": floors,
         "land_area_m2": _land_area(offer) if house else None,
-        "description": cian_description(offer.get("description")),
+        "description": description,
         "price": _price(product, data, offer, deal),
         "photos": _photos(product, offer),
     }
@@ -454,6 +461,7 @@ def normalize_cian_partner(
     images: object,
     price_context: dict[str, object],
     documents: list[dict[str, object]],
+    product: dict[str, object],
 ) -> ActiveSnapshot:
     city = cian_address_component(location.get("city"))
     region_id, region = _partner_region(documents, city)
@@ -466,8 +474,6 @@ def normalize_cian_partner(
     floors = optional_integer(fields.get("max_floor"), minimum=1)
     if floor is not None and floors is not None and floor > floors:
         raise RejectedCard("floor_above_building")
-    product = [doc for doc in documents if doc.get("@type") == "Product"]
-
     return {
         **key,
         "state": "active",
@@ -488,8 +494,6 @@ def normalize_cian_partner(
         "floors_total": floors,
         "land_area_m2": None,
         "description": cian_description(fields.get("description")),
-        "price": _partner_prices(
-            key, price_context, product[0] if len(product) == 1 else {}
-        ),
+        "price": _partner_prices(key, price_context, product),
         "photos": _partner_photos(images),
     }
