@@ -383,3 +383,30 @@ class RoomClaimsTests(TestCase):
 
                 # Assert
                 self.assertEqual(result, (1, Decimal("9")))
+
+    def test_each_allocation_in_a_contrast_keeps_its_subject(self) -> None:
+        for other_room in (2, 3):
+            for contrast in (
+                f"По соглашению закреплена комната № 2 за этой долей, а за долей "
+                f"соседа закреплена комната № {other_room}.",
+                f"Комната № {other_room} не закреплена за этой долей, а за этой долей "
+                "закреплена комната № 2.",
+            ):
+                with self.subTest(contrast=contrast):
+                    # Arrange
+                    description = "Продаётся 1/2 доля в квартире. " + contrast
+
+                    if other_room == 2:
+                        # Act
+                        with self.assertRaisesRegex(
+                            RejectedCard, "^unconfirmed_room_unit$"
+                        ):
+                            room_facts(1, Decimal("9"), description)
+
+                        # Assert: the rejection reason is checked above.
+                    else:
+                        # Act
+                        result = room_facts(1, Decimal("9"), description)
+
+                        # Assert
+                        self.assertEqual(result, (1, Decimal("9")))
