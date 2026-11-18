@@ -39,16 +39,23 @@ def eventually(predicate: Callable[[], bool]) -> None:
 
 
 def fixture_child(root: Path, snapshot: str) -> int:
-    from collection.runner import idle_run, run
+    from collection import runner
     from collection.selection import Direction, Selection, parse
 
     (root / "child-executed").touch()
     if (root / "wait-before-armed").exists():
         (root / "before-armed").touch()
         eventually((root / "continue-to-armed").exists)
-    django.setup()
+
+    real_emit = runner.emit
+
+    def observe_armed(event: str, reason: str = "") -> None:
+        real_emit(event, reason)
+        if event == "armed":
+            (root / "armed-emitted").touch()
 
     def supported(direction: Direction) -> bool:
+        (root / "direction-checked").touch()
         if (root / "hold-initialization").exists():
             (root / "initializing").touch()
             eventually((root / "continue-initialization").exists)
@@ -57,6 +64,7 @@ def fixture_child(root: Path, snapshot: str) -> int:
     def body(
         session: RunSession, selection: Selection, stopped: Callable[[], bool]
     ) -> None:
+        (root / "first-work").touch()
         if (root / "probe-write").exists():
             (root / "write-gate").touch()
             eventually((root / "attempt-write").exists)
@@ -64,9 +72,10 @@ def fixture_child(root: Path, snapshot: str) -> int:
             with session.transaction() as connection:
                 connection.execute("INSERT INTO public.t09_probe (id) VALUES (1)")
             (root / "write-completed").touch()
-        idle_run(session, selection, stopped)
+        runner.idle_run(session, selection, stopped)
 
-    return run(parse(json.loads(snapshot)), supported=supported, body=body)
+    with patch.object(runner, "emit", observe_armed):
+        return runner.run(parse(json.loads(snapshot)), supported=supported, body=body)
 
 
 def fixture_launcher(root: Path) -> int:
@@ -77,6 +86,8 @@ def fixture_launcher(root: Path) -> int:
     ) -> dict[str, object]:
         if (root / "observe-receive").exists():
             (root / "receiving").touch()
+            if (root / "wait-before-armed").exists():
+                deadline += 3  # Allow the independent fixture child to reach armed.
         return receive(connection, deadline)
 
     web = [
@@ -223,16 +234,26 @@ class LauncherTests(unittest.TestCase):
         self.start_fixture()
         initial = self.control(START)
         eventually((self.root / "before-armed").exists)
+        (self.root / "observe-receive").touch()
+        raw = encode({"action": "stop", "run_id": initial["run_id"]})
 
         # Act
-        stopping = self.control({"action": "stop", "run_id": initial["run_id"]})
-        (self.root / "continue-to-armed").touch()
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.connect(str(self.endpoint))
+            client.sendall(raw[:8])
+            eventually((self.root / "receiving").exists)
+            (self.root / "continue-to-armed").touch()
+            eventually((self.root / "armed-emitted").exists)
+            client.sendall(raw[8:])
+            stopping = receive(client, time.monotonic() + 3)
         result = self.status("finished")
 
         # Assert
         self.assertEqual(stopping["state"], "stopping")
         self.assertEqual(result["reason"], "stopped")
         self.assertIs(result["cleanup_confirmed"], True)
+        self.assertFalse((self.root / "direction-checked").exists())
+        self.assertFalse((self.root / "first-work").exists())
 
     def test_concurrent_start_pending_ready_and_stop(self) -> None:
         from catalog.services import ReferenceDeleteBlocked, delete_references

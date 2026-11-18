@@ -16,6 +16,7 @@ from typing import cast
 
 from collection.selection import InvalidSelection, parse
 from config.control import (
+    ADMISSION_FD,
     CONTROL_PATH,
     IO_TIMEOUT,
     MAX_MESSAGE,
@@ -40,10 +41,13 @@ import sys
 
 gate = int(sys.argv[1])
 permission = os.read(gate, 1)
-os.close(gate)
 if permission != b"1":
     raise SystemExit(125)
-os.execvp(sys.argv[2], sys.argv[2:])
+if sys.argv[2]:
+    os.environ[sys.argv[2]] = str(gate)
+else:
+    os.close(gate)
+os.execvp(sys.argv[3], sys.argv[3:])
 """
 
 
@@ -67,6 +71,7 @@ def send_pidfd(fd: int, signum: int) -> None:
 class Child:
     process: subprocess.Popen[bytes]
     pidfd: int | None
+    admission: int | None = None
 
     @classmethod
     def spawn(
@@ -88,6 +93,7 @@ class Child:
                     "-c",
                     EXEC_AFTER_PIDFD,
                     str(reader),
+                    ADMISSION_FD if events else "",
                     *command,
                 ],
                 stdin=subprocess.DEVNULL,
@@ -95,9 +101,12 @@ class Child:
                 pass_fds=(reader,),
             )
             pidfd = None
+            admission = None
             try:
                 pidfd = open_pidfd(process.pid)
                 if permitted():
+                    if events:
+                        admission = os.dup(writer)
                     os.write(writer, b"1")
                 else:
                     os.close(pidfd)
@@ -106,9 +115,23 @@ class Child:
                 if pidfd is not None:
                     os.close(pidfd)
                     pidfd = None
+                if admission is not None:
+                    os.close(admission)
+                    admission = None
         if process.stdout is not None:
             os.set_blocking(process.stdout.fileno(), False)
-        return cls(process, pidfd)
+        return cls(process, pidfd, admission)
+
+    def decide_admission(self, *, permit: bool) -> None:
+        fd = self.admission
+        if fd is None:
+            return
+        self.admission = None
+        try:
+            if permit:
+                os.write(fd, b"1")
+        finally:
+            os.close(fd)
 
     def send(self, sig: int) -> bool:
         if self.pidfd is None:
@@ -122,6 +145,7 @@ class Child:
         return True
 
     def close(self) -> None:
+        self.decide_admission(permit=False)
         if self.process.stdout is not None:
             self.process.stdout.close()
         if self.pidfd is not None:
@@ -136,6 +160,7 @@ class CurrentRun:
     buffer: bytearray = field(default_factory=bytearray)
     result: str | None = None
     armed: bool = False
+    admitted: bool = False
     events_valid: bool = True
     stop_at: float | None = None
     kill_at: float | None = None
@@ -161,14 +186,15 @@ class Supervisor:
         }
 
     def dispatch(self, message: dict[str, object]) -> dict[str, object]:
-        self.tick()
         action = message.get("action")
-        if action == "status" and set(message) == {"action"}:
-            return self.status()
         if action == "stop" and set(message) == {"action", "run_id"}:
             if self.run_id is None or message["run_id"] != self.run_id:
                 return self.status(ok=False, error="unknown_run")
+            # A received stop takes precedence over a buffered armed event.
             self.stop()
+            return self.status()
+        self.tick()
+        if action == "status" and set(message) == {"action"}:
             return self.status()
         if action != "start" or set(message) != {"action", "selection"}:
             raise ControlError("unsupported control request")
@@ -206,8 +232,10 @@ class Supervisor:
         run.stop_at = time.monotonic()
         if self.state != "unknown":
             self.state = "stopping"
-        if run.armed:
+        if run.admitted:
             self.send_term(run)
+        else:
+            run.child.decide_admission(permit=False)
 
     def send_term(self, run: CurrentRun) -> None:
         if not run.child.send(signal.SIGTERM):
@@ -263,11 +291,17 @@ class Supervisor:
             raise ControlError("invalid runner event")
         if event == "armed" and not run.armed:
             run.armed = True
-            if run.stop_at is not None:
-                self.send_term(run)
-        elif event == "ready" and run.armed and self.state == "starting":
+            if self.shutting_down or run.stop_at is not None:
+                self.stop()
+                return
+            try:
+                run.child.decide_admission(permit=True)
+                run.admitted = True
+            except OSError:
+                self.fault("runner_admission_failed")
+        elif event == "ready" and run.admitted and self.state == "starting":
             self.state = "running"
-        elif event == "ready" and run.armed and self.state == "stopping":
+        elif event == "ready" and run.admitted and self.state == "stopping":
             # A ready event may already be queued when stop is requested.
             return
         elif event == "finished" and run.armed:
@@ -385,8 +419,8 @@ def serve(path: Path, web_command: list[str], runner_command: list[str]) -> int:
         result = 0
         try:
             while not supervisor.shutting_down and web.process.poll() is None:
-                supervisor.tick()
                 server.handle_request()
+                supervisor.tick()
             if not supervisor.shutting_down:
                 result = 1
         finally:

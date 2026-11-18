@@ -12,7 +12,7 @@ from django.db import DatabaseError
 
 from collection.selection import Direction, InvalidSelection, Selection, parse, validate
 from config.collection_lock import LockBusy, LockLost, RunSession, run_session
-from config.control import ControlError, decode, encode
+from config.control import ADMISSION_FD, ControlError, decode, encode
 
 RunBody = Callable[[RunSession, Selection, Callable[[], bool]], None]
 
@@ -39,8 +39,18 @@ def run(
 
     for signum in (signal.SIGINT, signal.SIGTERM):
         signal.signal(signum, stop)
-    emit("armed")
+    admission = os.environ.pop(ADMISSION_FD, None)
+    if admission is None:
+        emit("fault", "runner_admission_missing")
+        return 1
+    with os.fdopen(int(admission), "rb") as gate:
+        emit("armed")
+        permitted = gate.read(1) == b"1"
+    if not permitted or stopped():
+        emit("finished", "stopped")
+        return 0
 
+    django.setup()
     ready = False
     try:
         with run_session() as session:
@@ -94,7 +104,6 @@ def main() -> int:
         return 0
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
-    django.setup()
     return run(selection, supported=unavailable_direction, body=idle_run)
 
 

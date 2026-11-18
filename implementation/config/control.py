@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from typing import cast
 
+ADMISSION_FD = "NIR_RUN_ADMISSION_FD"
 CONTROL_PATH = Path("/run/app/control.sock")
 MAX_MESSAGE = 4096
 IO_TIMEOUT = 0.25
