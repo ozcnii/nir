@@ -157,6 +157,7 @@ def fixture_launcher(root: Path, mode: str) -> int:
     real_fsync = os.fsync
     real_replace = os.replace
     replaced_final = False
+    replaced_seal = False
     real_read = read_run
     visits = 0
 
@@ -175,7 +176,7 @@ def fixture_launcher(root: Path, mode: str) -> int:
         src_dir_fd: int | None = None,
         dst_dir_fd: int | None = None,
     ) -> None:
-        nonlocal replaced_final
+        nonlocal replaced_final, replaced_seal
         temporary = (
             Path(source)
             if src_dir_fd is None
@@ -190,10 +191,16 @@ def fixture_launcher(root: Path, mode: str) -> int:
             if mode == "fail-after":
                 replaced_final = True
         real_replace(source, target, src_dir_fd=src_dir_fd, dst_dir_fd=dst_dir_fd)
+        if mode == "fail-seal" and Path(target).name == TERMINAL_SEAL:
+            replaced_seal = True
 
     def fsync(fd: int) -> None:
         path = Path(os.readlink(f"/proc/self/fd/{fd}"))
         if mode == "fail-after" and replaced_final and path.is_dir():
+            raise OSError("fixture-secret-should-not-be-stored")
+        if replaced_seal and path.is_dir():
+            (root / "sync-entered").touch()
+            until((root / "sync-release").exists)
             raise OSError("fixture-secret-should-not-be-stored")
         if path.name.startswith(".state.json-"):
             status = document(path)["status"]
@@ -430,6 +437,43 @@ class JournalTests(unittest.TestCase):
                 self.assertEqual(row, (identifier,))
                 self.assertNotIn("fixture-secret", events)
                 self.assertIn('"committed_writes":1', events)
+
+    def test_snapshot_ack_precedes_failing_seal_and_survives_restart(self) -> None:
+        # Arrange
+        root, endpoint, process = self.fixture("fail-seal")
+        initial = request(START, endpoint)
+        observed_state(endpoint, "running")
+        run_id = str(initial["run_id"])
+        run = root / "runs" / run_id
+
+        # Act
+        request({"action": "stop", "run_id": run_id}, endpoint)
+        until((root / "sync-entered").exists)
+        acknowledged = observed_state(endpoint, "finished")
+        sealed = (run / TERMINAL_SEAL).exists()
+        prior = (run / "state.json").read_bytes()
+        (root / "sync-release").touch()
+        notice = self.notice(process)
+        denied = request(START, endpoint)
+        process.terminate()
+        exit_code = process.wait(timeout=8)
+        _, recovered_endpoint, _ = self.fixture("recover-existing", root)
+        observed_state(recovered_endpoint, "idle")
+        recovered = read_run(root / "runs", run_id)
+
+        # Assert
+        self.assertIs(acknowledged["cleanup_confirmed"], True)
+        self.assertTrue(sealed)
+        self.assertEqual(
+            notice, "Collection journal storage fault: journal_seal_failed"
+        )
+        self.assertEqual(denied["state"], "finished")
+        self.assertIs(denied["ok"], False)
+        self.assertIs(denied["cleanup_confirmed"], False)
+        self.assertEqual(exit_code, 1)
+        self.assertEqual((run / "state.json").read_bytes(), prior)
+        assert recovered.snapshot is not None
+        self.assertEqual(recovered.snapshot["outcome"], "stopped")
 
     def test_full_queue_drains_and_stop_kill_do_not_wait_for_blocked_fsync(
         self,

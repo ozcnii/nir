@@ -256,7 +256,11 @@ class Supervisor:
             return self.status()
         if action != "start" or set(message) != {"action", "selection"}:
             raise ControlError("unsupported control request")
-        if self.shutting_down or self.state not in ("idle", "finished"):
+        if (
+            self.shutting_down
+            or self.state not in ("idle", "finished")
+            or self.journal.status()[0] is not None
+        ):
             return self.status(ok=False, error="collection_unavailable")
         try:
             selection = parse(message["selection"])
@@ -366,22 +370,30 @@ class Supervisor:
                 self.recovering = False
                 self.state = "idle"
             return
+        run = self.current
+        if run is not None and run.final is not None:
+            if self.journal.acknowledged(run.final):
+                self.state = "finished"
+                self.reason = run.result or ""
+                self.current = run = None
         fault, _ = self.journal.status()
         if fault is not None and self.state != "unknown":
-            self.fault(fault)
-        run = self.current
+            if self.state != "finished" or fault not in (
+                "journal_seal_failed",
+                "journal_seal_timeout",
+            ):
+                self.fault(fault)
         if run is None:
             return
         child = run.child
         if child is None:
             if fault is not None:
                 self.current = None
-            elif run.final is not None:
-                if self.journal.acknowledged(run.final):
-                    self.state = "finished"
-                    self.reason = run.result or ""
-                    self.current = None
-            elif run.initial is not None and self.journal.acknowledged(run.initial):
+            elif (
+                run.final is None
+                and run.initial is not None
+                and self.journal.acknowledged(run.initial)
+            ):
                 if self.shutting_down or run.stop_at is not None:
                     self.finalize(run, "stopped")
                 else:

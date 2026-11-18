@@ -74,6 +74,7 @@ class JournalWriter:
         self._fault: str | None = None
         self._lost = 0
         self._recovery_deadline = time.monotonic() + ACK_SECONDS if recover else None
+        self._seal_deadline: float | None = None
         self._closing = threading.Event()
         self._fault_notice = threading.Event()
         self._reporter = threading.Thread(
@@ -102,6 +103,8 @@ class JournalWriter:
     def _expire(self, now: float) -> None:
         if self._recovery_deadline is not None and now >= self._recovery_deadline:
             self._fail("journal_recovery_timeout")
+        if self._seal_deadline is not None and now >= self._seal_deadline:
+            self._fail("journal_seal_timeout")
         first = next(iter(self._pending.values()), None)
         if first is not None and now >= first.deadline:
             self._fail("journal_ack_timeout")
@@ -148,11 +151,7 @@ class JournalWriter:
     def acknowledged(self, ticket: Ticket) -> bool:
         with self._state:
             self._expire(time.monotonic())
-            return (
-                self._fault is None
-                and ticket.instance_id == self.instance_id
-                and ticket.committed
-            )
+            return ticket.instance_id == self.instance_id and ticket.committed
 
     def close(self) -> bool:
         with self._state:
@@ -161,6 +160,8 @@ class JournalWriter:
             self._closing.set()
             last = next(reversed(self._pending.values()), None)
             deadline = last.deadline if last is not None else self._recovery_deadline
+            if deadline is None:
+                deadline = self._seal_deadline
             timeout = (
                 max(0.0, deadline - now)
                 if self._fault is None and deadline is not None
@@ -183,7 +184,7 @@ class JournalWriter:
     def _write(self) -> None:
         if self._recovery_deadline is not None:
             try:
-                recover_runs(self.root, self._write_state)
+                recover_runs(self.root, self._write_recovered_state)
                 self._maintenance = retention_steps(self.root)
             except OSError:
                 with self._state:
@@ -213,23 +214,14 @@ class JournalWriter:
                         self._lost += 1
                 continue
             try:
-                self._persist(job)
+                sealed = self._persist(job)
             except (OSError, ValueError):
                 with self._state:
                     self._fail("journal_write_failed")
                     if job.event:
                         self._lost += 1
                 continue
-            with self._state:
-                self._expire(time.monotonic())
-                self._pending.pop(job.ticket.operation)
-                if self._fault is None:
-                    job.ticket.committed = True
-            if (
-                job.ticket.committed
-                and not job.event
-                and job.record["status"] == "finished"
-            ):
+            if sealed:
                 self._cancel_maintenance()
                 self._maintenance = retention_steps(self.root, job.ticket.run_id)
 
@@ -256,19 +248,38 @@ class JournalWriter:
             with self._state:
                 self._fail("journal_retention_failed")
 
-    def _write_state(self, run: int, record: dict[str, object]) -> None:
+    def _write_recovered_state(self, run: int, record: dict[str, object]) -> None:
         write_snapshot(run, record)
-        if record["status"] != "finished":
-            return
         with self._state:
             self._expire(time.monotonic())
             timely_snapshot = self._fault is None
         if timely_snapshot:
-            # A surviving seal attests to the already-synced, timely snapshot.
-            # The control loop still waits for the whole writer operation's ACK.
             write_file(run, TERMINAL_SEAL, terminal_digest(record))
 
-    def _persist(self, job: Job) -> None:
+    def _commit(self, job: Job, *, terminal: bool) -> bool:
+        with self._state:
+            now = time.monotonic()
+            self._expire(now)
+            self._pending.pop(job.ticket.operation)
+            job.ticket.committed = self._fault is None
+            if terminal and job.ticket.committed:
+                self._seal_deadline = now + ACK_SECONDS
+            return job.ticket.committed
+
+    def _seal(self, run: int, record: dict[str, object]) -> bool:
+        failed = False
+        try:
+            write_file(run, TERMINAL_SEAL, terminal_digest(record))
+        except (OSError, ValueError):
+            failed = True
+        with self._state:
+            self._expire(time.monotonic())
+            self._seal_deadline = None
+            if failed:
+                self._fail("journal_seal_failed")
+            return self._fault is None
+
+    def _persist(self, job: Job) -> bool:
         with directory(self.root.parent) as volume:
             if job.initial:
                 with suppress(FileExistsError):
@@ -290,4 +301,9 @@ class JournalWriter:
                     if job.event:
                         append_event(run, job.record)
                     else:
-                        self._write_state(run, job.record)
+                        write_snapshot(run, job.record)
+                    terminal = not job.event and job.record["status"] == "finished"
+                    if self._commit(job, terminal=terminal) and terminal:
+                        # The seal follows an irrevocable, timely snapshot ACK.
+                        return self._seal(run, job.record)
+        return False
