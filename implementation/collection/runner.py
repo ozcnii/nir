@@ -3,18 +3,28 @@
 import os
 import signal
 import sys
-import time
 from collections.abc import Callable
 
 import django
 import psycopg
-from django.db import DatabaseError
+from django.db import DatabaseError, connection
+from playwright.sync_api import Error as PlaywrightError
 
+from collection.browser import (
+    BrowserCleanupUnconfirmed,
+    BrowserFailed,
+    BrowserWork,
+    Stopped,
+    browser_work,
+)
 from collection.selection import Direction, InvalidSelection, Selection, parse, validate
 from config.collection_lock import LockBusy, LockLost, RunSession, run_session
 from config.control import ADMISSION_FD, ControlError, decode, encode
 
-RunBody = Callable[[RunSession, Selection, Callable[[], bool]], None]
+RunBody = Callable[
+    [RunSession, Selection, Callable[[], bool], Callable[[], None]], None
+]
+BrowserBody = Callable[[BrowserWork, Selection], None]
 
 
 def emit(event: str, reason: str = "") -> None:
@@ -54,13 +64,37 @@ def run(
     ready = False
     try:
         with run_session() as session:
-            validate(selection, supported)
-            session.require_lock()
-            if not stopped():
+            try:
+                validate(selection, supported)
+            finally:
+                # Reference lookups use Django's separate read connection.
+                connection.close()
+
+            def initialized() -> None:
+                nonlocal ready
+                if stopped():
+                    raise Stopped
+                session.require_lock()
+                if stopped():
+                    raise Stopped
                 ready = True
                 emit("ready")
-                body(session, selection, stopped)
+
+            if not stopped():
+                body(session, selection, stopped, initialized)
                 session.require_lock()
+    except Stopped:
+        emit("finished", "stopped")
+        return 0
+    except BrowserCleanupUnconfirmed as error:
+        emit("fault", str(error))
+        return 1
+    except BrowserFailed as error:
+        emit("finished", str(error))
+        return 0
+    except PlaywrightError:
+        emit("finished", "browser_operation_failed")
+        return 0
     except InvalidSelection as error:
         if ready:
             emit("fault", "run_failed")
@@ -86,12 +120,25 @@ def unavailable_direction(_direction: Direction) -> bool:
     return False
 
 
-def idle_run(
-    session: RunSession, _selection: Selection, stopped: Callable[[], bool]
-) -> None:
-    while not stopped():
-        session.require_lock()
-        time.sleep(0.2)
+def run_with_browser(
+    selection: Selection, *, supported: Callable[[Direction], bool], body: BrowserBody
+) -> int:
+    def start_browser(
+        session: RunSession,
+        snapshot: Selection,
+        stopped: Callable[[], bool],
+        initialized: Callable[[], None],
+    ) -> None:
+        with browser_work(session, stopped) as work:
+            initialized()
+            work.checkpoint()
+            body(work, snapshot)
+
+    return run(selection, supported=supported, body=start_browser)
+
+
+def unavailable_body(_work: BrowserWork, _selection: Selection) -> None:
+    raise BrowserFailed("unsupported_direction")
 
 
 def main() -> int:
@@ -104,7 +151,9 @@ def main() -> int:
         return 0
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
-    return run(selection, supported=unavailable_direction, body=idle_run)
+    return run_with_browser(
+        selection, supported=unavailable_direction, body=unavailable_body
+    )
 
 
 if __name__ == "__main__":

@@ -62,9 +62,13 @@ def fixture_child(root: Path, snapshot: str) -> int:
         return direction == Direction("cian", 68, "resale", "sale")
 
     def body(
-        session: RunSession, selection: Selection, stopped: Callable[[], bool]
+        session: RunSession,
+        selection: Selection,
+        stopped: Callable[[], bool],
+        initialized: Callable[[], None],
     ) -> None:
         (root / "first-work").touch()
+        initialized()
         if (root / "probe-write").exists():
             (root / "write-gate").touch()
             eventually((root / "attempt-write").exists)
@@ -72,7 +76,9 @@ def fixture_child(root: Path, snapshot: str) -> int:
             with session.transaction() as connection:
                 connection.execute("INSERT INTO public.t09_probe (id) VALUES (1)")
             (root / "write-completed").touch()
-        runner.idle_run(session, selection, stopped)
+        while not stopped():
+            session.require_lock()
+            time.sleep(0.2)
 
     with patch.object(runner, "emit", observe_armed):
         return runner.run(parse(json.loads(snapshot)), supported=supported, body=body)
