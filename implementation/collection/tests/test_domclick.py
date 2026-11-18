@@ -247,6 +247,157 @@ class DomclickTests(TestCase):
             "Самарская область, Самара, СНТ Яблонька, Северный переулок",
         )
 
+    def test_house_subtypes_require_the_address_of_one_independent_unit(self) -> None:
+        # Arrange: selected fields from the four native subtype observations.
+        cases = (
+            ("sale", "house_part", 1525510020, "Тольятти", "Рабочий проезд", None, 69),
+            (
+                "rent",
+                "house_part",
+                2081525526,
+                "Тольятти",
+                "КП Чайка, 23а",
+                "Половина большого бревенчатого дома",
+                250,
+            ),
+            (
+                "sale",
+                "townhouse",
+                1695973117,
+                "Самара",
+                "Сарапульский переулок, 38",
+                "Продается здание общежития. Также возможна продажа по комнатам.",
+                394.1,
+            ),
+            (
+                "rent",
+                "townhouse",
+                1885120006,
+                "Чапаевск",
+                "Херсонская улица, 7/2",
+                "Сдается дом",
+                140,
+            ),
+        )
+        for deal, kind, identifier, locality, address, description, area in cases:
+            with self.subTest(identifier=identifier):
+                data = native_proposal()
+                data.update(
+                    {
+                        "id": identifier,
+                        "offerType": kind,
+                        "dealType": deal,
+                        "address": {
+                            "displayName": f"Россия, Самарская область, {locality}, {address}",
+                            "parents": [
+                                {"kind": "locality", "name": locality},
+                                {
+                                    "kind": "province",
+                                    "subkind": "region",
+                                    "name": "Самарская область",
+                                },
+                            ],
+                        },
+                        "objectInfo": {"area": area, "description": description},
+                    }
+                )
+                url = f"https://samara.domclick.ru/card/{deal}__{kind}__{identifier}"
+
+                if deal == "rent" and kind == "townhouse":
+                    # Act
+                    result = read_native(url, data)
+
+                    # Assert
+                    assert result["state"] == "active"
+                    self.assertEqual(result["property_type_id"], 3)
+                    self.assertEqual(result["deal_type"], "month_rent")
+                    self.assertEqual(result["area_m2"], Decimal("140.00"))
+                    self.assertEqual(
+                        result["address"],
+                        "Самарская область, Чапаевск, Херсонская улица, 7/2",
+                    )
+                else:
+                    # Act
+                    with self.assertRaises(RejectedCard) as rejected:
+                        read_native(url, data)
+
+                    # Assert
+                    self.assertEqual(
+                        str(rejected.exception),
+                        "unsupported_house_unit"
+                        if kind == "townhouse"
+                        else "unconfirmed_house_block",
+                    )
+
+    def test_addressable_duplex_with_conflicting_published_area_is_rejected(
+        self,
+    ) -> None:
+        # Arrange: the comparable fields in the 2080868633 card observation.
+        url = "https://samara.domclick.ru/card/sale__townhouse__2080868633"
+        data = native_proposal()
+        data.update(
+            {
+                "id": 2080868633,
+                "offerType": "townhouse",
+                "address": {
+                    "displayName": "Самарская область, Янтарная улица, 5/2",
+                    "parents": [
+                        {
+                            "kind": "locality",
+                            "name": "коттеджный посёлок Union Village",
+                        },
+                        {
+                            "kind": "province",
+                            "subkind": "region",
+                            "name": "Самарская область",
+                        },
+                    ],
+                },
+                "objectInfo": {
+                    "area": 105.3,
+                    "description": "Одноэтажный дуплекс 100 м2.",
+                },
+            }
+        )
+
+        # Act
+        with self.assertRaises(RejectedCard) as rejected:
+            read_native(url, data)
+
+        # Assert
+        self.assertEqual(str(rejected.exception), "conflicting_house_area")
+
+    def test_zero_rooms_requires_an_explicit_flat_studio_title(self) -> None:
+        # Arrange
+        url = "https://samara.domclick.ru/card/sale__flat__2080269220"
+        data = native_proposal()
+        data.update({"id": 2080269220, "offerType": "flat", "objectInfo": {"rooms": 0}})
+        script = ssr({"productCard": data})
+
+        # Act
+        result = parse_card(
+            url,
+            OBSERVED,
+            [script],
+            [],
+            loaded_url=url,
+            page_title="Купить квартиру-студию, 27 м² по адресу Самара",
+        )
+        with self.assertRaises(RejectedCard) as rejected:
+            parse_card(
+                url,
+                OBSERVED,
+                [script],
+                [],
+                loaded_url=url,
+                page_title="Студия дизайна рядом",
+            )
+
+        # Assert
+        assert result["state"] == "active"
+        self.assertEqual(result["rooms"], 0)
+        self.assertEqual(str(rejected.exception), "unconfirmed_studio")
+
     def test_wrong_unit_and_nonrepresentable_area_stop_before_p3(self) -> None:
         for land in (
             {"area": 4, "areaUnit": "акр"},
@@ -325,11 +476,17 @@ class DomclickTests(TestCase):
         bare = read_native(HOUSE, data)
         removed = read_native(HOUSE, data, removed=True)
         conflict = read_native(ROOM, data, removed=True)
+        empty = read_native(HOUSE, {}, removed=True)
+        missing_id = read_native(HOUSE, {**data, "id": None}, removed=True)
+        still_active = read_native(HOUSE, {**data, "status": 2}, removed=True)
 
         # Assert
         self.assertEqual(bare["state"], "unavailable")
         self.assertEqual(removed["state"], "removed")
         self.assertEqual(conflict["state"], "unavailable")
+        self.assertEqual(empty["state"], "unavailable")
+        self.assertEqual(missing_id["state"], "unavailable")
+        self.assertEqual(still_active["state"], "active")
 
     def test_partner_decodes_refs_and_returns_the_confirmed_flat(self) -> None:
         # Arrange
@@ -498,4 +655,37 @@ class DomclickTests(TestCase):
                 "price_kind": "from",
                 "currency": "RUB",
             },
+        )
+
+    def test_house_part_keeps_the_explicit_block_scope_and_number(self) -> None:
+        # Arrange: a control using the accepted 6.3 address notation.
+        url = "https://samara.domclick.ru/card/sale__house_part__7777777"
+        data = native_proposal()
+        data.update(
+            {
+                "id": 7777777,
+                "offerType": "house_part",
+                "address": {
+                    "displayName": "Самара, Солнечная улица, 7, блок 2",
+                    "parents": [
+                        {"kind": "locality", "name": "Самара"},
+                        {
+                            "kind": "province",
+                            "subkind": "region",
+                            "name": "Самарская область",
+                        },
+                    ],
+                },
+                "objectInfo": {"area": 55, "description": "Самостоятельная секция."},
+            }
+        )
+
+        # Act
+        result = read_native(url, data)
+
+        # Assert
+        assert result["state"] == "active"
+        self.assertEqual(result["area_m2"], Decimal("55.00"))
+        self.assertEqual(
+            result["address"], "Самарская область, Самара, Солнечная улица, 7, блок 2"
         )

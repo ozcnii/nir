@@ -68,6 +68,18 @@ TYPE_IDS = {
 }
 
 
+_STUDIO_TITLE = re.compile(
+    r"(?:(?:студия|квартира-студия)(?:,? [0-9]+(?:[.,][0-9]+)? м[²2].*)?"
+    r"|(?:купить|снять) (?:студию|квартиру-студию)(?:,.*| по адресу .*)?)"
+)
+_BLOCK_ADDRESS = re.compile(
+    r"(?:^|, )\d+[а-яa-z]?, (?:блок|секция) (?:№ *)?\d+[а-яa-z]?$"
+)
+_COMPOUND_HOUSE_NUMBER = re.compile(r"(?:^|, )\d+[а-яa-z]?/\d+[а-яa-z]?$")
+_DORMITORY = re.compile(r"\b(?:здание общежития|(?:статус|назначение) общежитие)\b")
+_DUPLEX_AREA = re.compile(r"\bдуплекс (\d+(?:[.,]\d+)?) *м[²2]\b")
+
+
 @dataclass(frozen=True)
 class CardIdentity:
     key: str
@@ -203,8 +215,13 @@ def _floors(floor: object, total: object) -> tuple[int | None, int | None]:
     return level, levels
 
 
-def _rooms(value: object) -> int | None:
-    return optional_integer(_optional(value), minimum=1)
+def _rooms(value: object, studio_title: str = "") -> int | None:
+    rooms = optional_integer(_optional(value), minimum=0)
+    if rooms == 0 and not _STUDIO_TITLE.fullmatch(
+        " ".join(studio_title.casefold().split())
+    ):
+        raise RejectedCard("unconfirmed_studio")
+    return rooms
 
 
 def _land(data: dict[str, object]) -> Decimal | None:
@@ -238,7 +255,7 @@ def _photo_urls(values: list[object]) -> KnownPhotos | Unavailable:
     return {"status": "known", "urls": list(dict.fromkeys(cast(list[str], values)))}
 
 
-def _native_address(data: dict[str, object]) -> tuple[int, str | None]:
+def _native_address(data: dict[str, object]) -> tuple[int, str | None, bool]:
     parents = [_record(value) for value in _array(data.get("parents"))]
     subjects = [
         part.get("name")
@@ -260,7 +277,31 @@ def _native_address(data: dict[str, object]) -> tuple[int, str | None]:
         display = ", ".join(
             name.strip() for name in display.split(",") if name.strip() != "Россия"
         )
-    return _region(subject), _address(subject, *localities, display)
+    return _region(subject), _address(subject, *localities, display), any(localities)
+
+
+def _check_native_house_unit(
+    native_type: str,
+    address: str | None,
+    has_locality: bool,
+    description: str | None,
+    area: Decimal | None,
+) -> None:
+    if native_type == "house":
+        return
+    seller_text = " ".join((description or "").casefold().split())
+    if _DORMITORY.search(seller_text):
+        raise RejectedCard("unsupported_house_unit")
+    published = (address or "").casefold()
+    addressable = _BLOCK_ADDRESS.search(published) or (
+        native_type == "townhouse" and _COMPOUND_HOUSE_NUMBER.search(published)
+    )
+    if not has_locality or not addressable:
+        raise RejectedCard("unconfirmed_house_block")
+    if area is not None and any(
+        number(value) != area for value in _DUPLEX_AREA.findall(seller_text)
+    ):
+        raise RejectedCard("conflicting_house_area")
 
 
 def _native(
@@ -269,32 +310,24 @@ def _native(
     url: str,
     data: dict[str, object],
     removed_marker: bool,
+    page_title: str,
 ) -> Snapshot:
     expected = {
         "offerType": identity.native_type,
         "dealType": "sale" if identity.deal == "sale" else "rent",
     }
-    publication = data.get("id")
-    if (
-        removed_marker
-        and (_missing(publication) or _number_matches(publication, identity))
-        and all(
-            _missing(data.get(field)) or data[field] == value
-            for field, value in expected.items()
-        )
-        and (_missing(data.get("status")) or data["status"] == 8)
+    if not _number_matches(data.get("id"), identity) or any(
+        data.get(field) != value for field, value in expected.items()
     ):
+        return {**key, "state": "unavailable"}
+    status = data.get("status")
+    if status == 8 and removed_marker:
         return {**key, "state": "removed", "url": url, "deal_type": identity.deal}
-    if (
-        not _number_matches(publication, identity)
-        or any(data.get(field) != value for field, value in expected.items())
-        or data.get("status") != 2
-        or removed_marker
-    ):
+    if status != 2:
         return {**key, "state": "unavailable"}
 
     address = _record(data.get("address"))
-    region_id, formatted = _native_address(address)
+    region_id, formatted, has_locality = _native_address(address)
     position = _record(address.get("position"))
     lat, lon = _point(position.get("lat"), position.get("lon"))
     info = _record(data.get("objectInfo"))
@@ -306,8 +339,13 @@ def _native(
         None if is_house else info.get("floor"), house.get("floors")
     )
     flat = _text(info.get("flatNumber"))
-    area = info.get("roomArea" if is_room else "area")
+    area = _area(info.get("roomArea" if is_room else "area"))
     rooms = data.get("roomsOffered") if is_room else info.get("rooms")
+    description = _text(info.get("description"), problem="invalid_description")
+    if is_house:
+        _check_native_house_unit(
+            identity.native_type, formatted, has_locality, description, area
+        )
     photos: KnownPhotos | Unavailable = {"status": "unavailable"}
     if data.get("photos") == []:
         photos = {"status": "known", "urls": []}
@@ -322,12 +360,12 @@ def _native(
         "address": _address(formatted, f"кв. {flat}" if flat else None),
         "latitude": lat,
         "longitude": lon,
-        "area_m2": _area(area),
-        "rooms": _rooms(rooms),
+        "area_m2": area,
+        "rooms": _rooms(rooms, page_title if identity.native_type == "flat" else ""),
         "floor": floor,
         "floors_total": floors,
         "land_area_m2": _land(_record(data.get("land"))) if is_house else None,
-        "description": _text(info.get("description"), problem="invalid_description"),
+        "description": description,
         "price": _native_price(data.get("priceInfo")),
         "photos": photos,
     }
@@ -456,7 +494,7 @@ def _partner(
         "latitude": lat,
         "longitude": lon,
         "area_m2": _area(attributes.get("area")),
-        "rooms": _rooms(attributes.get("rooms")),
+        "rooms": _rooms(attributes.get("rooms"), title or ""),
         "floor": floor,
         "floors_total": floors,
         "land_area_m2": None,
@@ -605,6 +643,7 @@ def _daily(
     source: dict[str, object],
     gallery: list[str],
     quote: DailyListingQuote | None,
+    page_title: str,
 ) -> Snapshot:
     inventory = as_object(source.get("inventory"))
     search = as_object(inventory.get("searchData"))
@@ -643,7 +682,7 @@ def _daily(
         "latitude": lat,
         "longitude": lon,
         "area_m2": _area(data.get("area")),
-        "rooms": _rooms(data.get("rooms")),
+        "rooms": _rooms(data.get("rooms"), page_title),
         "floor": floor,
         "floors_total": floors,
         "land_area_m2": None,
@@ -667,6 +706,7 @@ def parse_card(
     *,
     loaded_url: str,
     removed_marker: bool = False,
+    page_title: str = "",
     gallery: list[str] | None = None,
     quote: DailyListingQuote | None = None,
 ) -> Snapshot:
@@ -692,7 +732,9 @@ def parse_card(
         )
     state = ssr_state(ssr_scripts)
     if identity.family == "daily":
-        return _daily(key, identity, loaded_url, state, gallery or [], quote)
+        return _daily(
+            key, identity, loaded_url, state, gallery or [], quote, page_title
+        )
     if identity.family == "native":
         return _native(
             key,
@@ -700,6 +742,7 @@ def parse_card(
             loaded_url,
             as_object(state.get("productCard")),
             removed_marker,
+            page_title,
         )
     # The saved observations prove this source branch and its publication ID.
     # Its complete per-field mapping still requires a source-shaped projection.
@@ -710,6 +753,7 @@ class EmbeddedPage(TypedDict):
     ssr: list[str]
     nuxt: list[str]
     removed: bool
+    title: str
     gallery: list[str]
     url: str
 
@@ -742,6 +786,7 @@ def read_card(
                     .map(s => s.textContent),
                 removed: text.split("\n").some(line =>
                     line.replace(/\s+/g, " ").trim() === "Объявление снято с размещения"),
+                title: document.title,
                 gallery: Array.from(document.querySelectorAll(
                     "[data-e2e-id='gallery-widget'] img"
                 )).map(img => img.currentSrc || img.src),
@@ -763,6 +808,7 @@ def read_card(
         data["nuxt"],
         loaded_url=data["url"],
         removed_marker=data["removed"],
+        page_title=data["title"],
         gallery=data["gallery"],
         quote=quote,
     )
