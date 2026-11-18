@@ -81,7 +81,7 @@ _NOT_OFFERED_ROOM = re.compile(
     r"|\b(?:нескольк\w*|разн\w*|друг\w*|типов\w*|вариант\w*)\s+планиров"
     r"|\b(?:соседн\w*|друг\w*|аналогичн\w*|типов\w*)\s+квартир"
 )
-_SENTENCE_END = re.compile(r"[.!?](?![0-9])|;")
+_SENTENCE_END = re.compile(r"[.!?](?![0-9])")
 _SQUARE_METERS = re.compile(r"\bкв\.\s*м\b")
 _TYPOGRAPHY = str.maketrans(
     {
@@ -185,7 +185,7 @@ def parse_address(value: str | None, region: str) -> Address | None:
     if not all(_ADDRESS_TOKEN.fullmatch(part) for part in (*locality, street)):
         return None
     if locality[0].startswith(_NOT_SETTLEMENT) or locality[0].endswith(
-        (" область", " край", " республика", " округ", " район", " муниципалитет")
+        (*_NOT_STREET_SUFFIX, " область", " край", " республика", " муниципалитет")
     ):
         return None
     if street.startswith(_NAME_WITHOUT_STREET) or street.endswith(_NOT_STREET_SUFFIX):
