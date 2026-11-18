@@ -2,6 +2,7 @@
 
 import json
 import os
+import select
 import shutil
 import subprocess
 import sys
@@ -72,7 +73,9 @@ def fixture_worker(root: Path, mode: str, selection: str) -> int:
         initialized()
         if mode == "overflow":
             until((root / "emit-flood").exists)
-            for _ in range(1024):
+            for index in range(1025):
+                if index == 1:
+                    until((root / "sync-entered").exists)
                 runner.emit(
                     "event",
                     "navigation_timeout",
@@ -123,6 +126,14 @@ def fixture_worker(root: Path, mode: str, selection: str) -> int:
             packet[field] = value
             sys.stdout.buffer.write(encode(packet))
             sys.stdout.buffer.flush()
+        if mode == "after-terminal":
+            runner.emit("progress", committed_writes=1)
+            runner.emit("finished", "completed")
+            sys.stdout.buffer.write(b"{")
+            sys.stdout.buffer.flush()
+        if mode == "drain":
+            until((root / "crash-now").exists)
+            os._exit(17)
         if mode == "finish":
             until((root / "complete-body").exists)
         else:
@@ -162,8 +173,10 @@ def fixture_launcher(root: Path, mode: str) -> int:
             raise OSError("fixture-secret-should-not-be-stored")
         if path.name.startswith(".state-"):
             status = document(path)["status"]
-            if (mode.startswith("initial") and status == "starting") or (
-                mode == "finish" and status == "finished"
+            if (
+                (mode.startswith("initial") and status == "starting")
+                or (mode == "finish" and status == "finished")
+                or (mode == "drain" and status == "unknown")
             ):
                 (root / "sync-entered").touch()
                 until((root / "sync-release").exists, 60)
@@ -193,7 +206,8 @@ class JournalTests(unittest.TestCase):
         root = Path(temp.name)
         endpoint = root / "control.sock"
         process = subprocess.Popen(
-            [sys.executable, __file__, "launcher", str(root), mode]
+            [sys.executable, __file__, "launcher", str(root), mode],
+            stderr=subprocess.PIPE,
         )
         self.addCleanup(self.finish, process, root)
         until(endpoint.exists)
@@ -202,9 +216,21 @@ class JournalTests(unittest.TestCase):
     @staticmethod
     def finish(process: subprocess.Popen[bytes], root: Path) -> None:
         (root / "sync-release").touch()
-        if process.poll() is None:
-            process.terminate()
-            process.wait(timeout=48)
+        try:
+            if process.poll() is None:
+                process.terminate()
+                process.wait(timeout=48)
+        finally:
+            if process.stderr is not None:
+                process.stderr.close()
+
+    @staticmethod
+    def notice(process: subprocess.Popen[bytes]) -> str:
+        stream = process.stderr
+        assert stream is not None
+        if not select.select([stream], [], [], 2)[0]:
+            raise AssertionError("Timed out waiting for journal fault notice")
+        return stream.readline().decode().strip()
 
     def test_initial_ack_gates_spawn_and_stop_cancels_admission(self) -> None:
         for mode in (
@@ -231,6 +257,7 @@ class JournalTests(unittest.TestCase):
                 if mode == "initial-late":
                     expired = observed_state(endpoint, "unknown")
                     fault_elapsed = time.monotonic() - started
+                    fault_notice = self.notice(process)
                 (root / "sync-release").touch()
                 if mode == "initial-shutdown":
                     result = process.wait(timeout=8)
@@ -261,6 +288,10 @@ class JournalTests(unittest.TestCase):
                     self.assertEqual(stopped["reason"], "stopped")
                 elif mode == "initial-late":
                     self.assertEqual(expired["reason"], "journal_ack_timeout")
+                    self.assertEqual(
+                        fault_notice,
+                        "Collection journal storage fault: journal_ack_timeout",
+                    )
                     self.assertGreaterEqual(fault_elapsed, 4.65)
                     self.assertLess(fault_elapsed, 5.75)
                     self.assertIs(after["storage_fault"], True)
@@ -313,7 +344,7 @@ class JournalTests(unittest.TestCase):
         ):
             with self.subTest(mode=mode):
                 # Arrange
-                root, endpoint, _ = self.fixture(mode)
+                root, endpoint, process = self.fixture(mode)
                 initial = request(START, endpoint)
                 observed_state(endpoint, "running")
                 until((root / "committed").exists)
@@ -322,6 +353,7 @@ class JournalTests(unittest.TestCase):
                 # Act
                 request({"action": "stop", "run_id": run_id}, endpoint)
                 failure = observed_state(endpoint, "unknown")
+                fault_notice = self.notice(process)
                 run = root / "runs" / run_id
                 snapshot = document(run / "state.json")
                 events = (run / "events.jsonl").read_text()
@@ -333,6 +365,10 @@ class JournalTests(unittest.TestCase):
 
                 # Assert
                 self.assertEqual(failure["reason"], "journal_write_failed")
+                self.assertEqual(
+                    fault_notice,
+                    "Collection journal storage fault: journal_write_failed",
+                )
                 self.assertIs(failure["cleanup_confirmed"], False)
                 self.assertEqual(snapshot["status"], persisted)
                 self.assertEqual(row, (identifier,))
@@ -357,6 +393,7 @@ class JournalTests(unittest.TestCase):
         (root / "emit-flood").touch()
         until((root / "sync-entered").exists)
         fault = observed_state(endpoint, "unknown")
+        fault_notice = self.notice(process)
         until((root / "term-seen").exists)
         until((root / "flood-delivered").exists)
         repeated = request({"action": "stop", "run_id": run_id}, endpoint)
@@ -370,12 +407,18 @@ class JournalTests(unittest.TestCase):
         process.terminate()
         app_code = process.wait(timeout=3)
         app_elapsed = time.monotonic() - app_stop
+        assert process.stderr is not None
+        remaining_stderr = process.stderr.read()
         print(
             f"T11 blocked fsync: runner reaped at {forced_elapsed:.3f}s; launcher shutdown {app_elapsed:.3f}s"
         )
 
         # Assert
         self.assertEqual(fault["reason"], "journal_queue_full")
+        self.assertEqual(
+            fault_notice, "Collection journal storage fault: journal_queue_full"
+        )
+        self.assertEqual(remaining_stderr, b"")
         self.assertIs(repeated["ok"], True)
         self.assertGreaterEqual(forced_elapsed, 39.5)
         self.assertLess(forced_elapsed, 45)
@@ -383,8 +426,35 @@ class JournalTests(unittest.TestCase):
         self.assertGreater(cast(int, while_blocked["lost_events"]), 0)
         self.assertIs(while_blocked["cleanup_confirmed"], False)
         self.assertFalse((root / "sync-release").exists())
-        self.assertEqual(app_code, 0)
+        self.assertNotEqual(app_code, 0)
         self.assertLess(app_elapsed, 3)
+
+    def test_shutdown_drains_an_accepted_healthy_unknown_snapshot(self) -> None:
+        # Arrange
+        root, endpoint, process = self.fixture("drain")
+        initial = request(START, endpoint)
+        observed_state(endpoint, "running")
+        path = root / "runs" / str(initial["run_id"]) / "state.json"
+
+        # Act
+        (root / "crash-now").touch()
+        until((root / "sync-entered").exists)
+        unknown = observed_state(endpoint, "unknown")
+        process.terminate()
+        until(lambda: not endpoint.exists())
+        # The old shutdown abandoned writes after 0.15 s.
+        time.sleep(0.3)
+        waiting_for_snapshot = process.poll() is None
+        (root / "sync-release").touch()
+        code = process.wait(timeout=3)
+        saved = document(path)
+
+        # Assert
+        self.assertIs(unknown["storage_fault"], False)
+        self.assertTrue(waiting_for_snapshot)
+        self.assertEqual(code, 0)
+        self.assertEqual(saved["status"], "unknown")
+        self.assertIs(saved["cleanup_confirmed"], False)
 
     def test_reader_validates_identity_sequence_and_safe_payload_before_disk(
         self,
@@ -396,6 +466,7 @@ class JournalTests(unittest.TestCase):
             "invalid-seq",
             "raw-reason",
             "nonmonotonic",
+            "after-terminal",
         )
         for mode in modes:
             with self.subTest(mode=mode):
@@ -415,7 +486,8 @@ class JournalTests(unittest.TestCase):
 
                 # Assert
                 self.assertEqual(failure["reason"], "invalid_runner_event")
-                self.assertEqual([event["seq"] for event in recorded], [1, 2, 3])
+                expected = [1, 2, 3, 4] if mode == "after-terminal" else [1, 2, 3]
+                self.assertEqual([event["seq"] for event in recorded], expected)
                 self.assertNotIn("fixture-secret", json.dumps(recorded))
 
 

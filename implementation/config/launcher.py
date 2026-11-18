@@ -421,11 +421,14 @@ class Supervisor:
         if run.kill_at is not None and now >= run.kill_at + REAP_TIMEOUT:
             self.reason = "cleanup_not_confirmed"
 
-    def close(self) -> None:
+    def close(self) -> bool:
         run = self.current
         if run is not None and run.reader is not None:
             run.reader.close()
-        self.journal.close()
+        if not self.journal.close():
+            self.state = "unknown"
+            return False
+        return True
 
 
 class ControlHandler(socketserver.BaseRequestHandler):
@@ -523,9 +526,9 @@ def serve(
                 if web.process.poll() is None or supervisor.current is not None:
                     result = 1
                 web.close()
-        return result
     finally:
-        supervisor.close()
+        storage_closed = supervisor.close()
+    return result if storage_closed else 1
 
 
 def main() -> int:

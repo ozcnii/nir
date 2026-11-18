@@ -172,6 +172,8 @@ class RunnerReader:
         sequence = 0
         progress = 0
         seen: set[str] = set()
+        terminal = False
+        normal_end = False
         try:
             with stream:
                 fd = stream.fileno()
@@ -190,6 +192,8 @@ class RunnerReader:
                     buffer.extend(chunk)
                     self._peak = max(self._peak, len(buffer))
                     try:
+                        if terminal:
+                            raise ControlError("bytes after terminal event")
                         while (end := buffer.find(b"\n")) >= 0:
                             line = bytes(buffer[:end])
                             del buffer[: end + 1]
@@ -198,8 +202,6 @@ class RunnerReader:
                                 line, journal.instance_id, run_id, sequence
                             )
                             event = cast(str, message["event"])
-                            if "finished" in seen or "fault" in seen:
-                                raise ControlError("event after terminal event")
                             if event not in ("event", "progress"):
                                 if event in seen:
                                     raise ControlError("duplicate lifecycle event")
@@ -222,16 +224,21 @@ class RunnerReader:
                                     self._control.append(
                                         (event, cast(str, message["reason"]))
                                     )
+                            if event in ("finished", "fault"):
+                                terminal = True
+                                if buffer:
+                                    raise ControlError("bytes after terminal event")
                         if len(buffer) == MAX_MESSAGE:
                             raise ControlError("oversized runner event")
                     except ControlError:
                         with self._state:
                             self._invalid = True
                         buffer.clear()
-        except (OSError, ValueError):
-            with self._state:
-                self._invalid = True
+            normal_end = True
+        except Exception:
+            # Unhandled reader failure cannot acknowledge cleanup or expose payload.
+            pass
         finally:
             with self._state:
-                self._invalid |= bool(buffer)
+                self._invalid |= not normal_end or bool(buffer)
                 self._drained = True
