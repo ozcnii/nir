@@ -152,10 +152,14 @@ def validate_database_owners(cursor: Cursor[tuple[object, ...]]) -> None:
         """
         SELECT hooks.kind, hooks.name, relation.relname
         FROM (
-            SELECT 'trigger' AS kind, tgname AS name, tgrelid AS relation
+            SELECT 'trigger' AS kind, tgname::text AS name, tgrelid AS relation
             FROM pg_trigger WHERE NOT tgisinternal
             UNION ALL
-            SELECT 'rewrite rule', rulename, ev_class FROM pg_rewrite
+            SELECT 'rewrite rule', rulename::text, ev_class FROM pg_rewrite
+            UNION ALL
+            SELECT 'inheritance', inhrelid::regclass::text, inhparent FROM pg_inherits
+            UNION ALL
+            SELECT 'inheritance', inhparent::regclass::text, inhrelid FROM pg_inherits
         ) hooks
         JOIN pg_class relation ON relation.oid = hooks.relation
         JOIN pg_namespace schema ON schema.oid = relation.relnamespace

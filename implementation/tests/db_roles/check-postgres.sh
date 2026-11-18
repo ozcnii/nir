@@ -255,6 +255,26 @@ admin -d "$DB_NAME" -c 'DROP RULE fixture_rule ON public.ads'
 runtime_check
 
 # Arrange
+admin -d "$DB_NAME" <<'SQL'
+SET ROLE migrator;
+CREATE TABLE public.fixture_region_child () INHERITS (public.regions);
+SQL
+# Act
+if runtime_check >"$guard_log" 2>&1; then
+    echo "Runtime preflight accepted a child of a writable table" >&2
+    exit 1
+fi
+# Assert
+grep -F "Unexpected inheritance public.fixture_region_child on app-writable table regions" "$guard_log"
+
+# Arrange
+admin -d "$DB_NAME" -c 'DROP TABLE public.fixture_region_child'
+# Act
+runtime_result=$(runtime_check)
+# Assert
+grep -F "ACL verified as app" <<<"$runtime_result"
+
+# Arrange
 fixture_volume="${COMPOSE_PROJECT_NAME}_db"
 original_token=$(docker volume inspect --format '{{index .Labels "org.nir.fixture.token"}}' "$fixture_volume")
 # Act
