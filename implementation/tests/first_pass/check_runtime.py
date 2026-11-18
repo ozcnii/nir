@@ -130,7 +130,10 @@ def one() -> dict[str, object]:
         dict[str, object], json.loads(proof_path(run_id).read_text(encoding="utf-8"))
     )
     if "problem" in raw:
-        print(json.dumps({"kind": "card_unavailable", **raw}), flush=True)
+        print(
+            json.dumps({"kind": "card_unavailable", **raw, "cleanup_confirmed": True}),
+            flush=True,
+        )
         raise SystemExit(20)
     assert ended["reason"] == "completed", ended
     return raw

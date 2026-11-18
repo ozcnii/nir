@@ -2,13 +2,14 @@
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Route
 
 from catalog.contracts import ActiveSnapshot
 from collection.browser import BrowserFailed
-from collection.collectors.cian import read_card
+from collection.collectors.cian import card_key, read_card
 from collection.normalization import RejectedCard
 from collection.runner import BrowserWork
 
@@ -33,6 +34,10 @@ def _without_media(route: Route) -> None:
 def collect_cian_card(work: BrowserWork, url: str) -> tuple[ActiveSnapshot, "Receipt"]:
     from catalog.services import accept_snapshot
 
+    expected_key = card_key(url)
+    if expected_key is None:
+        raise CardReadFailed("unsupported_card_url")
+
     page = work.pages.card
     page.route("**/*", _without_media)
     observed_at = datetime.now(UTC)
@@ -42,12 +47,24 @@ def collect_cian_card(work: BrowserWork, url: str) -> tuple[ActiveSnapshot, "Rec
             raise CardReadFailed(
                 "http_unavailable", response.status if response is not None else None
             )
-        snapshot = read_card(page, url, observed_at)
+        target = urlsplit(page.url)
+        if (
+            target.hostname == "samara.cian.ru"
+            and target.path.rstrip("/") == "/cian-captcha"
+        ):
+            raise CardReadFailed("source_captcha", response.status)
+        try:
+            snapshot = read_card(page, url, observed_at)
+        except RejectedCard as error:
+            raise CardReadFailed(str(error), response.status) from error
     except PlaywrightError as error:
         raise CardReadFailed("browser_read_failed") from error
-    except RejectedCard as error:
-        raise CardReadFailed(str(error), 200) from error
     if snapshot["state"] != "active":
-        raise CardReadFailed("no_published_card", 200)
+        problem = (
+            "unexpected_redirect"
+            if card_key(page.url) != expected_key
+            else "no_published_card"
+        )
+        raise CardReadFailed(problem, response.status)
     work.checkpoint()
     return snapshot, work.write(lambda session: accept_snapshot(session, snapshot))
