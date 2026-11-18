@@ -2,7 +2,8 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, TypeGuard
+from urllib.parse import urlsplit
 
 Deal = Literal["sale", "month_rent", "day_rent"]
 PriceKind = Literal["listed", "from"]
@@ -54,4 +55,38 @@ class ActiveSnapshot(SnapshotKey):
     photos: KnownPhotos | Unavailable
 
 
-Snapshot = ActiveSnapshot | UnavailableSnapshot
+class RemovedSnapshot(SnapshotKey):
+    state: Literal["removed"]
+    url: str
+    deal_type: Deal
+
+
+Snapshot = ActiveSnapshot | RemovedSnapshot | UnavailableSnapshot
+
+
+def is_database_text(value: object) -> TypeGuard[str]:
+    if not isinstance(value, str) or "\x00" in value:
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def is_http_url(value: object) -> bool:
+    if not is_database_text(value) or any(
+        char.isspace() or ord(char) < 32 for char in value
+    ):
+        return False
+    try:
+        url = urlsplit(value)
+        port = url.port
+        return (
+            url.scheme in ("http", "https")
+            and bool(url.hostname)
+            and url.username is None
+            and (port is None or port > 0)
+        )
+    except ValueError:
+        return False

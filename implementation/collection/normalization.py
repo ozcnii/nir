@@ -3,7 +3,6 @@
 import re
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import cast
-from urllib.parse import urlsplit
 
 from catalog.contracts import (
     ActiveSnapshot,
@@ -11,6 +10,7 @@ from catalog.contracts import (
     KnownPrice,
     SnapshotKey,
     Unavailable,
+    is_http_url,
 )
 
 
@@ -106,20 +106,6 @@ def _price(
     }
 
 
-def _photo_url(value: object) -> bool:
-    if not isinstance(value, str) or any(char.isspace() for char in value):
-        return False
-    try:
-        url = urlsplit(value)
-        return (
-            url.scheme in ("http", "https")
-            and bool(url.hostname)
-            and url.username is None
-        )
-    except ValueError:
-        return False
-
-
 def _photos(
     product: dict[str, object], offer: dict[str, object]
 ) -> KnownPhotos | Unavailable:
@@ -131,7 +117,7 @@ def _photos(
         not isinstance(images, list)
         or not isinstance(published, list)
         or len(published) != len(images)
-        or not all(_photo_url(url) for url in cast(list[object], images))
+        or not all(is_http_url(url) for url in cast(list[object], images))
     ):
         return {"status": "unavailable"}
     return {"status": "known", "urls": list(dict.fromkeys(cast(list[str], images)))}

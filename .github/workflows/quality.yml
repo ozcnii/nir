@@ -133,7 +133,7 @@ jobs:
           fixtures=$(mktemp -d)
           # Each suite owns the stack keyed by its distinct worktree path. The
           # hosted runner disposes of any test volumes intentionally kept by a suite.
-          for suite in db_roles startup launcher browser recovery stack; do
+          for suite in db_roles startup launcher browser recovery stack catalog_accept; do
             echo "::group::Compose fixture: $suite"
             worktree="$fixtures/$suite"
             GIT_LFS_SKIP_SMUDGE=1 git worktree add --detach "$worktree" HEAD
