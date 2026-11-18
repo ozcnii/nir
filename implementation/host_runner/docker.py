@@ -70,7 +70,7 @@ class Docker:
             raise DockerError("Cannot identify Docker Engine")
         return identity
 
-    def containers(self) -> list[Container]:
+    def _inspect_containers(self, filter_expression: str) -> list[dict[str, object]]:
         ids = self.command(
             "container",
             "ls",
@@ -78,7 +78,7 @@ class Docker:
             "--quiet",
             "--no-trunc",
             "--filter",
-            f"label={PROJECT}={self.project}",
+            filter_expression,
         ).splitlines()
         if not ids:
             return []
@@ -88,8 +88,11 @@ class Docker:
         )
         if {record["Id"] for record in records} != set(ids):
             raise DockerError("Docker inspect did not account for all containers")
+        return records
+
+    def containers(self) -> list[Container]:
         containers = []
-        for record in records:
+        for record in self._inspect_containers(f"label={PROJECT}={self.project}"):
             config = cast(dict[str, dict[str, str]], record["Config"])
             labels = config["Labels"]
             if labels.get(ONEOFF, "").lower() == "true":
@@ -119,24 +122,7 @@ class Docker:
     def verify_app_volume_stopped(self) -> None:
         # This includes one-offs and containers from other Compose projects.
         volume = f"{self.project}_app_data"
-        ids = self.command(
-            "container",
-            "ls",
-            "--all",
-            "--quiet",
-            "--no-trunc",
-            "--filter",
-            f"volume={volume}",
-        ).splitlines()
-        if not ids:
-            return
-        records = cast(
-            list[dict[str, object]],
-            json.loads(self.command("container", "inspect", *ids)),
-        )
-        if {record["Id"] for record in records} != set(ids):
-            raise DockerError("Cannot verify users of the application volume")
-        for record in records:
+        for record in self._inspect_containers(f"volume={volume}"):
             state = cast(dict[str, object], record["State"])
             if state.get("Status") != "exited" or state.get("Running") is not False:
                 raise DockerError("An application volume user has not stopped")

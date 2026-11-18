@@ -23,7 +23,7 @@ import sys
 import time
 from pathlib import Path
 from host_runner import leases
-from host_runner import __main__ as host
+from host_runner import task as host
 
 def checked_birth(pid):
     if str(pid) == os.environ.get("FAKE_UNKNOWN_PID"):
