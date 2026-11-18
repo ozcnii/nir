@@ -192,7 +192,17 @@ class DomclickTests(TestCase):
 
         # Arrange
         info["roomArea"] = 9.0
-        info["description"] = "Продаётся комната 9,2 м², на фото видна кухня."
+        info["description"] = (
+            "Доля: комната № 2 на фото, продаётся только 1/2 квартиры."
+        )
+        with self.assertRaisesRegex(RejectedCard, "^unconfirmed_room_unit$"):
+            # Act
+            read_native(ROOM, data)
+
+        # Assert: the exact failure is validated by assertRaisesRegex.
+
+        # Arrange
+        info["description"] = "Продаётся комната № 2 в квартире № 25 площадью 9,2 м²."
         with self.assertRaises(RejectedCard) as rejected:
             # Act
             read_native(ROOM, data)
