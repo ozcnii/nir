@@ -17,7 +17,8 @@ from catalog.contracts import (
     is_http_url,
 )
 from catalog.reference_data_v1 import REGIONS
-from collection.collectors.domclick_state import UNDEFINED, NuxtState
+from collection.collectors.domclick_state import NuxtState
+from collection.collectors.nuxt_state import UNDEFINED
 from collection.normalization import (
     RejectedCard,
     as_object,

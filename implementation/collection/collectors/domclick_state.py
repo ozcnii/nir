@@ -5,6 +5,7 @@ import re
 from decimal import Decimal
 from typing import cast
 
+from collection.collectors.nuxt_state import UNDEFINED, resolve_reference
 from collection.normalization import as_object
 
 SSR_ASSIGNMENT = re.compile(r"^\s*window\.__SSR_STATE__\s*=\s*")
@@ -41,7 +42,6 @@ def ssr_state(scripts: list[str]) -> dict[str, object]:
     return as_object(value)
 
 
-UNDEFINED = object()
 NUXT_WRAPPERS = ("ShallowReactive", "Reactive", "Ref", "ShallowRef")
 
 
@@ -52,23 +52,10 @@ class NuxtState:
         self.entries = entries
 
     def resolve(self, index: object) -> object:
-        seen: set[int] = set()
-        while type(index) is int:
-            if index == -1:
-                return UNDEFINED
-            if index < 0 or index >= len(self.entries) or index in seen:
-                break
-            seen.add(index)
-            value = self.entries[index]
-            if not isinstance(value, list) or not value:
-                return value
-            items = cast(list[object], value)
-            if not isinstance(items[0], str):
-                return items
-            if len(items) != 2 or items[0] not in NUXT_WRAPPERS:
-                break
-            index = items[1]
-        raise ValueError("invalid Nuxt reference")
+        value = resolve_reference(self.entries, index, NUXT_WRAPPERS)
+        if isinstance(value, list) and value and isinstance(value[0], str):
+            raise ValueError("invalid Nuxt reference")
+        return value
 
     def field(self, record: object, name: str) -> object:
         fields = as_object(record)

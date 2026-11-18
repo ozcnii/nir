@@ -8,11 +8,12 @@ from typing import Literal, TypedDict, cast
 from urllib.parse import urlsplit
 
 from playwright.sync_api import Page
-from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from catalog.contracts import Deal, Snapshot, SnapshotKey
 from collection.browser import NAVIGATION_TIMEOUT_MS
-from collection.collectors.domclick_state import UNDEFINED, nuxt_card, ssr_state
+from collection.collectors.domclick_state import nuxt_card, ssr_state
+from collection.collectors.nuxt_state import UNDEFINED
+from collection.collectors.page_data import wait_for_card_data
 from collection.domclick_normalization import DailyListingQuote as DailyListingQuote
 from collection.domclick_normalization import (
     normalize_daily_card,
@@ -329,10 +330,8 @@ def read_card(
         raise RejectedCard("invalid_identity")
     if deadline is None:
         deadline = time.monotonic() + NAVIGATION_TIMEOUT_MS / 1000
-    remaining = (deadline - time.monotonic()) * 1000
-    if remaining <= 0:
-        raise PlaywrightTimeout("Card attempt deadline elapsed")
-    handle = page.wait_for_function(
+    data = wait_for_card_data(
+        page,
         r"""() => {
             if (document.readyState !== "complete") return false;
             const scripts = Array.from(document.scripts).filter(s => !s.src);
@@ -351,22 +350,17 @@ def read_card(
                 url: location.href,
             };
         }""",
-        timeout=remaining,
+        deadline,
     )
-    try:
-        data = cast(EmbeddedPage, handle.json_value())
-    finally:
-        handle.dispose()
-    if time.monotonic() >= deadline:
-        raise PlaywrightTimeout("Card attempt deadline elapsed")
+    projected = cast(EmbeddedPage, data)
     return parse_card(
         requested_url,
         observed_at,
-        data["ssr"],
-        data["nuxt"],
-        loaded_url=data["url"],
-        removed_marker=data["removed"],
-        page_title=data["title"],
-        gallery=data["gallery"],
+        projected["ssr"],
+        projected["nuxt"],
+        loaded_url=projected["url"],
+        removed_marker=projected["removed"],
+        page_title=projected["title"],
+        gallery=projected["gallery"],
         quote=quote,
     )
