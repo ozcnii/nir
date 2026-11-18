@@ -75,12 +75,15 @@ def later(source: ActiveSnapshot, minute: int) -> ActiveSnapshot:
 
 
 def state(source: ActiveSnapshot, value: str, minute: int = 1) -> Mapping[str, object]:
-    return {
+    key = {
         "source_code": source["source_code"],
         "external_id": source["external_id"],
         "observed_at": START + timedelta(minutes=minute),
         "state": value,
     }
+    if value == "removed":
+        return {**key, "url": source["url"], "deal_type": source["deal_type"]}
+    return key
 
 
 class SnapshotTests(TestCase):
@@ -168,11 +171,36 @@ class SnapshotTests(TestCase):
                 receipts_input.append(conflicting)
             invalid = later(source, 2)
             invalid["floor"] = 20
+            invalid_text = [
+                {**later(source, 2), "description": value}
+                for value in ("broken\x00text", "broken\ud800text")
+            ]
+            invalid_photo = {
+                **later(source, 2),
+                "photos": {
+                    "status": "known",
+                    "urls": ["https://cdn.example.test:bad/a.jpg"],
+                },
+            }
+            invalid_removal = dict(state(source, "removed", 2))
+            del invalid_removal["url"]
+            incompatible_removal = {
+                **state(source, "removed", 2),
+                "deal_type": "month_rent",
+            }
 
             # Act
-            stale, ignored, conflict, rejected, unavailable = [
+            results = [
                 self.accept(connection, snap)
-                for snap in (*receipts_input, invalid, state(source, "unavailable"))
+                for snap in (
+                    *receipts_input,
+                    invalid,
+                    *invalid_text,
+                    invalid_photo,
+                    invalid_removal,
+                    incompatible_removal,
+                    state(source, "unavailable"),
+                )
             ]
             ad = connection.execute(
                 "SELECT deal_type, observed_at, is_active, photos FROM ads WHERE id=%s",
@@ -181,9 +209,21 @@ class SnapshotTests(TestCase):
 
             # Assert
             self.assertEqual(
-                [r.outcome for r in (stale, ignored, conflict, rejected, unavailable)],
-                ["stale", "ignored", "conflict", "rejected", "unavailable"],
+                [result.outcome for result in results],
+                [
+                    "stale",
+                    "ignored",
+                    "conflict",
+                    "rejected",
+                    "rejected",
+                    "rejected",
+                    "rejected",
+                    "rejected",
+                    "conflict",
+                    "unavailable",
+                ],
             )
+            conflict = results[2]
             self.assertEqual(conflict.reason, "deal_type_changed")
             self.assertEqual(
                 (conflict.previous_deal_type, conflict.incoming_deal_type),

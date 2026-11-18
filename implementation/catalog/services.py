@@ -12,7 +12,13 @@ from psycopg import Connection
 from psycopg.rows import TupleRow
 from psycopg.types.json import Jsonb
 
-from catalog.contracts import ActiveSnapshot, Deal, KnownPrice, is_http_url
+from catalog.contracts import (
+    ActiveSnapshot,
+    Deal,
+    KnownPrice,
+    is_database_text,
+    is_http_url,
+)
 from catalog.models import DealType, MarketSegment, PriceKind, PropertyType, Region
 from catalog.reference_data_v1 import SOURCE_CODES
 from config.collection_lock import try_delete_lock
@@ -79,7 +85,7 @@ class Receipt:
 
 
 def _text(value: object) -> bool:
-    return isinstance(value, str) and bool(value.strip()) and "\x00" not in value
+    return is_database_text(value) and bool(value.strip())
 
 
 def _decimal(value: object, minimum: str, maximum: str, digits: int) -> bool:
@@ -138,7 +144,8 @@ def _active_valid(data: Mapping[str, object]) -> bool:
             and data["market_segment"] not in MarketSegment.values
         )
         or (
-            data["description"] is not None and not isinstance(data["description"], str)
+            data["description"] is not None
+            and not is_database_text(data["description"])
         )
         or not _physical_valid(data)
     ):
@@ -196,21 +203,11 @@ def accept_snapshot(
             (source, external_id),
         ).fetchone()
         if previous is not None:
-            ad_id, property_id, previous_deal, seen, active, *_ = previous
+            ad_id, property_id, _, seen, *_ = previous
             if observed_at <= seen:
                 return Receipt(
                     "ignored" if observed_at == seen else "stale", ad_id, property_id
                 )
-        if state == "removed":
-            if previous is None:
-                return Receipt("not_found")
-            connection.execute(
-                "UPDATE ads SET is_active=false, observed_at=%s WHERE id=%s",
-                (observed_at, previous[0]),
-            )
-            return Receipt(
-                "updated" if previous[4] else "unchanged", previous[0], previous[1]
-            )
         deal = snapshot.get("deal_type")
         if previous is not None and deal in DealType.values and deal != previous[2]:
             return Receipt(
@@ -220,6 +217,18 @@ def accept_snapshot(
                 reason="deal_type_changed",
                 previous_deal_type=cast(Deal, previous[2]),
                 incoming_deal_type=cast(Deal, deal),
+            )
+        if state == "removed":
+            if deal not in DealType.values or not is_http_url(snapshot.get("url")):
+                return Receipt("rejected", reason="invalid_removed_snapshot")
+            if previous is None:
+                return Receipt("not_found")
+            connection.execute(
+                "UPDATE ads SET is_active=false, observed_at=%s WHERE id=%s",
+                (observed_at, previous[0]),
+            )
+            return Receipt(
+                "updated" if previous[4] else "unchanged", previous[0], previous[1]
             )
         if not _active_valid(snapshot):
             return Receipt("rejected", reason="invalid_active_snapshot")
