@@ -75,6 +75,11 @@ _ROOMS = re.compile(
     r"(?:\s*№\s*([1-9][0-9]*))?\s*[:=–-]?\s*"
     r"([0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.?\s*м)\b"
 )
+_NOT_OFFERED_ROOM = re.compile(
+    r"\b(?:не|нет|без|возможн\w*|планиру\w*|проект\w*)\b"
+    r"|\b(?:нескольк\w*|разн\w*|друг\w*|типов\w*|вариант\w*)\s+планиров"
+)
+_SENTENCE_END = re.compile(r"[.!?](?![0-9])|;")
 _TYPOGRAPHY = str.maketrans(
     {
         "ё": "е",
@@ -177,7 +182,7 @@ def parse_address(value: str | None, region: str) -> Address | None:
     if not all(_ADDRESS_TOKEN.fullmatch(part) for part in (*locality, street)):
         return None
     if locality[0].startswith(_NOT_SETTLEMENT) or locality[0].endswith(
-        (" область", " край", " республика", " округ")
+        (" область", " край", " республика", " округ", " район", " муниципалитет")
     ):
         return None
     if street.startswith(_NAME_WITHOUT_STREET):
@@ -232,7 +237,9 @@ def _has_layout(text: str) -> bool:
         len(
             {
                 (part, ordinal)
-                for part, ordinal, size in _ROOMS.findall(text)
+                for sentence in _SENTENCE_END.split(text)
+                if not _NOT_OFFERED_ROOM.search(sentence)
+                for part, ordinal, size in _ROOMS.findall(sentence)
                 if Decimal(size.replace(",", ".")) > 0
             }
         )
@@ -306,6 +313,11 @@ def repeated_flat_patch(
     """Patch the same property only when the new address is compatible."""
     old = parse_address(previous["address"], region)
     new = parse_address(incoming["address"], region)
+    if new is None and incoming["address"] is not None:
+        if any(_TAG.fullmatch(_plain(part)) for part in incoming["address"].split(",")):
+            # A unit qualifier in an unparseable chain cannot establish compatibility.
+            return None
+        return _patch(previous, previous, None)
     if old is not None and new is not None and apartment_address_conflicts(old, new):
         return None
     address = (

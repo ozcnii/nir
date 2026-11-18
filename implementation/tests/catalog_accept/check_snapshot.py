@@ -174,7 +174,6 @@ class SnapshotTests(TestCase):
             **incoming,
             "external_id": "950000012",
             "address": f"{short_address}, квартира 26",
-            "area_m2": Decimal("111"),
         }
         numberless = {**incoming, "external_id": "950000013", "address": short_address}
         empty = {**numberless, "external_id": "950000014", "description": None}
@@ -199,6 +198,10 @@ class SnapshotTests(TestCase):
                 connection, {**shifted, "observed_at": START - timedelta(minutes=1)}
             )
             conflict = self.accept(connection, shifted)
+            ambiguous_repeat = self.accept(
+                connection,
+                {**shifted, "address": f"{short_address}, кв. 26, кв. 27", "rooms": 4},
+            )
             rows = connection.execute(
                 """
                 SELECT address, rooms, observed_at
@@ -215,7 +218,10 @@ class SnapshotTests(TestCase):
                 len({first.property_id, *(item.property_id for item in separate)}), 4
             )
             self.assertEqual(preserved.property_id, first.property_id)
-            self.assertEqual((stale.outcome, conflict.outcome), ("stale", "conflict"))
+            self.assertEqual(
+                (stale.outcome, conflict.outcome, ambiguous_repeat.outcome),
+                ("stale", "conflict", "conflict"),
+            )
             self.assertEqual(
                 rows, (f"{original_address}, квартира 25", 3, repeat["observed_at"])
             )
