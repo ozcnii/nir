@@ -418,6 +418,16 @@ def normalize_cian_partner(
     floors = optional_integer(fields.get("max_floor"), minimum=1)
     if floor is not None and floors is not None and floor > floors:
         raise RejectedCard("floor_above_building")
+    area = cian_area(fields.get("area"))
+    description = cian_description(fields.get("description"))
+    # The partner's rooms field may count rooms inside the listed unit.
+    rooms = (
+        optional_integer(fields.get("rooms"), minimum=1)
+        if property_type_id == 1
+        else None
+    )
+    if property_type_id == 2:
+        rooms, area = room_facts(rooms, area, description)
     return {
         **key,
         "state": "active",
@@ -429,15 +439,12 @@ def normalize_cian_partner(
         "address": ", ".join(names),
         "latitude": latitude,
         "longitude": longitude,
-        "area_m2": cian_area(fields.get("area")),
-        # For an ordinary room the partner's rooms value may count interior rooms.
-        "rooms": optional_integer(fields.get("rooms"), minimum=1)
-        if property_type_id == 1
-        else None,
+        "area_m2": area,
+        "rooms": rooms,
         "floor": floor,
         "floors_total": floors,
         "land_area_m2": None,
-        "description": cian_description(fields.get("description")),
+        "description": description,
         "price": _partner_prices(key, price_context, product),
         "photos": _partner_photos(images),
     }

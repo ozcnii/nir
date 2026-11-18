@@ -27,7 +27,9 @@ _ROOM_NUMBER = re.compile(rf"№ *{_IDENTIFIER}")
 _ROOM_LINK = re.compile(
     r"(?: *,? +и +|(?P<comma> *, *))(?P<extra>ещ[её] +)?(?:(?:одна|одну|1) +)?"
 )
-_TOTAL = re.compile(rf" *(?:, *)?общей площадью +({_AMOUNT}) *{_UNIT}")
+_TOTAL = re.compile(
+    rf" *(?:, *)?(?P<whole>общей +)?площадью +(?P<area>{_AMOUNT}) *{_UNIT}"
+)
 _SHARE = re.compile(r"^(?:[0-9]+/[0-9]+ +)?дол[яю]\b")
 _ALLOCATED = re.compile(
     r"^(?:доля: |(?:[0-9]+/[0-9]+ +)?дол[яю], которо[йю] "
@@ -93,13 +95,11 @@ def _enumerated_rooms(claim: str, first: re.Match[str]) -> tuple[int, int]:
     return rooms, end
 
 
-def _set_area(tail: str) -> Decimal | None:
+def _set_area(tail: str, *, after_count: bool = False) -> Decimal | None:
     total = _TOTAL.match(tail)
-    return (
-        number(total[1])
-        if total is not None and not _outside_offer(tail[total.end() :])
-        else None
-    )
+    if total is None or not (after_count or total["whole"]):
+        return None
+    return None if _outside_offer(tail[total.end() :]) else number(total["area"])
 
 
 def _claim_fields(claim: str) -> tuple[int | None, Decimal | None, Decimal | None]:
@@ -121,7 +121,7 @@ def _claim_fields(claim: str) -> tuple[int | None, Decimal | None, Decimal | Non
                 if listed > 1:
                     return listed, None, _set_area(listing[end:])
         if rooms != 1:
-            return rooms, None, _set_area(tail)
+            return rooms, None, _set_area(tail, after_count=True)
         claim = f"комната{tail}"
 
     first = _ROOM_FRAGMENT.match(claim)

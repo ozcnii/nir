@@ -531,6 +531,7 @@ def partner_card(
     amount: int,
     dates: Mapping[str, object] | None = None,
     label_unit: str = "за сутки",
+    description: str = "Вид на отель.\nБез ремонта.",
 ) -> tuple[str, list[str], list[str]]:
     detail_key = f"detail:{identifier}"
     url = f"https://cian.sutochno.ru/{detail_key.replace(':', '/')}"
@@ -560,9 +561,7 @@ def partner_card(
             },
             {
                 "name": "detail_description",
-                "properties": [
-                    {"name": "description", "value": "Вид на отель.\nБез ремонта."}
-                ],
+                "properties": [{"name": "description", "value": description}],
             },
         ],
     }
@@ -610,6 +609,45 @@ class CianPartnerTests(TestCase):
                 with self.assertRaisesRegex(RejectedCard, "hotel_accommodation"):
                     parse_card(url, OBSERVED_AT, config, product, loaded_url=url)
                 # Assert: no active/removed envelope reaches the catalog.
+
+    def test_partner_room_uses_the_same_offer_evidence_as_native(self) -> None:
+        cases = (
+            ("Сдаётся одна комната площадью 13,2 м².", "conflicting_room_area"),
+            ("Сдаётся доля в квартире без выделения комнаты.", "unconfirmed_room_unit"),
+        )
+        for description, reason in cases:
+            with self.subTest(description=description):
+                # Arrange
+                url, config, product = partner_card(
+                    123,
+                    name="Комната",
+                    hotel=None,
+                    amount=5800,
+                    description=description,
+                )
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, f"^{reason}$"):
+                    parse_card(url, OBSERVED_AT, config, product, loaded_url=url)
+
+                # Assert: the exact failure is validated by assertRaisesRegex.
+
+        # Arrange
+        url, config, product = partner_card(
+            123,
+            name="Комната",
+            hotel=None,
+            amount=5800,
+            description="Сдаются комнаты № 2 и № 3 одним лотом.",
+        )
+
+        # Act
+        snapshot = parse_card(url, OBSERVED_AT, config, product, loaded_url=url)
+
+        # Assert
+        assert snapshot["state"] == "active"
+        self.assertEqual(snapshot["rooms"], 2)
+        self.assertIsNone(snapshot["area_m2"])
 
     def test_ordinary_partner_room_reaches_active_p3_even_with_hotel_in_description(
         self,
