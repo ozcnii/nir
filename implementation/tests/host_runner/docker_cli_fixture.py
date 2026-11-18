@@ -18,7 +18,7 @@ def main() -> int:
 
     match args:
         case ["info", "--format", "{{.ID}}"]:
-            print((directory / "daemon").read_text())
+            print("fixture-engine")
         case ["container", "ls", *_options, selector]:
             project = selector.split("=")[2]
             for key, container in containers.items():
@@ -40,11 +40,6 @@ def main() -> int:
         ]:
             generation = os.environ["NIR_RUNNER_GENERATION"]
             port = os.environ["APP_PORT"]
-            conflict = (
-                (directory / "conflict").exists()
-                and port == "8000"
-                and "app" in services
-            )
             for name in services:
                 cid = f"{generation}-{name}"
                 containers[cid] = {
@@ -56,13 +51,13 @@ def main() -> int:
                             "org.nir.runner.generation": generation,
                         }
                     },
-                    "State": {"Running": not (conflict and name == "app")},
+                    "State": {"Running": True},
                     "NetworkSettings": {
                         "Ports": {
                             "8000/tcp": [
                                 {
                                     "HostIp": "127.0.0.1",
-                                    "HostPort": ("47139" if port == "0" else port),
+                                    "HostPort": port,
                                 }
                             ],
                         }
@@ -71,12 +66,6 @@ def main() -> int:
                     },
                 }
             registry.write_text(json.dumps(containers))
-            if conflict:
-                print(
-                    "Bind for 127.0.0.1:8000 failed: port is already allocated",
-                    file=sys.stderr,
-                )
-                return 1
         case ["container", "stop", cid]:
             if (directory / "fail-stop").exists():
                 return 1

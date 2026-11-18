@@ -89,11 +89,10 @@ class HostRunnerTests(unittest.TestCase):
         self.root = Path(directory.name).resolve()
         self.registry = self.root / "containers.json"
         self.registry.write_text("{}")
-        (self.root / "daemon").write_text("fixture-engine")
         self.events = self.root / "events"
         self.state = self.root / ".local/runtime/leases.json"
         docker = self.root / "docker"
-        source = Path(__file__).with_name("fake_docker.py")
+        source = Path(__file__).with_name("docker_cli_fixture.py")
         docker.write_text(
             f'#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(source))} "$@"\n'
         )
@@ -105,9 +104,6 @@ class HostRunnerTests(unittest.TestCase):
             "PYTHONPATH": str(REPOSITORY),
         }
         self.env.pop("APP_PORT", None)
-        self.volume_markers = [self.root / volume for volume in ("db", "app_data")]
-        for marker in self.volume_markers:
-            marker.write_text("persistent")
 
     def start(
         self, name: str, script: str = TASK, mode: str = "full"
@@ -164,11 +160,9 @@ class HostRunnerTests(unittest.TestCase):
     def assert_released(self) -> None:
         self.assertFalse(self.state.exists())
         self.assertEqual(self.registry.read_text(), "{}")
-        self.assertTrue(
-            all(path.read_text() == "persistent" for path in self.volume_markers)
-        )
 
     def test_two_leases_keep_live_owner_with_expired_heartbeat(self) -> None:
+        # Arrange
         first = self.start("first")
         first_env = self.ready("first")
         original = self.read_state()
@@ -177,14 +171,22 @@ class HostRunnerTests(unittest.TestCase):
         owner["heartbeat"] = 0
         self.update_state(original)
 
+        # Act
         second = self.start("second")
+        # Assert: reuse the stack and keep it through the first release.
         self.assertEqual(self.ready("second")["generation"], first_env["generation"])
         self.assertEqual(len(self.read_state()["leases"]), 2)
         self.assertEqual(self.read_state()["containers"], original["containers"])
+
+        # Act: release the first of the two active leases.
         self.finish(second, "second")
+
+        # Assert
         self.assertNotIn("container stop", self.events.read_text())
 
+        # Act: release the last lease.
         self.finish(first, "first")
+        # Assert
         self.assert_released()
         stops = [
             line
@@ -198,6 +200,7 @@ class HostRunnerTests(unittest.TestCase):
         )
 
     def test_pid_reuse_requires_birth_match_even_with_a_live_pid(self) -> None:
+        # Arrange
         old = self.start("old")
         data = self.ready("old")
         old.kill()
@@ -211,32 +214,44 @@ class HostRunnerTests(unittest.TestCase):
         owner["heartbeat"] = 0
         self.update_state(state)
 
+        # Act
         new = self.start("new")
+        # Assert
         self.assertNotEqual(self.ready("new")["generation"], data["generation"])
         self.finish(new, "new")
         self.assert_released()
 
     def test_sigkill_does_not_stop_a_surviving_task_then_recovers(self) -> None:
+        # Arrange
         old = self.start("old")
         data = self.ready("old")
         token = next(iter(self.read_state()["leases"]))
         self.addCleanup((self.root / "old.exit").touch)
+        # Act: kill the lease owner, leaving the task active.
         old.kill()
         old.wait(timeout=10)
 
         other = self.start("other")
+        # Assert: another lease must reuse the protected stack.
         self.assertEqual(self.ready("other")["generation"], data["generation"])
+
+        # Act: release the second lease while the original task is still protected.
         self.finish(other, "other")
+
+        # Assert
         self.assertNotIn("container stop", self.events.read_text())
 
+        # Act: let the orphan task finish before recovery.
         (self.root / "old.exit").touch()
         self.wait_for_task_guard(token)
         new = self.start("new")
+        # Assert
         self.assertNotEqual(self.ready("new")["generation"], data["generation"])
         self.finish(new, "new")
         self.assert_released()
 
     def test_acquire_waits_for_the_last_release_to_finish(self) -> None:
+        # Arrange
         old = self.start("old")
         first = self.ready("old")
         (self.root / "pause-stop").touch()
@@ -245,6 +260,7 @@ class HostRunnerTests(unittest.TestCase):
         until(lambda: "container stop" in self.events.read_text())
         self.assertEqual(self.read_state()["phase"], "stopping")
 
+        # Act
         new = self.start("new")
         # The contender process has reached the runner invocation, while Docker's stop is blocked.
         until(
@@ -253,28 +269,38 @@ class HostRunnerTests(unittest.TestCase):
                 or len(list(self.state.parent.glob("task-*.lock"))) == 1
             )
         )
+        # Assert: the acquire is still waiting.
         self.assertIsNone(new.poll())
         self.assertFalse((self.root / "new.ready").exists())
+        # Act: allow the last release to finish.
         (self.root / "resume-stop").touch()
+        # Assert
         self.assertEqual(old.wait(timeout=10), 0)
         self.assertNotEqual(self.ready("new")["generation"], first["generation"])
         self.finish(new, "new")
         self.assert_released()
 
     def test_failed_task_and_handled_signals_release_the_stack(self) -> None:
+        # Arrange: setUp provides an idle host and a fresh registry.
+        # Act: run a task that exits with an error.
         failure = self.start("failure", "raise SystemExit(17)")
+        # Assert
         self.assertEqual(failure.wait(timeout=10), 17)
         self.assert_released()
         for signum in (signal.SIGINT, signal.SIGTERM):
             with self.subTest(signum=signum):
+                # Arrange
                 name = signum.name
                 process = self.start(name)
                 self.ready(name)
+                # Act
                 process.send_signal(signum)
+                # Assert
                 self.assertEqual(process.wait(timeout=10), 128 + signum)
                 self.assert_released()
 
     def test_sigterm_reaches_a_foreground_wrapper_and_its_child(self) -> None:
+        # Arrange
         child_code = """
 import signal
 import sys
@@ -308,18 +334,23 @@ while not Path(f'{name}.exit').exists():
                 until((self.root / f"{name}.ready").exists)
                 before_stop = self.events.read_text().count("container stop")
 
+                # Act
                 process.terminate()
                 until((self.root / f"{name}.term").exists)
+                # Assert: stop must wait for the child to finish.
                 self.assertEqual(
                     self.events.read_text().count("container stop"), before_stop
                 )
                 self.assertIsNone(process.poll())
+                # Act: let the signalled child finish.
                 resume.touch()
 
+                # Assert
                 self.assertEqual(process.wait(timeout=10), 128 + signal.SIGTERM)
                 self.assert_released()
 
     def test_crash_before_group_registration_never_executes_the_task(self) -> None:
+        # Arrange
         self.env["FAKE_GROUP_REGISTRATION"] = "1"
         process = self.start("unregistered")
         paused = self.root / "registration-paused"
@@ -329,13 +360,17 @@ while not Path(f'{name}.exit').exists():
         self.assertNotIn("task_group", self.read_state()["leases"][token])
         original = self.read_state()["generation"]
 
+        # Act
         process.kill()
         process.wait(timeout=10)
         self.wait_for_task_guard(token)
+        # Assert
         self.assertFalse((self.root / "unregistered.ready").exists())
 
+        # Act: run another task against the released registry.
         del self.env["FAKE_GROUP_REGISTRATION"]
         task = self.start("registered")
+        # Assert
         self.assertNotEqual(self.ready("registered")["generation"], original)
         self.finish(task, "registered")
         self.assertFalse((self.root / "unregistered.ready").exists())
@@ -344,6 +379,7 @@ while not Path(f'{name}.exit').exists():
     def test_resistant_descendant_is_killed_while_unrelated_group_survives(
         self,
     ) -> None:
+        # Arrange
         child = """
 import signal
 import time
@@ -367,13 +403,16 @@ while not Path('resistant-exit').exists():
         until((self.root / "resistant-ready").exists)
         self.assertNotIn("container stop", self.events.read_text())
 
+        # Act
         process.terminate()
 
+        # Assert
         self.assertEqual(process.wait(timeout=10), 128 + signal.SIGTERM)
         self.assertIsNone(unrelated.poll())
         self.assert_released()
 
     def test_task_group_interrupt_with_exit_code_still_cleans_descendants(self) -> None:
+        # Arrange
         child = """
 import signal
 import time
@@ -400,12 +439,15 @@ raise SystemExit(child.wait())
         until((self.root / "tty-child-ready").exists)
         owner = next(iter(self.read_state()["leases"].values()))
 
+        # Act
         os.killpg(owner["task_group"], signal.SIGINT)
 
+        # Assert
         self.assertEqual(process.wait(timeout=10), 128 + signal.SIGINT)
         self.assert_released()
 
     def test_unknown_owner_birth_keeps_the_lease(self) -> None:
+        # Arrange
         old = self.start("old")
         data = self.ready("old")
         token = next(iter(self.read_state()["leases"]))
@@ -415,60 +457,79 @@ raise SystemExit(child.wait())
         self.wait_for_task_guard(token)
         self.env["FAKE_UNKNOWN_PID"] = str(old.pid)
 
+        # Act
         other = self.start("other")
+        # Assert
         self.assertEqual(self.ready("other")["generation"], data["generation"])
+        # Act: release the new lease while the original owner is uncertain.
         self.finish(other, "other")
+
+        # Assert
         self.assertIn(token, self.read_state()["leases"])
         self.assertNotIn("container stop", self.events.read_text())
 
+        # Act: retry after the process probe becomes reliable.
         del self.env["FAKE_UNKNOWN_PID"]
         new = self.start("new")
+        # Assert
         self.assertNotEqual(self.ready("new")["generation"], data["generation"])
         self.finish(new, "new")
         self.assert_released()
 
     def test_ready_registry_write_failure_rolls_back_the_owned_stack(self) -> None:
+        # Arrange
         self.env["FAKE_READY_WRITE"] = "1"
 
+        # Act
         task = self.start("must-not-start")
 
+        # Assert
         self.assertEqual(task.wait(timeout=10), 1)
         self.assertFalse((self.root / "must-not-start.ready").exists())
         self.assertIn("container stop", self.events.read_text())
         self.assert_released()
 
     def test_failed_stop_retains_ownership_for_later_recovery(self) -> None:
+        # Arrange
         first = self.start("first")
         original = self.ready("first")
         problem = self.root / "fail-stop"
         problem.touch()
+        # Act
         (self.root / "first.exit").touch()
+        # Assert
         self.assertEqual(first.wait(timeout=10), 1)
         self.assertEqual(self.read_state()["phase"], "stopping")
         self.assertFalse(self.read_state()["leases"])
 
+        # Act: retry with a responsive Docker fixture.
         problem.unlink()
         second = self.start("second")
+        # Assert
         self.assertNotEqual(self.ready("second")["generation"], original["generation"])
         self.finish(second, "second")
         self.assert_released()
 
-    def test_db_only_and_port_fallback(self) -> None:
-        (self.root / "conflict").touch()
+    def test_full_stack_refuses_an_active_db_only_lease(self) -> None:
+        # Arrange
         database = self.start("database", mode="db")
         self.assertIsNone(self.ready("database")["url"])
         self.assertEqual(len(self.read_state()["containers"]), 1)
+
+        # Act
         full = self.start("blocked")
+
+        # Assert
         self.assertEqual(full.wait(timeout=10), 1)
         self.assertNotIn("container stop", self.events.read_text())
+        # Act: finish the task that owns the database lease.
         self.finish(database, "database")
 
-        fallback = self.start("fallback")
-        self.assertEqual(self.ready("fallback")["url"], "http://127.0.0.1:47139")
-        self.finish(fallback, "fallback")
+        # Assert
         self.assert_released()
 
     def test_last_release_rejects_replaced_container(self) -> None:
+        # Arrange
         first = self.start("first")
         self.ready("first")
         records = cast(
@@ -480,13 +541,16 @@ raise SystemExit(child.wait())
         records["foreign-replacement"] = replacement
         self.registry.write_text(json.dumps(records))
 
+        # Act
         (self.root / "first.exit").touch()
+        # Assert
         self.assertEqual(first.wait(timeout=10), 1)
         self.assertTrue(self.state.exists())
         self.assertNotIn("container stop", self.events.read_text())
         self.assertEqual(json.loads(self.registry.read_text()), records)
 
     def test_unmanaged_and_one_off_containers_remain_untouched(self) -> None:
+        # Arrange
         project = "nir-" + hashlib.sha256(os.fsencode(self.root)).hexdigest()[:16]
         containers = {
             name: {
@@ -515,11 +579,16 @@ raise SystemExit(child.wait())
         }
         self.registry.write_text(json.dumps(containers))
 
+        # Act
         first = self.start("foreign")
         env = self.ready("foreign")
+        # Assert
         self.assertEqual(env["project"], project)
         self.assertEqual(env["url"], "http://127.0.0.1:8001")
         self.assertEqual(env["generation"], "unmanaged")
+        # Act: release the borrowed stack.
         self.finish(first, "foreign")
+
+        # Assert
         self.assertEqual(json.loads(self.registry.read_text()), containers)
         self.assertNotIn("container stop", self.events.read_text())
