@@ -10,7 +10,6 @@ from typing import Literal, NamedTuple, TypedDict, cast
 from urllib.parse import urlsplit
 
 from playwright.sync_api import Page
-from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from catalog.contracts import Deal, Snapshot, SnapshotKey, is_http_url
 from collection.browser import NAVIGATION_TIMEOUT_MS
@@ -19,6 +18,8 @@ from collection.cian_normalization import (
     normalize_cian_card,
     normalize_cian_partner,
 )
+from collection.collectors.nuxt_state import UNDEFINED, resolve_reference
+from collection.collectors.page_data import wait_for_card_data
 from collection.normalization import RejectedCard, as_object
 
 _NATIVE_HOSTS = {
@@ -155,21 +156,15 @@ class _Nuxt:
         self.remaining -= 1
         if self.remaining < 0:
             raise RejectedCard("invalid_partner_reference")
-        if type(ref) is not int or not 0 <= ref < len(self.rows):
+        try:
+            value = resolve_reference(
+                self.rows, ref, ("Reactive", "ShallowReactive"), max_hops=10
+            )
+        except ValueError as error:
+            raise RejectedCard("invalid_partner_reference") from error
+        if value is UNDEFINED:
             raise RejectedCard("invalid_partner_reference")
-        value = self.rows[ref]
-        for _ in range(10):
-            if (
-                not isinstance(value, list)
-                or not value
-                or value[0] not in ("Reactive", "ShallowReactive")
-            ):
-                return value
-            index = value[1] if len(value) == 2 else None
-            if type(index) is not int or not 0 <= index < len(self.rows):
-                break
-            value = self.rows[index]
-        raise RejectedCard("invalid_partner_reference")
+        return value
 
     def _decode(self, value: object, depth: int) -> object:
         if depth == 0:
@@ -389,10 +384,8 @@ class EmbeddedPage(TypedDict):
 
 
 def capture_page(page: Page, url: str, deadline: float) -> EmbeddedPage:
-    remaining_ms = (deadline - time.monotonic()) * 1000
-    if remaining_ms <= 0:
-        raise PlaywrightTimeout("Card attempt deadline elapsed")
-    handle = page.wait_for_function(
+    data = wait_for_card_data(
+        page,
         r"""requested => {
             const expected = new URL(requested);
             const trimSlash = path => path.replace(/\/$/, "");
@@ -420,16 +413,10 @@ def capture_page(page: Page, url: str, deadline: float) -> EmbeddedPage:
                     .map(script => script.textContent),
             };
         }""",
+        deadline,
         arg=url,
-        timeout=remaining_ms,
     )
-    try:
-        data = cast(EmbeddedPage, handle.json_value())
-    finally:
-        handle.dispose()
-    if time.monotonic() >= deadline:
-        raise PlaywrightTimeout("Card attempt deadline elapsed")
-    return data
+    return cast(EmbeddedPage, data)
 
 
 def read_card(page: Page, requested_url: str, observed_at: datetime) -> Snapshot:
@@ -437,6 +424,12 @@ def read_card(page: Page, requested_url: str, observed_at: datetime) -> Snapshot
     data = capture_page(
         page, requested_url, time.monotonic() + NAVIGATION_TIMEOUT_MS / 1000
     )
+    return parse_captured_card(requested_url, observed_at, data)
+
+
+def parse_captured_card(
+    requested_url: str, observed_at: datetime, data: EmbeddedPage
+) -> Snapshot:
     return parse_card(
         requested_url,
         observed_at,
