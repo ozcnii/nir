@@ -305,7 +305,10 @@ class CianCardTests(TestCase):
             roomsCount=3,
             roomsForSaleCount=1,
             roomArea="9.0",
-            description="Кухня 9,2 м². Общая площадь квартиры 68,8 м².",
+            description=(
+                "Кухня 9,2 м². Общая площадь квартиры 68,8 м². "
+                "Продаётся комната 9,2 м² в соседней квартире."
+            ),
         )
 
         # Act
@@ -360,3 +363,119 @@ class CianCardTests(TestCase):
         self.assertEqual(result["external_id"], "330631159")
         assert result["state"] == "active"
         self.assertEqual(result["url"], canonical)
+
+    def test_direct_room_evidence_after_a_preface_still_checks_scope(self) -> None:
+        for description, reason in (
+            ("Фото после ремонта. Продаётся комната 9,2 м².", "conflicting_room_area"),
+            (
+                "Ипотека возможна! Продаю долю в квартире, комната не выделена.",
+                "unconfirmed_room_unit",
+            ),
+        ):
+            with self.subTest(description=description):
+                # Arrange
+                url, offer, product = projection()
+                offer.update(
+                    category="roomSale",
+                    roomArea="9.0",
+                    roomsForSaleCount=1,
+                    description=description,
+                )
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, f"^{reason}$"):
+                    parsed(url, offer, product)
+
+                # Assert: the exact rejection reason is checked by assertRaisesRegex.
+
+    def test_share_of_an_explicit_room_is_a_single_room_without_address_guessing(
+        self,
+    ) -> None:
+        # Arrange: a direct offer identifies one room, but the source address
+        # has no published room number. The description stays separate.
+        url, offer, product = projection()
+        offer.update(
+            category="roomSale",
+            roomArea="9.0",
+            description="Продаю долю в квартире, выделена комната № 2.",
+        )
+
+        # Act
+        snapshot = parsed(url, offer, product)
+
+        # Assert
+        self.assertEqual(snapshot["rooms"], 1)
+        self.assertEqual(snapshot["area_m2"], Decimal("9.00"))
+        self.assertNotIn("комната", snapshot["address"] or "")
+
+    def test_house_offer_does_not_treat_a_group_or_unscoped_share_as_one_house(
+        self,
+    ) -> None:
+        for description in (
+            "Продаются два дома на одном участке.",
+            "СРОЧНО. Продаётся 1/2 доля дома без отдельного входа.",
+            "Продаётся проект коттеджа.",
+        ):
+            with self.subTest(description=description):
+                # Arrange: replay the observed native house structure with a
+                # controlled replacement of the seller's direct offer clause.
+                url, offer, product = native_case("sale_house")
+                offer["description"] = description
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, "^unconfirmed_house_unit$"):
+                    parsed(url, offer, product)
+
+                # Assert: no active whole-house snapshot is returned.
+
+    def test_house_compares_only_area_of_the_offered_building(self) -> None:
+        # Arrange: the known house has 90.9 m² and three bedrooms, not three rooms.
+        url, offer, product = native_case("sale_house")
+        offer["description"] = "Продаётся дом 90,9 м². Терраса 12 м², 3 спальни."
+
+        # Act
+        result = parsed(url, offer, product)
+
+        # Assert
+        self.assertEqual(result["area_m2"], Decimal("90.90"))
+        self.assertEqual(result["land_area_m2"], Decimal("2700.00"))
+        self.assertIsNone(result["rooms"])
+
+        # Arrange: the same offer now states a conflicting whole-house area.
+        offer["description"] = "Продаётся дом общей площадью 85 м²."
+
+        # Act
+        with self.assertRaisesRegex(RejectedCard, "^conflicting_house_area$"):
+            parsed(url, offer, product)
+
+        # Assert: a difference between comparable whole-house areas rejects the input.
+
+    def test_native_daily_price_is_unavailable_if_terms_say_monthly(self) -> None:
+        # Arrange: the observed daily label and matching JSON-LD remain unchanged.
+        url, offer, product = native_case("day_flat")
+        cast(dict[str, object], offer["bargainTerms"])["paymentPeriod"] = "monthly"
+
+        # Act
+        snapshot = parse_card(
+            url,
+            OBSERVED_AT,
+            [script(offer, "от 3 000 ₽/сут.")],
+            [json.dumps(product)],
+            loaded_url=url,
+        )
+
+        # Assert
+        assert snapshot["state"] == "active"
+        self.assertEqual(snapshot["deal_type"], "day_rent")
+        self.assertEqual(snapshot["price"], {"status": "unavailable"})
+
+
+def native_case(name: str) -> tuple[str, dict[str, object], dict[str, object]]:
+    path = FIXTURE.with_name("cian-native-directions.json")
+    cases = cast(list[dict[str, object]], json.loads(path.read_text())["cases"])
+    case = next(item for item in cases if item["case"] == name)
+    return (
+        cast(str, case["url"]),
+        cast(dict[str, object], case["offer"]),
+        cast(dict[str, object], case["product"]),
+    )

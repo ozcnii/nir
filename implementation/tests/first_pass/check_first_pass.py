@@ -150,42 +150,53 @@ def verify_invalid_card(
 ) -> None:
     from app.catalog.models import Ad, PriceHistory
 
-    # Arrange: serve two unsafe responses for a key with retained data.
+    # Arrange: serve unsafe responses for a key with retained data.
     observed_before = Ad.objects.values_list("observed_at", flat=True).get(pk=ad_id)
     history_before = PriceHistory.objects.filter(ad_id=ad_id).count()
     redirect = url.replace(str(offer["id"]), "1234567890")
-    invalid_offer = {**offer, "totalArea": "47.211"}
+    foreign_id = int(redirect.rstrip("/").rsplit("/", 1)[1])
+    offers = {
+        "redirect": offer,
+        "foreign_state": {**offer, "id": foreign_id, "cianId": foreign_id},
+        "invalid_area": {**offer, "totalArea": "47.211"},
+    }
 
     @contextmanager
-    def response_page(*, wrong_card: bool) -> Iterator[Page]:
+    def response_page(case: str) -> Iterator[Page]:
         def serve(route: Route) -> None:
-            if wrong_card and route.request.url == url:
+            if case == "redirect" and route.request.url == url:
                 route.fulfill(status=302, headers={"location": redirect})
             else:
                 route.fulfill(
                     status=200,
                     content_type="text/html",
-                    body=projection_html(invalid_offer, product),
+                    body=(
+                        (
+                            f"<script>{script({})}</script>"
+                            if case == "foreign_state"
+                            else ""
+                        )
+                        + projection_html(offers[case], product)
+                    ),
                 )
 
         with browser_page() as page:
             page.route("**/*", serve)
             yield page
 
-    # Act: reject a navigation to another key and a matching key with bad data.
+    # Act: reject foreign navigation, foreign state at the same URL and bad area data.
     outcomes = []
-    for wrong_card in (True, False):
+    for case in offers:
         try:
             with patch(
-                "app.collection.one_card.browser_page",
-                partial(response_page, wrong_card=wrong_card),
+                "app.collection.one_card.browser_page", partial(response_page, case)
             ):
                 call_command("collect", url, stdout=StringIO())
         except CommandError as error:
             outcomes.append(str(error))
 
-    # Assert: neither response reaches an active write.
-    assert outcomes == ["unavailable", "invalid_precision"], outcomes
+    # Assert: no invalid response reaches an active write.
+    assert outcomes == ["unavailable", "unavailable", "invalid_precision"], outcomes
     assert (
         Ad.objects.values_list("observed_at", flat=True).get(pk=ad_id)
         == observed_before
@@ -193,7 +204,7 @@ def verify_invalid_card(
     assert PriceHistory.objects.filter(ad_id=ad_id).count() == history_before
     assert not Ad.objects.filter(source_id="cian", external_id="1234567890").exists()
     print(
-        "Cian: foreign URL and malformed area leave publication and history untouched"
+        "Cian: foreign URL/ID and malformed area leave publication and history untouched"
     )
 
 

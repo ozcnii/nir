@@ -115,35 +115,50 @@ class _RemovedCard(SnapshotKey):
 CianSnapshot = ActiveSnapshot | _RemovedCard | _UnavailableCard
 
 
-def _state(scripts: Iterable[str], key: str) -> dict[str, object]:
-    states = []
+def _state(scripts: Iterable[str], key: str) -> dict[str, object] | None:
+    """Select one ready native state. None means the offer may still be loading."""
+    matching = []
     removed_markers = []
     foreign_id = False
+    ready_foreign = False
+    pending = False
+    decoder = json.JSONDecoder(parse_float=Decimal)
     for script in scripts:
         if not (marker := _CONFIG.search(script)):
             continue
         try:
-            entries, _ = json.JSONDecoder(parse_float=Decimal).raw_decode(
-                script, marker.end()
-            )
+            entries, _ = decoder.raw_decode(script, marker.end())
         except (ValueError, InvalidOperation, RecursionError):
             continue
-        if isinstance(entries, list):
-            for item in cast(list[object], entries):
-                entry = as_object(item)
-                if entry.get("key") == "defaultState":
-                    data = as_object(as_object(entry.get("value")).get("offerData"))
-                    offer = as_object(data.get("offer"))
-                    identifier = offer.get("id")
-                    if type(identifier) is int and str(identifier) == key:
-                        states.append(data)
-                    elif identifier is None and offer.get("status") == "deleted":
-                        removed_markers.append(data)
-                    elif identifier is not None or offer.get("cianId") is not None:
-                        foreign_id = True
-    if states:
-        return states[0] if len(states) == 1 else {}
-    return removed_markers[0] if not foreign_id and len(removed_markers) == 1 else {}
+        if not isinstance(entries, list):
+            continue
+        for item in cast(list[object], entries):
+            entry = as_object(item)
+            if entry.get("key") != "defaultState":
+                continue
+            data = as_object(as_object(entry.get("value")).get("offerData"))
+            offer = as_object(data.get("offer"))
+            identifier = offer.get("id")
+            status = offer.get("status")
+            secondary_id = offer.get("cianId", identifier)
+            if status is None:
+                pending = True
+            elif status not in ("published", "deleted"):
+                foreign_id = True
+            elif type(identifier) is int and str(identifier) == key:
+                matching.append(data)
+            elif identifier is None and secondary_id is None and status == "deleted":
+                removed_markers.append(data)
+            else:
+                foreign_id = True
+                ready_foreign |= type(identifier) is int and secondary_id == identifier
+    if matching:
+        return matching[0] if len(matching) == 1 else {}
+    if removed_markers and not foreign_id:
+        return removed_markers[0] if len(removed_markers) == 1 else {}
+    if ready_foreign or (foreign_id and not pending):
+        return {}
+    return None
 
 
 def _documents(scripts: Iterable[str]) -> list[dict[str, object]]:
@@ -176,6 +191,17 @@ def _product(
     return matches[0] if len(matches) == 1 else {}
 
 
+def _identity(url: str, observed_at: datetime) -> tuple[_Route, SnapshotKey]:
+    route = _route(url)
+    if route is None or observed_at.utcoffset() is None:
+        raise RejectedCard("invalid_identity")
+    return route, {
+        "source_code": "cian",
+        "external_id": route.external_id,
+        "observed_at": observed_at,
+    }
+
+
 def parse_card(
     requested_url: str,
     observed_at: datetime,
@@ -184,22 +210,33 @@ def parse_card(
     *,
     loaded_url: str,
 ) -> CianSnapshot:
-    route = _route(requested_url)
-    if route is None or observed_at.utcoffset() is None:
-        raise RejectedCard("invalid_identity")
-    key: SnapshotKey = {
-        "source_code": "cian",
-        "external_id": route.external_id,
-        "observed_at": observed_at,
-    }
+    route, key = _identity(requested_url, observed_at)
+    return _parse_observation(
+        route, key, config_scripts, product_scripts, loaded_url
+    ) or {**key, "state": "unavailable"}
+
+
+def _parse_observation(
+    route: _Route,
+    key: SnapshotKey,
+    config_scripts: Iterable[str],
+    product_scripts: Iterable[str],
+    loaded_url: str,
+) -> CianSnapshot | None:
     unavailable: _UnavailableCard = {**key, "state": "unavailable"}
     if _route(loaded_url) != route:
         return unavailable
-    documents = _documents(product_scripts)
     if route.kind == "partner":
-        return parse_partner(loaded_url, key, config_scripts, documents) or unavailable
+        return (
+            parse_partner(loaded_url, key, config_scripts, _documents(product_scripts))
+            or unavailable
+        )
 
     data = _state(config_scripts, route.external_id)
+    if data is None:
+        return None
+    if not data:
+        return unavailable
     offer = as_object(data.get("offer"))
     identifier = offer.get("id")
     status = offer.get("status")
@@ -254,7 +291,7 @@ def parse_card(
         loaded_url,
         key,
         data,
-        _product(documents, route),
+        _product(_documents(product_scripts), route),
         deal=direction.deal,
         property_type_id=direction.property_type_id,
         market_segment=direction.market,
@@ -271,20 +308,16 @@ class _EmbeddedPage(TypedDict):
 def capture_card(
     page: Page, url: str, observed_at: datetime, deadline: float
 ) -> CianSnapshot:
+    route, key = _identity(url, observed_at)
     previous_config: list[str] = []
     while True:
         data = _wait_for_card_scripts(page, url, deadline, previous_config)
         if data["captcha"]:
             raise RejectedCard("source_captcha")
-        snapshot = parse_card(
-            url, observed_at, data["config"], data["products"], loaded_url=data["url"]
+        snapshot = _parse_observation(
+            route, key, data["config"], data["products"], data["url"]
         )
-        if (
-            snapshot["state"] != "unavailable"
-            or not same_card(url, data["url"])
-            or urlsplit(url).hostname == PARTNER_HOST
-            or _state(data["config"], snapshot["external_id"])
-        ):
+        if snapshot is not None:
             return snapshot
         previous_config = data["config"]
 

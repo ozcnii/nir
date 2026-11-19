@@ -51,6 +51,8 @@ def partner_card(
     dates: Mapping[str, object] | None = None,
     label_unit: str = "за сутки",
     description: str = "Вид на отель.\nБез ремонта.",
+    city_id: int | None = 366625,
+    city: str = "Самара",
 ) -> tuple[str, list[str], list[str]]:
     detail_key = f"detail:{identifier}"
     url = f"https://cian.sutochno.ru/{detail_key.replace(':', '/')}"
@@ -63,7 +65,7 @@ def partner_card(
         "name": name,
         "hotel": hotel,
         "location": {
-            "city": {"title": "Самара"},
+            "city": {"id": city_id, "title": city},
             "address": "ул. Тестовая, 7",
             "lat": "53.21",
             "lng": "50.12",
@@ -248,3 +250,51 @@ class CianPartnerTests(TestCase):
 
             # Assert
             self.assertIsNone(key)
+
+    def test_partner_rejects_conflicting_region_and_city_evidence(self) -> None:
+        for city_id, city, breadcrumb in (
+            (366625, "Самара", ("Саратовская область", "Самара")),
+            (366625, "Саратов", ("Саратовская область", "Саратов")),
+            (None, "Самара", ("Самарская область", "Саратов")),
+        ):
+            with self.subTest(city_id=city_id, city=city, breadcrumb=breadcrumb):
+                # Arrange
+                url, config, products = partner_card(
+                    123,
+                    name="Комната",
+                    hotel=None,
+                    amount=5800,
+                    city_id=city_id,
+                    city=city,
+                )
+                crumbs = {
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        {"position": index, "name": name}
+                        for index, name in enumerate(breadcrumb, 2)
+                    ],
+                }
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, "^conflicting_region$"):
+                    parse_card(
+                        url,
+                        OBSERVED_AT,
+                        config,
+                        [*products, json.dumps(crumbs)],
+                        loaded_url=url,
+                    )
+
+                # Assert: the conflicting address cannot produce an active P3.
+
+    def test_partner_city_name_alone_does_not_supply_a_region(self) -> None:
+        # Arrange: no published city ID and no region breadcrumb.
+        url, config, products = partner_card(
+            123, name="Комната", hotel=None, amount=5800, city_id=None
+        )
+
+        # Act
+        with self.assertRaisesRegex(RejectedCard, "^invalid_region$"):
+            parse_card(url, OBSERVED_AT, config, products, loaded_url=url)
+
+        # Assert: do not infer the subject from an unverified city identity.

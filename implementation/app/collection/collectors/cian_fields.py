@@ -135,19 +135,48 @@ def seller_description(value: object) -> str | None:
     return value or None
 
 
-# Compare only a direct opening measurement of the offered unit. Other
-# prose can refer to a neighbour, a different room or the whole flat.
+# Only a direct offer clause can establish the subject and a comparable area.
+# Layout mentions, kitchen measurements and neighboring units have other scope.
+_OFFER = r"(?:\A|(?<=[.!?;:\n]))\s*(?:прода[её]тся|продаются|сда[её]тся|сдаются|продаю|сдаю)\s+"
+_AREA = (
+    r"(?P<area>[0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.\s*м)"
+    r"(?=[\s,.;!?]|$)"
+)
 _OFFERED_ROOM = re.compile(
-    r"\A\s*(?:прода[её]тся|сда[её]тся|продаю|сдаю)\s+"
-    r"(?:одна\s+)?комнат[ау]\s+(?:площадью\s+)?"
-    r"([0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.\s*м)"
-    r"(?=\s*[,.;!]|\s+в\s+|\s*$)",
+    _OFFER + r"(?:одна\s+)?комнат[ау][:\s]+(?:площадью\s+)?" + _AREA,
     re.IGNORECASE,
 )
-_ABSTRACT_ROOM_SHARE = re.compile(
-    r"\A\s*(?:прода[её]тся|сда[её]тся|продаю|сдаю)\s+"
-    r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+в\s+квартире\s+"
-    r"без\s+выделения\s+комнаты\b",
+_OTHER_UNIT = re.compile(r"\s+(?:в|из)\s+(?:соседн|друг)\w+", re.IGNORECASE)
+_ROOM_SHARE = re.compile(
+    _OFFER + r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+(?:в\s+)?квартир[еы]\b",
+    re.IGNORECASE,
+)
+_SPECIFIC_ROOM_SHARE = re.compile(
+    _OFFER + r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+комнаты\s+№?\s*[1-9][0-9]*\b",
+    re.IGNORECASE,
+)
+_ALLOCATION = re.compile(
+    r"\s*,\s*(?:выделена|предлагается)\s+(?:конкретная\s+)?комната\s+№\s*[1-9][0-9]*\b",
+    re.IGNORECASE,
+)
+
+_HOUSE_SET_OR_PROJECT = re.compile(
+    _OFFER + r"(?:(?:два|три|четыре|несколько|[2-9]|[1-9][0-9]+)\s+"
+    r"(?:дом(?:а|ов)|коттедж(?:а|ей))|(?:типов(?:ой|ого)\s+)?проект\s+"
+    r"(?:дома|коттеджа)|строительство\b|(?:земельный\s+)?участок\s+без\s+дома)\b",
+    re.IGNORECASE,
+)
+_HOUSE_PART = re.compile(
+    _OFFER + r"(?:(?:[0-9]+/[0-9]+\s+)?(?:дол[яю]|половин[ау]|часть)\s+"
+    r"(?:в\s+)?(?:дом[ае]|коттедж[ае])|(?:жилой\s+)?блок|секция|таунхаус)\b",
+    re.IGNORECASE,
+)
+_ADDRESSABLE_BLOCK = re.compile(
+    r"(?:блок|секция|таунхаус)\s+(?:№\s*)?[0-9][0-9a-я/.-]*\b",
+    re.IGNORECASE,
+)
+_OFFERED_HOUSE_AREA = re.compile(
+    _OFFER + r"(?:дом|коттедж)[,\s]+(?:(?:общей\s+)?площадью\s+)?" + _AREA,
     re.IGNORECASE,
 )
 
@@ -155,18 +184,52 @@ _ABSTRACT_ROOM_SHARE = re.compile(
 def check_room(
     rooms: int | None, area: Decimal | None, description: str | None
 ) -> tuple[int | None, Decimal | None]:
-    if description is None:
+    text = description or ""
+    scoped_share = _SPECIFIC_ROOM_SHARE.search(text) is not None
+    for share in _ROOM_SHARE.finditer(text):
+        if not _ALLOCATION.match(text, share.end()):
+            raise RejectedCard("unconfirmed_room_unit")
+        scoped_share = True
+    measured = {
+        area_m2(match["area"])
+        for match in _OFFERED_ROOM.finditer(text)
+        if not _OTHER_UNIT.match(text, match.end())
+    }
+    if not measured and not scoped_share:
         return rooms, area
-    if _ABSTRACT_ROOM_SHARE.match(description):
-        raise RejectedCard("unconfirmed_room_unit")
-    if measurement := _OFFERED_ROOM.match(description):
-        if rooms not in (None, 1):
-            raise RejectedCard("conflicting_room_count")
-        measured = area_m2(measurement[1])
-        if area is not None and area != measured:
-            raise RejectedCard("conflicting_room_area")
-        return 1, area if area is not None else measured
-    return rooms, area
+    if rooms not in (None, 1):
+        raise RejectedCard("conflicting_room_count")
+    if area is not None:
+        measured.add(area)
+    if len(measured) > 1:
+        raise RejectedCard("conflicting_room_area")
+    return 1, next(iter(measured), None)
+
+
+def _check_house(
+    area: Decimal | None,
+    building: dict[str, object],
+    names: list[str],
+    description: str | None,
+) -> None:
+    text = description or ""
+    scoped_block = any(_ADDRESSABLE_BLOCK.fullmatch(part) for part in names)
+    if _HOUSE_SET_OR_PROJECT.search(text) or (
+        _HOUSE_PART.search(text) and not scoped_block
+    ):
+        raise RejectedCard("unconfirmed_house_unit")
+    # A block can be described together with its enclosing building. Compare the
+    # top-level area and building area only for ordinary full-house offers.
+    if scoped_block:
+        return
+    areas = {
+        area_m2(match["area"])
+        for match in _OFFERED_HOUSE_AREA.finditer(text)
+        if not _OTHER_UNIT.match(text, match.end())
+    }
+    areas.update((area, area_m2(building.get("totalArea"))))
+    if len(areas - {None}) > 1:
+        raise RejectedCard("conflicting_house_area")
 
 
 def check_floor(floor: int | None, floors: int | None) -> None:
@@ -225,13 +288,16 @@ def _price(
     if bargain.get("currency") not in (None, "rur"):
         return {"status": "unavailable"}
     display = data.get("offerPrice")
-    if display is not None and not isinstance(display, str):
+    if not isinstance(display, str):
         return {"status": "unavailable"}
-    label = " ".join(display.casefold().split()) if isinstance(display, str) else ""
+    label = " ".join(display.casefold().split())
     unit = {"sale": "₽", "month_rent": "₽/мес.", "day_rent": "₽/сут."}[deal]
     if not label.endswith(unit):
         return {"status": "unavailable"}
-    if deal == "month_rent" and bargain.get("paymentPeriod") not in (None, "monthly"):
+    period = bargain.get("paymentPeriod")
+    if period is not None and (deal != "month_rent" or period != "monthly"):
+        return {"status": "unavailable"}
+    if deal == "day_rent" and bargain.get("leaseTermType") in ("longTerm", "fewMonths"):
         return {"status": "unavailable"}
     try:
         price = decimal_2(
@@ -301,9 +367,8 @@ def normalize_cian_card(
     floor = (
         None if house else optional_integer(offer.get("floorNumber"), minimum=-32768)
     )
-    floors = optional_integer(
-        _optional_object(offer.get("building")).get("floorsCount"), minimum=1
-    )
+    building = _optional_object(offer.get("building"))
+    floors = optional_integer(building.get("floorsCount"), minimum=1)
     check_floor(floor, floors)
     rooms = optional_integer(
         offer.get("roomsForSaleCount" if room else "roomsCount"),
@@ -315,6 +380,8 @@ def normalize_cian_card(
     description = seller_description(offer.get("description"))
     if room:
         rooms, area = check_room(rooms, area, description)
+    if house:
+        _check_house(area, building, names, description)
 
     return {
         **key,

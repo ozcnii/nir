@@ -192,6 +192,7 @@ def parse_partner(
         for field in ("address", "lat", "lng")
     }
     location["city"] = nuxt.read(*path, "location", "city", "title")
+    location["city_id"] = nuxt.read(*path, "location", "city", "id")
     try:
         images = nuxt.read(*path, "media", "images")
     except RejectedCard:
@@ -335,20 +336,42 @@ def _partner_properties(groups: object) -> dict[str, object]:
     return fields
 
 
-def _partner_region(documents: list[dict[str, object]], city: str) -> str:
+# The observed partner identity differs from Cian's native city code.
+_SAMARA_CITY_ID = 366625
+_SAMARA_CITY = "самара"
+_SAMARA_REGION = "Самарская область"
+
+
+def _partner_region(
+    documents: list[dict[str, object]], city: str, city_id: object
+) -> str:
+    known_city_name = city.casefold() == _SAMARA_CITY
+    known_city_id = type(city_id) is int and city_id == _SAMARA_CITY_ID
+    if city_id is not None and known_city_name != known_city_id:
+        raise RejectedCard("conflicting_region")
     breadcrumbs = [
-        doc.get("itemListElement")
-        for doc in documents
-        if doc.get("@type") == "BreadcrumbList"
+        document.get("itemListElement")
+        for document in documents
+        if document.get("@type") == "BreadcrumbList"
     ]
-    if len(breadcrumbs) == 1 and isinstance(breadcrumbs[0], list):
-        crumbs = [as_object(item) for item in cast(list[object], breadcrumbs[0])]
-        subjects = [crumb.get("name") for crumb in crumbs if crumb.get("position") == 2]
-        if len(subjects) == 1:
-            return address_component(subjects[0])
-    if not breadcrumbs and city == "Самара":
-        return "Самарская область"
-    raise RejectedCard("invalid_region")
+    if not breadcrumbs and known_city_id:
+        return _SAMARA_REGION
+    if len(breadcrumbs) != 1 or not isinstance(breadcrumbs[0], list):
+        raise RejectedCard("invalid_region")
+    crumbs = [as_object(item) for item in cast(list[object], breadcrumbs[0])]
+    subjects = [crumb.get("name") for crumb in crumbs if crumb.get("position") == 2]
+    cities = [crumb.get("name") for crumb in crumbs if crumb.get("position") == 3]
+    if len(subjects) != 1 or len(cities) > 1:
+        raise RejectedCard("invalid_region")
+    region = address_component(subjects[0])
+    if (
+        known_city_name
+        and region.casefold() != _SAMARA_REGION.casefold()
+        or cities
+        and address_component(cities[0]).casefold() != city.casefold()
+    ):
+        raise RejectedCard("conflicting_region")
+    return region
 
 
 def _snapshot(
@@ -363,7 +386,7 @@ def _snapshot(
     product: dict[str, object],
 ) -> ActiveSnapshot:
     city = address_component(location.get("city"))
-    region = _partner_region(documents, city)
+    region = _partner_region(documents, city, location.get("city_id"))
     names = [region, city]
     if location.get("address") is not None:
         names.append(address_component(location["address"]))
