@@ -8,7 +8,6 @@ export COMPOSE_PROJECT_NAME="nir-check-$(openssl rand -hex 12)"
 export COMPOSE_FILE="$PWD/compose.yaml"
 export COMPOSE_DISABLE_ENV_FILE=1
 export APP_PORT=0
-export DB_PUBLISHED_PORT=0
 export DB_NAME=t15_catalog_test
 export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
 export DB_APP_PASSWORD="$(openssl rand -hex 24)"

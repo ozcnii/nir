@@ -35,6 +35,24 @@ Compose использует этот том с сохранёнными объ�
 docker compose exec app python -m app.manage createsuperuser
 ```
 
+В обычном запуске PostgreSQL доступен сервису `app` по `db:5432`. Для прогона
+с Windows через SSH подготовьте БД по шагам выше в отдельном проекте Compose
+со своим `COMPOSE_PROJECT_NAME`. На машине с Docker выполните:
+
+```sh
+docker compose -f compose.yaml -f compose.ssh.yaml up -d --wait db
+ssh -o ExitOnForwardFailure=yes -R 127.0.0.1:55432:127.0.0.1:55432 qq
+```
+
+В SSH-сессии на Windows задайте `DB_HOST=127.0.0.1`, `DB_PORT=55432`, имя
+подготовленной базы `DB_NAME`, пароль её роли `app` в `DB_APP_PASSWORD` и
+`DJANGO_SECRET_KEY`. Запустите `python -m app.manage collect <URL>` из каталога
+реализации на Windows.
+
+Добавление или снятие порта пересоздаёт контейнер БД и прерывает его соединения.
+После прогона закройте SSH-сессию и выполните `docker compose up -d --wait db`
+с тем же именем проекта. Основной файл уберёт привязку, том с данными сохранится.
+
 ## Сбор
 
 Как устроен обход, что починено и что осталось ручным — в
