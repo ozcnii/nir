@@ -1,6 +1,7 @@
 """Check explicit claims about the unit offered in a native Domclick card."""
 
 import re
+from bisect import bisect_right
 from decimal import Decimal
 
 from app.collection.normalization import (
@@ -65,7 +66,7 @@ _SET_REFERENT_COUNT = rf"(?:{'|'.join(_REFERENT_COUNTS)}|[0-9]{{1,5}})"
 _ROOM_SET_AREA_CLAUSE = re.compile(
     _CLAUSE + r"(?:общая|суммарная) площадь "
     rf"(?:набора комнат|(?:(?:этих(?:\s+(?P<count>{_SET_REFERENT_COUNT}))?"
-    r"|(?P<pair>обеих)|предлагаемых|продаваемых|сдаваемых)\s+)?комнат)"
+    r"|(?P<pair>обеих)|(?P<offered>предлагаемых|продаваемых|сдаваемых))\s+)?комнат)"
     r"\s*[:—-]?\s*" + _SQUARE_METRES,
     re.IGNORECASE,
 )
@@ -231,12 +232,14 @@ def check_room(
     text = description or ""
     counts = set() if rooms is None else {rooms}
     offered_set = False
+    offer_starts: list[int] = []
     offer_ends: list[int] = []
     detached: set[int] = set()
     member_sets: set[frozenset[str]] = set()
     member_areas: dict[str, set[Decimal]] = {}
     area_claims = {claim.start(): claim for claim in _ROOM_SIZE.finditer(text)}
     for match in _ROOM_OFFER.finditer(text):
+        offer_starts.append(match.start())
         # Determine ownership after the described list or measure, not after
         # the room noun: a qualifier belongs to the quantified offer.
         end = match.end()
@@ -320,6 +323,14 @@ def check_room(
     if offered_set or (detected is not None and detected > 1):
         totals = set()
         for claim in _ROOM_SET_AREA_CLAUSE.finditer(text):
+            preceding = bisect_right(offer_starts, claim.start())
+            # An indirect total needs an own offer in scope. An explicit
+            # total for the offered rooms identifies that scope itself.
+            separate = (
+                offer_starts[preceding - 1] in detached if preceding else bool(detached)
+            )
+            if not claim["offered"] and separate:
+                continue
             referent = claim["pair"] or claim["count"]
             if referent is not None and detected is not None:
                 count_value = _REFERENT_COUNTS.get(referent.casefold())

@@ -150,12 +150,13 @@ def verify_domclick() -> None:
     # Arrange: replay the source-shaped room and then a contradictory ID.
     projection = native_proposal()
     current = projection
+    current_url = ROOM
     ads = Ad.objects.filter(
         source_id="domclick", external_id="/card/sale__room__2071752356"
     )
 
     def serve_domclick(route: Route) -> None:
-        if route.request.url != ROOM:
+        if route.request.url != current_url:
             route.abort()
             return
         route.fulfill(
@@ -260,6 +261,51 @@ def verify_domclick() -> None:
     print(
         "Domclick: terminal collection, repeat and rejected snapshot no-write verified"
     )
+
+    # Arrange: replay one own uncounted group and later another party's offer.
+    group_id = 2071752357
+    group_key = f"/card/sale__room__{group_id}"
+    current_url = ROOM.replace(str(projection["id"]), str(group_id))
+    own_offer = "Продаются комнаты общей площадью 22,5 м² одним лотом."
+    group_info = {**room_set, "description": own_offer}
+    group_price = {**cast(dict[str, object], projection["priceInfo"]), "price": 1300000}
+    current = {
+        **projection,
+        "id": group_id,
+        "roomsOffered": None,
+        "objectInfo": group_info,
+        "priceInfo": group_price,
+    }
+    group_ads = Ad.objects.filter(source_id="domclick", external_id=group_key)
+
+    with patch("app.collection.one_card.browser_page", fixture_page):
+        # Act
+        call_command("collect", current_url, stdout=StringIO())
+        accepted = group_ads.get()
+        group_info["description"] = (
+            "Продаются комнаты в соседней квартире. "
+            "Общая площадь этих комнат — 23 м². "
+            f"{own_offer}"
+        )
+        group_price["price"] = 1200000
+        call_command("collect", current_url, stdout=StringIO())
+
+    # Assert
+    latest = group_ads.get()
+    assert latest.id == accepted.id
+    assert latest.property_id == accepted.property_id
+    assert latest.property.rooms is None
+    assert latest.property.area_m2 == Decimal("22.50")
+    assert list(
+        PriceHistory.objects.filter(ad=latest)
+        .order_by("observed_at")
+        .values_list("price_rub", flat=True)
+    ) == [
+        Decimal("1300000.00"),
+        Decimal("1200000.00"),
+    ]
+    assert Property.objects.count() == initial_count + 2
+    print("Domclick: neighbor total doesn't block the own group's price update")
 
 
 if __name__ == "__main__":

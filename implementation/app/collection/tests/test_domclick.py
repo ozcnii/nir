@@ -315,6 +315,53 @@ class DomclickTests(TestCase):
                 assert snapshot["state"] == "active"
                 self.assertEqual((snapshot["rooms"], snapshot["area_m2"]), expected)
 
+    def test_native_room_set_keeps_totals_in_their_recognized_offer_scope(self) -> None:
+        # Arrange: the own offer and a second, explicitly unrelated group.
+        data = {**native_proposal(), "roomsOffered": None}
+        info = cast(dict[str, object], data["objectInfo"])
+        own = "Продаются комнаты общей площадью 22,5 м² одним лотом."
+        linked = "Общая площадь этих комнат — 23 м²."
+        for detached in (
+            "Продаются комнаты в соседней квартире.",
+            "Сдаются комнаты по отдельности.",
+        ):
+            for description in (
+                f"{own} {detached} {linked}",
+                f"{detached} {linked} {own}",
+            ):
+                with self.subTest(description=description):
+                    # Arrange
+                    info["description"] = description
+
+                    # Act
+                    snapshot = read_native(ROOM, data)
+
+                    # Assert
+                    assert snapshot["state"] == "active"
+                    self.assertEqual(
+                        (snapshot["rooms"], snapshot["area_m2"]),
+                        (None, Decimal("22.50")),
+                    )
+
+            with self.subTest(detached=detached, own_total_conflicts=True):
+                # Arrange: the attached total follows the own offer.
+                info["description"] = f"{detached} {own} {linked}"
+
+                # Act / Assert
+                with self.assertRaisesRegex(RejectedCard, "^conflicting_room_area$"):
+                    read_native(ROOM, data)
+
+        # Arrange: the total explicitly identifies the offered rooms, so
+        # the nearby detached offer does not make this same-set claim foreign.
+        info["description"] = (
+            f"{own} Продаются комнаты в соседней квартире. "
+            "Общая площадь предлагаемых комнат — 23 м²."
+        )
+
+        # Act / Assert
+        with self.assertRaisesRegex(RejectedCard, "^conflicting_room_area$"):
+            read_native(ROOM, data)
+
     def test_native_room_set_rejects_conflicting_totals_before_count_is_known(
         self,
     ) -> None:
