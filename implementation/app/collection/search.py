@@ -1,6 +1,6 @@
 """Run verified collection routes and check their previously known publications."""
 
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Callable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager
@@ -193,14 +193,22 @@ def collect_search(
                     in_scope,
                 )
 
+    scope = {
+        "region_id": region_id,
+        "property_type_id": property_type_id,
+        "deal_type": deal,
+        "market_segment": segment,
+    }
     if len(results) == 1:
-        return next(iter(results.values()))
+        source, result = next(iter(results.items()))
+        return {**result, "scope": scope, "source": source}
     return {
         "outcome": (
             "completed"
             if all(row["outcome"] == "completed" for row in results.values())
             else "partial"
         ),
+        "scope": scope,
         "sources": results,
     }
 
@@ -216,15 +224,16 @@ def _collect_source(
     in_scope: Callable[[Snapshot], bool],
 ) -> dict[str, object]:
     results: Counter[str] = Counter()
-    issues: Counter[str] = Counter()
+    issues_by_stage: dict[str, Counter[str]] = defaultdict(Counter)
     skipped: dict[str, str] = {}
     seen_keys: set[str] = set()
     seen_groups: set[str] = set()
     source = routes[0].source
     card_key = routes[0].card_key
+    stage = "listing"
 
     def skip(key: str, reason: str) -> None:
-        issues[reason] += 1
+        issues_by_stage[stage][reason] += 1
         skipped[key] = reason
 
     def visit(
@@ -298,7 +307,7 @@ def _collect_source(
                 page_count += 1
                 if page.incomplete:
                     listing_complete = False
-                    issues.update(page.incomplete)
+                    issues_by_stage[stage].update(page.incomplete)
                 for group_url in page.group_urls:
                     if group_url in seen_groups:
                         continue
@@ -306,6 +315,7 @@ def _collect_source(
                     parent = card_key(group_url)
                     if parent in seen_keys or parent not in page.urls:
                         parent = None
+                    stage = "group"
                     try:
                         group, captured = _read_group(
                             direction,
@@ -320,28 +330,33 @@ def _collect_source(
                             raise
                         listing_complete = False
                         if parent is None:
-                            issues[str(error)] += 1
+                            issues_by_stage[stage][str(error)] += 1
                         else:
                             seen_keys.add(parent)
                             skip(parent, str(error))
                         continue
                     if group.incomplete:
                         listing_complete = False
-                        issues.update(group.incomplete)
+                        issues_by_stage[stage].update(group.incomplete)
                     if parent is not None:
                         visit(parent, group_url, captured=captured)
+                    stage = "card"
                     for key, url in group.urls.items():
                         visit(key, url, group.quotes.get(key))
+                stage = "card"
                 for key, url in page.urls.items():
                     visit(key, url, page.quotes.get(key))
+                stage = "listing"
 
         if listing_complete:
+            stage = "known_card"
             for key, url in known.items():
                 visit(key, url)
     except CollectionError as error:
         listing_complete = False
-        issues[str(error)] += 1
+        issues_by_stage[stage][str(error)] += 1
 
+    issues = sum(issues_by_stage.values(), Counter[str]())
     return {
         "outcome": "partial" if issues else "completed",
         "listing_complete": listing_complete,
@@ -349,6 +364,7 @@ def _collect_source(
         "unique_cards": len(seen_keys),
         "results": results,
         "issues": issues,
+        "issues_by_stage": issues_by_stage,
         "skipped_cards": skipped,
     }
 

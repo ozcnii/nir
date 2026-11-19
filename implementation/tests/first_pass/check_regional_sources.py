@@ -161,8 +161,18 @@ def verify_regional_sources() -> None:
             )
 
     # Assert: the next source runs and opens the parent only once per run.
-    first, second = (json.loads(output.getvalue())["sources"] for output in outputs)
+    first_run, second_run = (json.loads(output.getvalue()) for output in outputs)
+    scope = {
+        "region_id": SAMARA_REGION_ID,
+        "property_type_id": APARTMENT_TYPE_ID,
+        "deal_type": "sale",
+        "market_segment": None,
+    }
+    assert first_run["scope"] == second_run["scope"] == scope
+    assert first_run["outcome"] == "partial"
+    first, second = first_run["sources"], second_run["sources"]
     assert first["cian"]["issues"] == {"http_403": 1}
+    assert first["cian"]["issues_by_stage"] == {"listing": {"http_403": 1}}
     assert first["cian"]["listing_complete"] is False
     assert first["domclick"]["listing_complete"] is True, (first, requests)
     assert first["domclick"]["results"]["created"] == 15
@@ -170,6 +180,9 @@ def verify_regional_sources() -> None:
     assert second["domclick"]["skipped_cards"][urlsplit(parent_url).path] == (
         "number_out_of_range"
     )
+    assert second["domclick"]["issues_by_stage"]["group"] == {
+        "number_out_of_range": 1,
+    }
     assert requests[:2] == [_CIAN, _DOMCLICK]
     assert requests.count(_CARD) == 2
     assert not any("2078968376" in url for url in requests)
