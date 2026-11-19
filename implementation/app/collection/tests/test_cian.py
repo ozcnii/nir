@@ -719,6 +719,132 @@ class CianCardTests(TestCase):
 
                     # Assert: either ordering rejects the conflicting member sizes.
 
+    def test_detached_area_is_compared_for_a_known_offered_member(self) -> None:
+        for count, subject in (
+            (1, "Продаётся комната № 2 площадью 9 м²."),
+            (
+                2,
+                "Продаются комната № 2 площадью 9 м² и комната № 3 площадью 10 м² "
+                "одним лотом.",
+            ),
+        ):
+            for detached, conflict in (
+                ("Площадь предлагаемой комнаты № 2 — 11 м².", True),
+                ("Площадь предлагаемой комнаты № 2 — 9 м².", False),
+                ("Площадь предлагаемой комнаты № 4 — 11 м².", False),
+                (
+                    "Площадь предлагаемой комнаты № 2 — 11 м² в соседней квартире.",
+                    False,
+                ),
+            ):
+                for parts in ((subject, detached), (detached, subject)):
+                    with self.subTest(description=parts):
+                        # Arrange: number 2 is established by the direct offer.
+                        url, offer, product = projection()
+                        offer.update(
+                            category="roomSale",
+                            roomsForSaleCount=count,
+                            roomArea="9",
+                            description=" ".join(parts),
+                        )
+
+                        if conflict:
+                            # Act
+                            with self.assertRaisesRegex(
+                                RejectedCard, "^conflicting_room_area$"
+                            ):
+                                parsed(url, offer, product)
+
+                            # Assert: different confirmed areas reject the snapshot.
+                        else:
+                            # Act
+                            result = parsed(url, offer, product)
+
+                            # Assert: unrelated or equal facts preserve the offer.
+                            self.assertEqual(result["rooms"], count)
+                            self.assertEqual(
+                                result["area_m2"],
+                                Decimal("9.00") if count == 1 else None,
+                            )
+
+    def test_explicit_lot_totals_are_compared_without_a_room_count(self) -> None:
+        total = "Общая площадь этих комнат — 22,5 м²."
+        for subject, expected_area, conflict in (
+            ("Продаются комнаты общей площадью 23 м² одним лотом.", None, True),
+            (
+                "Продаются комнаты общей площадью 22,5 м² одним лотом.",
+                Decimal("22.50"),
+                False,
+            ),
+            ("Продаются комнаты одним лотом.", Decimal("22.50"), False),
+            ("Показ в субботу.", Decimal("9.00"), False),
+        ):
+            for parts in ((subject, total), (total, subject)):
+                with self.subTest(description=parts):
+                    # Arrange: roomArea is defined only for a single room.
+                    url, offer, product = projection()
+                    offer.update(
+                        category="roomSale",
+                        roomsForSaleCount=None,
+                        roomArea="9",
+                        description=" ".join(parts),
+                    )
+
+                    if conflict:
+                        # Act
+                        with self.assertRaisesRegex(
+                            RejectedCard, "^conflicting_room_area$"
+                        ):
+                            parsed(url, offer, product)
+
+                        # Assert: the known lot has conflicting totals.
+                    else:
+                        # Act
+                        result = parsed(url, offer, product)
+
+                        # Assert: a confirmed total does not require a room count.
+                        self.assertEqual(
+                            (result["rooms"], result["area_m2"]), (None, expected_area)
+                        )
+
+        # Arrange: an intervening clause introduces another group.
+        url, offer, product = projection()
+        offer.update(
+            category="roomSale",
+            roomsForSaleCount=None,
+            roomArea="9",
+            description=(
+                "Продаются комнаты общей площадью 23 м² одним лотом. "
+                "В соседней квартире тоже продаются комнаты. " + total
+            ),
+        )
+
+        # Act
+        result = parsed(url, offer, product)
+
+        # Assert: the unbound total is not compared with the offered lot.
+        self.assertEqual((result["rooms"], result["area_m2"]), (None, Decimal("23.00")))
+
+    def test_known_member_claim_between_totals_keeps_the_same_lot(self) -> None:
+        lot = "Продаются комнаты № 2 и № 3 общей площадью 22,5 м² одним лотом."
+        member = "Площадь предлагаемой комнаты № 2 — 9 м²."
+        total = "Общая площадь этих комнат — 23 м²."
+        for parts in ((lot, member, total), (total, member, lot)):
+            with self.subTest(description=parts):
+                # Arrange: the member's area is a fact about the same group.
+                url, offer, product = projection()
+                offer.update(
+                    category="roomSale",
+                    roomsForSaleCount=2,
+                    description=" ".join(parts),
+                )
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, "^conflicting_room_area$"):
+                    parsed(url, offer, product)
+
+                # Assert: the member's separate claim does not detach either total.
+
     def test_block_checks_its_own_area_and_ignores_enclosing_house_total(self) -> None:
         # Arrange: one published block address and an enclosing building area.
         url, offer, product = native_case("sale_house")

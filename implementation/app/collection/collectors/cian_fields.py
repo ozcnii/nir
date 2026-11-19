@@ -141,7 +141,7 @@ def seller_description(value: object) -> str | None:
     return value or None
 
 
-# Only a direct offer clause can establish the subject and a comparable area.
+# Direct offers establish the subject. Detached areas need a confirmed offer.
 # Layout mentions, kitchen measurements and neighboring units have other scope.
 _OFFER = r"(?:\A|(?<=[.!?;:,\n]))\s*(?:прода[её]тся|продаются|сда[её]тся|сдаются|продаю|сдаю)\s+"
 _AREA = (
@@ -166,11 +166,12 @@ _SET_AREA = re.compile(
 )
 _NEXT_CLAIM = r"(?:[.!?;]\s*|\n\s*)"
 _CLAIM_VALUE = r"\s*(?:[—–:-]\s*)?"
-_LINKED_SET_AREA = re.compile(
-    _NEXT_CLAIM
-    + r"(?:общая|суммарная)\s+площадь\s+"
+_RELATED_ROOM_AREA = re.compile(
+    r"(?:\A|(?<=[.!?;\n]))\s*"
+    + r"(?:(?:общая|суммарная)\s+площадь\s+"
     + rf"(?:(?:этих|предлагаемых)(?:\s+(?P<count>{'|'.join(_REFERENCED_COUNTS)}"
     + r"|[1-9][0-9]*))?|(?P<both>обеих))\s+комнат\b"
+    + r"|площадь\s+предлагаемой\s+комнаты\s*№\s*(?P<member>[1-9][0-9]*)\b)"
     + _CLAIM_VALUE
     + _AREA,
     re.IGNORECASE,
@@ -296,19 +297,83 @@ def _room_count(value: str) -> int | None:
     return _ROOM_COUNTS.get(value)
 
 
-def _linked_set_areas(
-    text: str, start: int, count: int | None
-) -> Iterator[Decimal | None]:
-    for claim in _linked_claims(text, start, _LINKED_SET_AREA):
-        count_label = (claim["count"] or "").casefold()
-        referenced = (
-            2
-            if claim["both"]
-            else _REFERENCED_COUNTS.get(count_label) or _room_count(count_label)
-        )
-        if referenced is not None and count is not None and referenced != count:
-            break
-        yield area_m2(claim["area"])
+def _adjacent_bundle_totals(
+    text: str,
+    offers: list[tuple[int, int, frozenset[str]]],
+    claims: list[re.Match[str]],
+) -> Iterator[int]:
+    first_group = offers[0][2]
+    facts: list[tuple[int, int, re.Match[str] | None]] = [
+        (start, end, None) for start, end, _ in offers
+    ]
+    facts.extend(
+        (claim.start(), claim.end(), claim)
+        for claim in claims
+        if claim["member"] is None or claim["member"] in first_group
+    )
+    pending: list[int] = []
+    has_offer = False
+    previous_end = 0
+    for start, end, claim in sorted(facts, key=lambda fact: fact[0]):
+        # Unparsed content may introduce another subject for "these rooms".
+        if text[previous_end:start].strip(" \t\r\n.!?;"):
+            has_offer = False
+            pending.clear()
+        if claim is None:
+            has_offer = True
+            yield from pending
+            pending.clear()
+        elif claim["member"] is None:
+            if has_offer:
+                yield start
+            else:
+                pending.append(start)
+        previous_end = end
+
+
+def _collect_related_room_areas(
+    text: str,
+    count: int | None,
+    bundles: list[tuple[int, int, frozenset[str]]],
+    member_areas: dict[frozenset[str], dict[str, set[Decimal]]],
+    set_areas: set[Decimal],
+) -> None:
+    # A detached total needs one established lot, even if its count is unknown.
+    first_group = bundles[0][2] if bundles else frozenset()
+    has_one_bundle = len(bundles) == 1 or (
+        len(first_group) > 1 and all(group == first_group for _, _, group in bundles)
+    )
+    claims = [
+        claim
+        for claim in _RELATED_ROOM_AREA.finditer(text)
+        if not _OTHER_UNIT.match(text, claim.end())
+    ]
+    linked_totals = (
+        set(_adjacent_bundle_totals(text, bundles, claims)) if has_one_bundle else set()
+    )
+    for claim in claims:
+        number = claim["member"]
+        if number is not None:
+            candidates = [
+                areas[number] for areas in member_areas.values() if number in areas
+            ]
+            if len(candidates) != 1:
+                continue
+            measurements = candidates[0]
+        else:
+            count_label = (claim["count"] or "").casefold()
+            referenced = (
+                2
+                if claim["both"]
+                else _REFERENCED_COUNTS.get(count_label) or _room_count(count_label)
+            )
+            if claim.start() not in linked_totals or (
+                referenced is not None and count is not None and referenced != count
+            ):
+                continue
+            measurements = set_areas
+        if (measured := area_m2(claim["area"])) is not None:
+            measurements.add(measured)
 
 
 def check_room(
@@ -326,6 +391,7 @@ def check_room(
     single_areas: set[Decimal] = set()
     set_areas: set[Decimal] = set()
     member_areas_by_group: dict[frozenset[str], dict[str, set[Decimal]]] = {}
+    bundles: list[tuple[int, int, frozenset[str]]] = []
     multiple = False
     for offer in _OFFERED_ROOMS.finditer(text):
         raw_count = (offer["count"] or "").casefold()
@@ -342,8 +408,13 @@ def check_room(
         measurement = (
             _SET_AREA.match(text, end) if bundle else _OWN_AREA.match(text, end)
         )
-        if _OTHER_UNIT.match(text, end) or (
-            measurement and _OTHER_UNIT.match(text, measurement.end())
+        measured_end = measurement.end() if measurement else end
+        offer_end = measured_end
+        if bundle and (lot := _JOINT_LOT.match(text, offer_end)):
+            offer_end = lot.end()
+        if any(
+            _OTHER_UNIT.match(text, boundary)
+            for boundary in (end, measured_end, offer_end)
         ):
             continue
 
@@ -356,48 +427,39 @@ def check_room(
             multiple = True
         if member_count > 1:
             counts.add(member_count)
+        group = frozenset(members)
+        if bundle:
+            bundles.append((offer.start(), offer_end, group))
         # Identical numbered sets identify the same members across offer claims.
-        member_areas = (
-            member_areas_by_group.setdefault(frozenset(members), {})
-            if member_count > 1
-            else {}
-        )
+        member_areas = member_areas_by_group.setdefault(group, {}) if members else {}
         for number, claims in members.items():
             measurements = member_areas.setdefault(number, set())
             measurements.update(
                 measured for value in claims if (measured := area_m2(value)) is not None
             )
-            if len(measurements) > 1:
-                raise RejectedCard("conflicting_room_area")
-            if not bundle:
-                single_areas.update(measurements)
         if measurement and (measured := area_m2(measurement["area"])):
             (set_areas if bundle else single_areas).add(measured)
-        if bundle:
-            after_offer = measurement.end() if measurement else end
-            set_areas.update(
-                measured
-                for measured in _linked_set_areas(
-                    text,
-                    after_offer,
-                    count or (member_count if member_count > 1 else rooms),
-                )
-                if measured is not None
-            )
 
     if len(counts) > 1 or (multiple and 1 in counts):
         raise RejectedCard("conflicting_room_count")
     offered_count = next(iter(counts), None)
-    if multiple or (offered_count is not None and offered_count > 1):
-        # The singular roomArea source field has no proven set scope.
-        if len(set_areas) > 1:
-            raise RejectedCard("conflicting_room_area")
-        return offered_count, next(iter(set_areas), None)
-    if area is not None:
+    _collect_related_room_areas(
+        text, offered_count, bundles, member_areas_by_group, set_areas
+    )
+    is_bundle = multiple or (offered_count is not None and offered_count > 1)
+    for member_areas in member_areas_by_group.values():
+        for measurements in member_areas.values():
+            if len(measurements) > 1:
+                raise RejectedCard("conflicting_room_area")
+            if not is_bundle:
+                single_areas.update(measurements)
+    # The singular roomArea source field has no proven set scope.
+    if area is not None and not is_bundle:
         single_areas.add(area)
-    if len(single_areas) > 1:
+    measurements = set_areas if is_bundle else single_areas
+    if len(measurements) > 1:
         raise RejectedCard("conflicting_room_area")
-    return offered_count, next(iter(single_areas), None)
+    return offered_count, next(iter(measurements), None)
 
 
 def _block(match: re.Match[str]) -> tuple[str, str]:

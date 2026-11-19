@@ -177,8 +177,15 @@ def verify_invalid_card(
             "roomsForSaleCount": 2,
             "description": (
                 "Продаются комната № 2 площадью 9 м² и комната № 3 площадью 10 м² "
-                "одним лотом. Продаются комната № 2 площадью 11 м² "
-                "и комната № 3 площадью 10 м² одним лотом."
+                "одним лотом. Площадь предлагаемой комнаты № 2 — 11 м²."
+            ),
+        },
+        "contradictory_lot_area": {
+            **room_offer,
+            "roomsForSaleCount": None,
+            "description": (
+                "Общая площадь этих комнат — 23 м². "
+                "Продаются комнаты общей площадью 22,5 м² одним лотом."
             ),
         },
     }
@@ -223,6 +230,7 @@ def verify_invalid_card(
         "unavailable",
         "invalid_precision",
         "conflicting_room_count",
+        "conflicting_room_area",
         "conflicting_room_area",
     ], outcomes
     assert (
