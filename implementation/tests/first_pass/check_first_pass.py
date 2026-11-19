@@ -189,7 +189,10 @@ def verify_domclick() -> None:
         # whose explicitly offered room set contradicts its structured count.
         room_set = {
             **cast(dict[str, object], projection["objectInfo"]),
-            "description": "Продаются комната № 2 и комната № 3 одним лотом.",
+            "description": (
+                "Продам комнату № 2 площадью 9,2 м² и комнату № 3 "
+                "площадью 10 м² одним лотом."
+            ),
         }
         for next_projection, reason in (
             (

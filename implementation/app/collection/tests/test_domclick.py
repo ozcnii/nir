@@ -152,6 +152,8 @@ class DomclickTests(TestCase):
         # directly offered share, and an unrelated nearby room measurement.
         cases = (
             ("Остановка рядом. Продаю комнату 9,0 м².", "conflicting_room_area"),
+            ("Остановка рядом, продам комнату 9,0 м².", "conflicting_room_area"),
+            ("Остановка рядом, продаётся комната 9,0 м² в соседней квартире.", None),
             (
                 "Подробности по телефону. Продаётся невыделенная доля в квартире.",
                 "unconfirmed_room_unit",
@@ -180,11 +182,34 @@ class DomclickTests(TestCase):
         # Arrange: explicitly offered room IDs and exact set area.
         data = native_proposal()
         info = cast(dict[str, object], data["objectInfo"])
-        for description in (
-            "Продам комнаты № 2 и № 3 общая площадь 22,50 м².",
-            "Продаются комната № 2 и комната № 3 одним лотом, общей площадью 22,50 м².",
-            "Продам комнаты № 2, комната № 3 одним лотом. "
-            "Общая площадь предлагаемых комнат 22,50 м².",
+        total = Decimal("22.50")
+        for description, expected_area in (
+            ("Продам комнаты № 2 и № 3 общая площадь 22,50 м².", total),
+            (
+                "Продаются комната № 2 и комната № 3 одним лотом, "
+                "общей площадью 22,50 м².",
+                total,
+            ),
+            (
+                "Продам комнаты № 2, комната № 3 одним лотом. "
+                "Общая площадь предлагаемых комнат 22,50 м².",
+                total,
+            ),
+            (
+                "Продам комнату № 2 площадью 9,2 м² и комнату № 3 "
+                "площадью 10 м² одним лотом.",
+                None,
+            ),
+            (
+                "Продам комнату № 2 площадью 9,2 м² и комнату № 3 "
+                "площадью 10 м² одним лотом, общей площадью 22,50 м².",
+                total,
+            ),
+            (
+                "Продам две комнаты: № 2 площадью 9,2 м² и № 3 площадью 10 м² "
+                "одним лотом, общей площадью 22,50 м².",
+                total,
+            ),
         ):
             with self.subTest(description=description):
                 # Arrange
@@ -199,20 +224,24 @@ class DomclickTests(TestCase):
                 self.assertEqual(str(rejected.exception), "conflicting_room_count")
                 assert accepted["state"] == "active"
                 self.assertEqual(accepted["rooms"], 2)
-                self.assertEqual(accepted["area_m2"], Decimal("22.50"))
+                self.assertEqual(accepted["area_m2"], expected_area)
 
-        # Arrange: both published totals describe the same proposed set.
-        info["description"] = (
-            "Продам две комнаты общей площадью 22,50 м². "
-            "Общая площадь предлагаемых комнат 23 м²."
-        )
+        for claim in (
+            "Общая площадь предлагаемых комнат 23 м².",
+            "Общая площадь этих двух комнат 23 м².",
+        ):
+            with self.subTest(claim=claim):
+                # Arrange: both published totals describe the same offered set.
+                info["description"] = (
+                    "Продам две комнаты общей площадью 22,50 м². " + claim
+                )
 
-        # Act
-        with self.assertRaises(RejectedCard) as conflicting:
-            read_native(ROOM, {**data, "roomsOffered": 2})
+                # Act
+                with self.assertRaises(RejectedCard) as conflicting:
+                    read_native(ROOM, {**data, "roomsOffered": 2})
 
-        # Assert
-        self.assertEqual(str(conflicting.exception), "conflicting_room_area")
+                # Assert
+                self.assertEqual(str(conflicting.exception), "conflicting_room_area")
 
         address = cast(dict[str, object], data["address"])
         address["displayName"] = "Самара, Солнечная улица, 7, кв 25, комната 2"
@@ -257,6 +286,8 @@ class DomclickTests(TestCase):
                 None,
             ),
             ("Предлагается земля. Продам только блок.", "unconfirmed_house_block"),
+            ("Продаётся дом, точнее блок № 2.", "unconfirmed_house_block"),
+            ("Продаётся дом 100 м², точнее блок № 2.", "unconfirmed_house_block"),
             ("Срочно. Продам только земельный участок.", "unsupported_house_unit"),
             ("Продам типовой проект дома.", "unsupported_house_unit"),
             ("Для семьи. Продаётся половина дома.", "unconfirmed_house_block"),
@@ -979,9 +1010,30 @@ class DomclickTests(TestCase):
         address = cast(dict[str, object], data["address"])
         address["displayName"] = "Самара, Солнечная улица, 7, блок 2"
         url = "https://samara.domclick.ru/card/sale__house_part__7777777"
-        data.update(id=7777777, offerType="house_part")
+        data.update(
+            id=7777777,
+            offerType="house_part",
+            land={"area": "6,24", "areaUnit": "сотка"},
+        )
         cases = (
             ("Продаётся блок № 3 площадью 55 м².", "conflicting_house_unit"),
+            ("Продаётся дом, точнее блок № 3.", "conflicting_house_unit"),
+            (
+                "Продаётся блок № 2 площадью 55 м² на участке 5 соток.",
+                "conflicting_land_area",
+            ),
+            (
+                "Продаётся дом, точнее блок № 2 на участке 5 соток.",
+                "conflicting_land_area",
+            ),
+            (
+                "Продаётся дом, точнее блок № 2 на участке 6,24 сотки.",
+                None,
+            ),
+            (
+                "Продаётся блок № 2 площадью 55 м². Соседний дом на участке 5 соток.",
+                None,
+            ),
             ("Площадь секции 60 м².", "conflicting_house_area"),
             ("Площадь секции 55 м². Общая площадь дома 100 м².", None),
         )
