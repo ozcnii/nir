@@ -55,15 +55,15 @@ _ASSERTION_START = re.compile(
     rf"{_OFFER.pattern}|(?:(?:общая|суммарная|жилая) )?площадь [а-яё]"
     r"|участок\b|(?:эта |предлагаемая )?доля\b"
 )
+_CLAIM_AREA = rf"\b[\s:–—-]+(?P<area>{_MEASUREMENT}) м²"
 _OFFERED_ROOM_AREA = re.compile(
-    rf"площадь {_OFFERED}ой комнаты"
-    rf"(?: № ?(?P<room>[1-9][0-9]*))?(?:[: ]+|[ —-]+)(?P<area>{_MEASUREMENT}) м²"
+    rf"площадь (?:(?P<direct>{_OFFERED}ой)|этой) комнаты"
+    rf"(?:\s+{_ROOM_NUMBER})?" + _CLAIM_AREA
 )
 _OFFERED_BUNDLE_AREA = re.compile(
-    rf"(?:общая|суммарная) площадь (?:набора|(?P<own>{_OFFERED}ых)"
+    rf"(?:общая|суммарная) площадь (?:набора|(?P<direct>{_OFFERED}ых)"
     rf"|(?:этих(?: (?P<count>двух|тр[её]х|[1-9][0-9]*))?|(?P<both>обеих))"
-    rf"(?: {_OFFERED}ых)?) комнат"
-    rf"\b[\s:–—-]+(?P<area>{_MEASUREMENT}) м²"
+    rf"(?: {_OFFERED}ых)?) комнат" + _CLAIM_AREA
 )
 _ROOM_ALLOCATION = re.compile(
     r"(?:(?:этой|предлагаемой) доле (?P<not_matched>не )?соответствует"
@@ -132,8 +132,7 @@ class RoomClaim(NamedTuple):
 
 class RoomSubject(Enum):
     OFFERED = auto()
-    OTHER_OFFER = auto()
-    OTHER_MENTION = auto()
+    FOREIGN = auto()
     UNKNOWN = auto()
 
 
@@ -295,6 +294,7 @@ def _room_evidence(description: str, *, share: bool) -> RoomEvidence:
     leading_bundle_totals: list[re.Match[str]] = []
     subject: RoomSubject | None = None
     competing_subject = False
+    competing_offer = False
     qualified_by_heading = False
     denied_rooms: set[str] = set()
     allocated = False
@@ -310,10 +310,8 @@ def _room_evidence(description: str, *, share: bool) -> RoomEvidence:
             outside and (qualified_by_heading or _ROOM.search(body))
         ):
             competing_subject = True
-            if offer or _OFFER.match(body) or measurement:
-                subject = RoomSubject.OTHER_OFFER
-            elif subject not in (RoomSubject.OTHER_OFFER, RoomSubject.UNKNOWN):
-                subject = RoomSubject.OTHER_MENTION
+            competing_offer = competing_offer or offer or _OFFER.match(body) is not None
+            subject = RoomSubject.FOREIGN
             continue
 
         if share and _UNALLOCATED.match(statement):
@@ -333,38 +331,48 @@ def _room_evidence(description: str, *, share: bool) -> RoomEvidence:
                 offered.append(claim)
                 allocated = True
                 subject = RoomSubject.OFFERED
+                competing_offer = False
             continue
 
         if offer or _BUNDLE.search(statement):
             if (claim := _room_claim(statement)) is not None:
                 offered.append(claim)
                 subject = RoomSubject.OFFERED
+                competing_offer = False
                 continue
             if _ROOM.match(statement) and _OUTSIDE_ROOM.search(statement):
                 competing_subject = True
-                subject = RoomSubject.OTHER_OFFER
+                competing_offer = True
+                subject = RoomSubject.FOREIGN
                 continue
 
-        if member_size:
-            if subject is RoomSubject.OFFERED:
+        if measurement:
+            # A direct selection of the offered unit can cross a foreign mention.
+            # An anaphor stays with the current subject, and a rival offer is ambiguous.
+            belongs_to_offer = subject is RoomSubject.OFFERED or (
+                subject is RoomSubject.FOREIGN
+                and not competing_offer
+                and measurement["direct"] is not None
+            )
+            if member_size and belongs_to_offer:
                 member_sizes.append(member_size)
-            elif subject is None:
+            elif member_size and subject is None:
                 leading_member_sizes.append(member_size)
-        elif bundle_total:
-            # A demonstrative stays attached to the current subject.
-            # An unqualified "offered" can distinguish an offer from a mention.
-            if (subject is RoomSubject.OFFERED and offered[-1].bundle) or (
-                subject is RoomSubject.OTHER_MENTION and bundle_total["own"]
+            elif (
+                bundle_total
+                and belongs_to_offer
+                and (not offered or offered[-1].bundle)
             ):
                 bundle_totals.append(bundle_total)
-            elif subject is None:
+            elif bundle_total and subject is None:
                 leading_bundle_totals.append(bundle_total)
         elif _ROOM.search(statement):
             competing_subject = True
-            if not _OUTSIDE_ROOM.search(statement):
-                subject = RoomSubject.UNKNOWN
-            elif subject not in (RoomSubject.OTHER_OFFER, RoomSubject.UNKNOWN):
-                subject = RoomSubject.OTHER_MENTION
+            subject = (
+                RoomSubject.FOREIGN
+                if _OUTSIDE_ROOM.search(statement)
+                else RoomSubject.UNKNOWN
+            )
 
     # A leading reference can only resolve forward without a competing subject.
     if not competing_subject:
