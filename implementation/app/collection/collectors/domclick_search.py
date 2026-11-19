@@ -2,6 +2,7 @@
 
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TypedDict, cast
 from urllib.parse import parse_qs, urlencode, urljoin, urlsplit, urlunsplit
@@ -117,9 +118,7 @@ def routes_for(
     region_id: int, deal: Deal, property_type_id: int, segment: str | None = None
 ) -> tuple[SearchRoute, ...]:
     region = REGION_NAMES.get(region_id)
-    if segment is not None and (
-        deal != "sale" or property_type_id != APARTMENT_TYPE_ID
-    ):
+    if segment is not None:
         return ()
     if deal == "day_rent":
         guid = _DAILY_REGIONS.get(region or "")
@@ -155,13 +154,6 @@ def routes_for(
     if property_type_id == ROOM_TYPE_ID:
         return (_native_form(deal, "room"),)
     return ()
-
-
-def route_for(
-    region_id: int, deal: Deal, property_type_id: int, segment: str | None = None
-) -> SearchRoute | None:
-    routes = routes_for(region_id, deal, property_type_id, segment)
-    return routes[0] if routes else None
 
 
 class _ListingDOM(TypedDict):
@@ -467,13 +459,10 @@ def advance(
     previous_number: int,
     selector: str,
     deadline: float,
+    stopped: Callable[[], bool],
 ) -> SearchPage:
     """Click the site's next control within a single attempt budget."""
     control = page.locator(selector)
-    if route.deal != "day_rent":
-        control.click(timeout=remaining_ms(deadline))
-        return read_page(page, route, deadline, previous_number)
-
     href = control.get_attribute("href", timeout=remaining_ms(deadline))
     target = urljoin(page.url, href) if href else ""
     if (
@@ -483,7 +472,7 @@ def advance(
     ):
         raise RejectedCard("listing_scope_changed")
     number, total, offers = read_clicked_page(
-        page, control, route.source_region, route.category, deadline
+        page, control, route.source_region, route.category, deadline, stopped
     )
     last_page = (total + DAILY_PAGE_SIZE - 1) // DAILY_PAGE_SIZE
     if number <= previous_number or (

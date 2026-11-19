@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from decimal import Decimal
 from io import StringIO
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
 from django.core.management import call_command
 from playwright.sync_api import Page, Route
@@ -37,7 +38,7 @@ _LAYOUT_MEMBERS = (
 )
 
 
-def layout_card(identifier: int, number: int) -> tuple[str, str]:
+def layout_card(identifier: int, number: int, *, area: float = 54.3) -> tuple[str, str]:
     data: dict[str, object] = {
         "id": identifier,
         "address": {
@@ -45,7 +46,7 @@ def layout_card(identifier: int, number: int) -> tuple[str, str]:
             "shortDisplayName": "Гвардейский переулок, 7а",
             "locality": {"name": "Самара"},
         },
-        "objectInfo": {"area": 54.3, "rooms": 2, "floorNumber": 2},
+        "objectInfo": {"area": area, "rooms": 2, "floorNumber": 2},
         "building": {"floors": 17},
         "flatInfo": {"flatNumber": str(number)},
         "priceInfo": {"currentPrice": 8304840},
@@ -134,7 +135,9 @@ def verify_regional_sources() -> None:
     # Act
     outputs = (StringIO(), StringIO())
     with patch("app.collection.search.browser_page", routed_browser):
-        for stdout in outputs:
+        for attempt, stdout in enumerate(outputs):
+            if attempt == 1:
+                documents[parent_url] = layout_card(_LAYOUT_PARENT, 1, area=-1)[1]
             call_command(
                 "collect",
                 "--source",
@@ -156,7 +159,10 @@ def verify_regional_sources() -> None:
     assert first["cian"]["listing_complete"] is False
     assert first["domclick"]["listing_complete"] is True, (first, requests)
     assert first["domclick"]["results"]["created"] == 15
-    assert second["domclick"]["results"]["unchanged"] == 15
+    assert second["domclick"]["results"]["unchanged"] == 14
+    assert second["domclick"]["skipped_cards"][urlsplit(parent_url).path] == (
+        "number_out_of_range"
+    )
     assert requests[:2] == [_CIAN, _DOMCLICK]
     assert requests.count(_CARD) == 2
     assert not any("2078968376" in url for url in requests)

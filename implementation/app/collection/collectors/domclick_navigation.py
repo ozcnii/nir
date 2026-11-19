@@ -2,12 +2,14 @@
 
 import re
 import time
+from collections.abc import Callable
 from typing import cast
 from urllib.parse import parse_qs, urlsplit
 
 from playwright.sync_api import Locator, Page, Request, Response
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
+from app.collection.browser import check_stop
 from app.collection.normalization import RejectedCard, as_object
 
 _DAILY_HOST = "24.domclick.ru"
@@ -63,12 +65,28 @@ def _is_daily_request(request: Request) -> bool:
 
 
 def read_clicked_page(
-    page: Page, control: Locator, region: str, category: str | None, deadline: float
+    page: Page,
+    control: Locator,
+    region: str,
+    category: str | None,
+    deadline: float,
+    stopped: Callable[[], bool],
 ) -> tuple[int, int, list[object]]:
+    def matches(request: Request) -> bool:
+        if _is_daily_request(request):
+            return True
+        if not request.is_navigation_request() or request.frame != page.main_frame:
+            return False
+        response = request.response()
+        return response is not None and response.status >= 400
+
     # Observe only a complete response to the normal click, never request it ourselves.
+    control.click(trial=True, timeout=remaining_ms(deadline))
+    check_stop(stopped)
     with page.expect_request_finished(
-        _is_daily_request, timeout=remaining_ms(deadline)
+        matches, timeout=remaining_ms(deadline)
     ) as pending:
+        check_stop(stopped)
         control.click(timeout=remaining_ms(deadline))
     response = pending.value.response()
     if response is None:

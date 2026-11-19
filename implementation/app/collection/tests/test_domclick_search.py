@@ -12,12 +12,12 @@ from app.catalog.reference_defaults import (
     HOUSE_TYPE_ID,
     SAMARA_REGION_ID,
 )
+from app.collection.browser import CollectionStopped
 from app.collection.collectors.domclick_search import (
     SearchRoute,
     advance,
     read_group,
     read_page,
-    route_for,
     routes_for,
 )
 from app.collection.normalization import RejectedCard
@@ -53,8 +53,7 @@ def _page(
 
 
 def _native_route() -> SearchRoute:
-    route = route_for(SAMARA_REGION_ID, "sale", APARTMENT_TYPE_ID)
-    assert route is not None
+    (route,) = routes_for(SAMARA_REGION_ID, "sale", APARTMENT_TYPE_ID)
     return route
 
 
@@ -193,8 +192,7 @@ class DomclickSearchTests(TestCase):
         self,
     ) -> None:
         # Arrange: combined recorded site structures for the same visible UUID.
-        route = route_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
-        assert route is not None
+        (route,) = routes_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
         identifier = DAILY.rsplit("/", 1)[1]
         controls, primary = daily_listing_parts()
         hidden_id = "eb807dc5-d00e-4731-9197-94e997c275f0"
@@ -240,8 +238,7 @@ class DomclickSearchTests(TestCase):
         self,
     ) -> None:
         # Arrange: passive reply for offset 36, keeping the first inline state.
-        route = route_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
-        assert route is not None
+        (route,) = routes_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
         identifier = DAILY.rsplit("/", 1)[1]
         reply_url = (
             "https://24.domclick.ru/api/offers/ad/v1?"
@@ -267,7 +264,9 @@ class DomclickSearchTests(TestCase):
 
         # Act
         with _page(route.start, html, reply=(reply_url, 200, payload)) as page:
-            result = advance(page, route, 1, "#next", time.monotonic() + 5)
+            result = advance(
+                page, route, 1, "#next", time.monotonic() + 5, lambda: False
+            )
 
         # Assert
         self.assertEqual(result.number, 2)
@@ -278,8 +277,7 @@ class DomclickSearchTests(TestCase):
         self,
     ) -> None:
         # Arrange: public response shape and recorded fallback offset 792 -> 756.
-        route = route_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
-        assert route is not None
+        (route,) = routes_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
         for region, status, reason in (
             (route.source_region, 200, "pagination_cycle"),
             ("6369cbfc-1f06-4574-adba-82f4dc42c0f7", 200, "listing_scope_changed"),
@@ -304,4 +302,39 @@ class DomclickSearchTests(TestCase):
                     ) as page,
                     self.assertRaisesRegex(RejectedCard, f"^{reason}$"),
                 ):
-                    advance(page, route, 22, "#next", time.monotonic() + 5)
+                    advance(
+                        page, route, 22, "#next", time.monotonic() + 5, lambda: False
+                    )
+
+    def test_daily_document_refusal_does_not_wait_for_a_search_response(self) -> None:
+        # Arrange
+        (route,) = routes_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
+        next_url = "https://24.domclick.ru/search?page=2"
+        html = f'<a id="next" href="{next_url}">Следующая</a>'
+
+        # Act / Assert
+        with (
+            _page(route.start, html, reply=(next_url, 403, {})) as page,
+            self.assertRaisesRegex(RejectedCard, "^http_403$"),
+        ):
+            advance(page, route, 1, "#next", time.monotonic() + 5, lambda: False)
+
+    def test_unverified_segment_is_refused_before_navigation(self) -> None:
+        # Arrange / Act
+        routes = routes_for(SAMARA_REGION_ID, "sale", APARTMENT_TYPE_ID, "new_build")
+
+        # Assert
+        self.assertEqual(routes, ())
+
+    def test_daily_stop_before_dispatch_never_opens_next_page(self) -> None:
+        # Arrange
+        (route,) = routes_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
+        html = '<a id="next" href="/search?page=2">Следующая</a>'
+
+        # Act
+        with _page(route.start, html) as page:
+            with self.assertRaises(CollectionStopped):
+                advance(page, route, 1, "#next", time.monotonic() + 5, lambda: True)
+
+            # Assert
+            self.assertEqual(page.url, route.start)

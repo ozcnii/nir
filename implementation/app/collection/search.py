@@ -24,6 +24,7 @@ from app.collection.browser import (
 from app.collection.collectors import cian, cian_search, domclick, domclick_search
 from app.collection.domclick_normalization import DailyListingQuote
 from app.collection.listing_page import SearchPage
+from app.collection.normalization import RejectedCard
 from app.collection.one_card import capture_card, read_card
 
 _SOURCE_BLOCKS = {
@@ -44,7 +45,9 @@ class Direction:
     card_key: Callable[[str], str | None]
     read: Callable[[Page, float, int | None], SearchPage]
     read_group: Callable[[Page, float, str], SearchPage]
-    advance: Callable[[Page, int, str, float], SearchPage] | None = None
+    advance: (
+        Callable[[Page, int, str, float, Callable[[], bool]], SearchPage] | None
+    ) = None
 
 
 def _directions(
@@ -91,8 +94,8 @@ def _domclick_direction(source: str, route: domclick_search.SearchRoute) -> Dire
             page, route, deadline, group_url=address
         ),
         (
-            lambda page, previous, selector, deadline: domclick_search.advance(
-                page, route, previous, selector, deadline
+            lambda page, previous, selector, deadline, stopped: domclick_search.advance(
+                page, route, previous, selector, deadline, stopped
             )
         )
         if route.deal == "day_rent"
@@ -348,13 +351,16 @@ def _read_group(
         observed_at: datetime, deadline: float
     ) -> tuple[SearchPage, Snapshot | SnapshotResult | None]:
         group = direction.read_group(card, deadline, url)
-        parent = (
-            capture_card(
+        if not capture_parent:
+            return group, None
+        try:
+            parent = capture_card(
                 card, url, direction.source, observed_at, deadline, removed_deal
             )
-            if capture_parent
-            else None
-        )
+        except RejectedCard as error:
+            if str(error) in _SOURCE_BLOCKS:
+                raise
+            parent = SnapshotResult("rejected", reason=str(error))
         return group, parent
 
     return read_page(
@@ -386,7 +392,9 @@ def _walk_route(
             and previous_page is not None
             and next_control is not None
         )
-        return direction.advance(listing, previous_page, next_control, deadline)
+        return direction.advance(
+            listing, previous_page, next_control, deadline, stopped
+        )
 
     while next_url is not None or next_control is not None:
         check_stop(stopped)
