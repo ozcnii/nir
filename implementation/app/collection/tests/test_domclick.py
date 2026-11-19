@@ -545,6 +545,62 @@ class DomclickTests(TestCase):
                             (snapshot["rooms"], snapshot["area_m2"]), (None, area)
                         )
 
+    def test_foreign_measurement_and_competing_offer_have_distinct_scope(self) -> None:
+        own = (
+            "Продам комнату № 2 площадью 9,2 м² и комнату № 3 "
+            "площадью 10 м² одним лотом. Общая площадь этих комнат — 22,5 м²."
+        )
+        competitor = "В соседней квартире: сдаются комнаты № 2 и № 3."
+        for foreign, direct, relative, equal, conflict in (
+            (
+                "Площадь этой комнаты № 2 — 7 м² в соседней квартире.",
+                "Площадь предлагаемой комнаты № 2",
+                "Площадь этой комнаты № 2",
+                "9,2",
+                "11",
+            ),
+            (
+                "Общая площадь этих комнат — 20 м² в соседней квартире.",
+                "Общая площадь предлагаемых комнат",
+                "Общая площадь этих комнат",
+                "22,5",
+                "23",
+            ),
+        ):
+            for context, label, amount, rejected in (
+                (foreign, direct, equal, False),
+                (foreign, direct, conflict, True),
+                (foreign, relative, conflict, False),
+                (competitor, direct, conflict, False),
+                (competitor, "В этой квартире: " + direct, conflict, True),
+                (
+                    competitor + " В этой квартире: хороший ремонт.",
+                    direct,
+                    conflict,
+                    True,
+                ),
+            ):
+                with self.subTest(label=label, context=context, amount=amount):
+                    # Arrange
+                    data = {**native_proposal(), "roomsOffered": 2}
+                    info = cast(dict[str, object], data["objectInfo"])
+                    info["description"] = f"{own} {context} {label} — {amount} м²."
+
+                    if rejected:
+                        # Act
+                        with self.assertRaises(RejectedCard) as error:
+                            read_native(ROOM, data)
+
+                        # Assert
+                        self.assertEqual(str(error.exception), "conflicting_room_area")
+                    else:
+                        # Act
+                        snapshot = read_native(ROOM, data)
+
+                        # Assert
+                        assert snapshot["state"] == "active"
+                        self.assertEqual(snapshot["area_m2"], Decimal("22.50"))
+
     def test_native_house_rejects_incompatible_direct_offer_claims(self) -> None:
         # Arrange: contrast directly offered properties with incidental mentions.
         data = native_proposal()

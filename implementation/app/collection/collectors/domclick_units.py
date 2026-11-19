@@ -42,7 +42,8 @@ _NON_OFFERED_UNIT = re.compile(
 )
 _COUNTS = {"одна": 1, "одну": 1, "две": 2, "три": 3, "четыре": 4}
 _ROOM_COUNT = rf"(?:[0-9]{{1,5}}|{'|'.join(_COUNTS)}|несколько)"
-_ROOM_ID = r"№\s*([1-9][0-9]{0,4})(?!\d)"
+_ROOM_NUMBER = r"[1-9][0-9]{0,4}(?!\d)"
+_ROOM_ID = rf"№\s*({_ROOM_NUMBER})"
 _ROOM_MEMBER = rf"{_ROOM_ID}(?:{_ROOM_MEASURE_PREFIX}{_AMOUNT}\s*{_SQUARE_METRE_UNIT})?"
 _ROOM_OFFER = re.compile(
     _OFFER + rf"(?P<lot>(?:единый\s+)?лот\s+из\s+)?(?:(?P<count>{_ROOM_COUNT})\s+)?"
@@ -53,8 +54,9 @@ _ROOM_OFFER = re.compile(
 _ROOM_MEMBER_ID = re.compile(_ROOM_ID)
 _ROOM_MEMBER_SIZE = re.compile(_ROOM_MEASURE_PREFIX + _SQUARE_METRES, re.IGNORECASE)
 _IDENTIFIED_ROOM_AREA = re.compile(
-    _CLAUSE + rf"(?:общая )?площадь (?:этой|предлагаемой|продаваемой|сдаваемой) "
-    rf"комнаты\s+{_ROOM_ID}\s*[:—–-]?\s*" + _SQUARE_METRES,
+    _CLAUSE
+    + r"(?:общая )?площадь (?:этой|(?P<offered>предлагаемой|продаваемой|сдаваемой)) "
+    rf"комнаты\s+№\s*(?P<member>{_ROOM_NUMBER})\s*[:—–-]?\s*" + _SQUARE_METRES,
     re.IGNORECASE,
 )
 _ROOM_SET_AREA = re.compile(
@@ -330,25 +332,40 @@ def check_room(
         member_areas.setdefault(published[1], set())
     identified = list(_IDENTIFIED_ROOM_AREA.finditer(text))
     set_totals = list(_ROOM_SET_AREA_CLAUSE.finditer(text))
-    for claim in chain(identified, set_totals, area_claims.values()):
-        if _NON_OFFERED_UNIT.match(text, claim.end()):
-            owners[claim.start()] = False
-    scopes = sorted(owners)
+    foreign_measurements = {
+        claim.start()
+        for claim in chain(identified, set_totals, area_claims.values())
+        if _NON_OFFERED_UNIT.match(text, claim.end())
+    }
+    offer_anchors = sorted(owners)
+    measurement_anchors = sorted(owners.keys() | foreign_measurements)
 
-    def belongs_to_offer(claim: re.Match[str], *, generic: bool = False) -> bool:
+    def belongs_to_offer(
+        claim: re.Match[str], *, refers_to_offer: bool = False
+    ) -> bool:
         start = claim.start()
-        preceding = bisect_right(scopes, start)
+        if start in foreign_measurements:
+            return False
+        # A foreign measurement can supply context for “this room”. It
+        # does not introduce a second offer for “the offered room”.
+        anchors = offer_anchors if refers_to_offer else measurement_anchors
+        preceding = bisect_right(anchors, start)
         if preceding == 0:
             return not has_foreign_offer
-        anchor = scopes[preceding - 1]
-        # A generic reference does not distinguish two actual offers.
+        anchor = anchors[preceding - 1]
+        if not refers_to_offer and anchor in foreign_measurements:
+            return False
         return owners[anchor] and (
-            not generic or not has_foreign_offer or headings.get(anchor, False)
+            not refers_to_offer or not has_foreign_offer or headings.get(anchor, False)
         )
 
     for claim in identified:
-        if belongs_to_offer(claim) and claim[1] in member_areas:
-            member_areas[claim[1]].add(number(claim["area"]))
+        member = claim["member"]
+        if (
+            belongs_to_offer(claim, refers_to_offer=claim["offered"] is not None)
+            and member in member_areas
+        ):
+            member_areas[member].add(number(claim["area"]))
 
     individual = set()
     for claim in area_claims.values():
@@ -366,7 +383,9 @@ def check_room(
     if offered_set or (detected is not None and detected > 1):
         totals = set()
         for claim in set_totals:
-            if not belongs_to_offer(claim, generic=claim["offered"] is not None):
+            if not belongs_to_offer(
+                claim, refers_to_offer=claim["offered"] is not None
+            ):
                 continue
             referent = claim["pair"] or claim["count"]
             if referent is not None and detected is not None:
