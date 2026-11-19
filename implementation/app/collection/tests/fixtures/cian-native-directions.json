@@ -1,0 +1,539 @@
+{
+  "provenance": "2026-11-18 Playwright public card field projections. Only selected published structured fields. Addresses retain subject only; seller descriptions and gallery URLs are omitted here. The 319653899 line includes the identified seller area sentence from rooms62-2026-11-17/cian319653899-all-area-room-fields.json.",
+  "cases": [
+    {
+      "case": "resale_flat",
+      "url": "https://samara.cian.ru/sale/flat/333842107/",
+      "offer": {
+        "id": 333842107,
+        "cianId": 333842107,
+        "status": "published",
+        "category": "flatSale",
+        "dealType": "sale",
+        "offerType": "flat",
+        "totalArea": "110.0",
+        "roomsCount": 3,
+        "flatType": "rooms",
+        "floorNumber": 12,
+        "isApartments": false,
+        "building": {
+          "floorsCount": 20,
+          "totalArea": "110.0"
+        },
+        "geo": {
+          "address": [
+            {
+              "type": "location",
+              "id": 4608,
+              "locationTypeId": 2,
+              "fullName": "Самарская область"
+            }
+          ],
+          "coordinates": {
+            "lat": "53.19803",
+            "lng": "50.123792"
+          }
+        },
+        "bargainTerms": {
+          "price": 24999000,
+          "priceType": "all",
+          "currency": "rur"
+        }
+      },
+      "offerPrice": "24 999 000 ₽",
+      "product": {
+        "@type": "Product",
+        "sku": 333842107,
+        "offers": {
+          "@type": "Offer",
+          "url": "https://samara.cian.ru/sale/flat/333842107/",
+          "priceCurrency": "RUB",
+          "availability": "https://schema.org/InStock",
+          "price": 24999000
+        }
+      }
+    },
+    {
+      "case": "sale_room",
+      "url": "https://samara.cian.ru/sale/flat/319653899/",
+      "offer": {
+        "id": 319653899,
+        "cianId": 319653899,
+        "status": "published",
+        "category": "roomSale",
+        "dealType": "sale",
+        "offerType": "flat",
+        "totalArea": "68.8",
+        "roomsCount": 3,
+        "roomsForSaleCount": 1,
+        "roomArea": "9.0",
+        "roomType": "separate",
+        "flatType": "rooms",
+        "floorNumber": 1,
+        "building": {
+          "floorsCount": 9,
+          "totalArea": "68.8"
+        },
+        "geo": {
+          "address": [
+            {
+              "type": "location",
+              "id": 4608,
+              "locationTypeId": 2,
+              "fullName": "Самарская область"
+            }
+          ],
+          "coordinates": {
+            "lat": "53.240754",
+            "lng": "50.190115"
+          }
+        },
+        "bargainTerms": {
+          "price": 1400000,
+          "priceType": "all",
+          "currency": "rur"
+        },
+        "description": "Продаётся комната 9,2 м² в светлой, спокойной квартире."
+      },
+      "offerPrice": "1 400 000 ₽",
+      "product": {
+        "@type": "Product",
+        "sku": 319653899,
+        "offers": {
+          "@type": "Offer",
+          "url": "https://samara.cian.ru/sale/flat/319653899/",
+          "priceCurrency": "RUB",
+          "availability": "https://schema.org/InStock",
+          "price": 1400000
+        }
+      }
+    },
+    {
+      "case": "sale_house",
+      "url": "https://samara.cian.ru/sale/suburban/318836076/",
+      "offer": {
+        "id": 318836076,
+        "cianId": 318836076,
+        "status": "published",
+        "category": "houseSale",
+        "dealType": "sale",
+        "offerType": "suburban",
+        "totalArea": "90.9",
+        "land": {
+          "area": "27.0",
+          "areaUnitType": "sotka",
+          "status": "individualHousingConstruction",
+          "landCategory": "settlements"
+        },
+        "building": {
+          "floorsCount": 1,
+          "totalArea": "90.9"
+        },
+        "geo": {
+          "address": [
+            {
+              "type": "location",
+              "id": 4608,
+              "locationTypeId": 2,
+              "fullName": "Самарская область"
+            }
+          ],
+          "coordinates": {
+            "lat": "53.657465",
+            "lng": "49.87194"
+          }
+        },
+        "bargainTerms": {
+          "price": 6200000,
+          "priceType": "all",
+          "currency": "rur"
+        }
+      },
+      "offerPrice": "6 200 000 ₽",
+      "product": {
+        "@type": "Product",
+        "sku": 318836076,
+        "offers": {
+          "@type": "Offer",
+          "url": "https://samara.cian.ru/sale/suburban/318836076/",
+          "priceCurrency": "RUB",
+          "availability": "https://schema.org/InStock",
+          "price": 6200000
+        }
+      }
+    },
+    {
+      "case": "month_flat",
+      "url": "https://samara.cian.ru/rent/flat/336133634/",
+      "offer": {
+        "id": 336133634,
+        "cianId": 336133634,
+        "status": "published",
+        "category": "flatRent",
+        "dealType": "rent",
+        "offerType": "flat",
+        "totalArea": "40.0",
+        "roomsCount": 1,
+        "roomType": "separate",
+        "flatType": "rooms",
+        "floorNumber": 18,
+        "isApartments": false,
+        "building": {
+          "floorsCount": 25,
+          "totalArea": "40.0"
+        },
+        "geo": {
+          "address": [
+            {
+              "type": "location",
+              "id": 4608,
+              "locationTypeId": 2,
+              "fullName": "Самарская область"
+            }
+          ],
+          "coordinates": {
+            "lat": "53.20659",
+            "lng": "50.172714"
+          }
+        },
+        "bargainTerms": {
+          "price": 38000,
+          "priceType": "all",
+          "currency": "rur",
+          "paymentPeriod": "monthly",
+          "leaseTermType": "longTerm"
+        }
+      },
+      "offerPrice": "38 000 ₽/мес.",
+      "product": {
+        "@type": "Product",
+        "sku": 336133634,
+        "offers": {
+          "@type": "Offer",
+          "url": "https://samara.cian.ru/rent/flat/336133634/",
+          "priceCurrency": "RUB",
+          "availability": "https://schema.org/InStock",
+          "price": 38000
+        }
+      }
+    },
+    {
+      "case": "month_room",
+      "url": "https://samara.cian.ru/rent/flat/335066221/",
+      "offer": {
+        "id": 335066221,
+        "cianId": 335066221,
+        "status": "published",
+        "category": "roomRent",
+        "dealType": "rent",
+        "offerType": "flat",
+        "totalArea": "44.0",
+        "roomsCount": 2,
+        "roomsForSaleCount": 1,
+        "roomArea": "14.0",
+        "flatType": "rooms",
+        "floorNumber": 5,
+        "building": {
+          "floorsCount": 5,
+          "totalArea": "44.0"
+        },
+        "geo": {
+          "address": [
+            {
+              "type": "location",
+              "id": 4608,
+              "locationTypeId": 2,
+              "fullName": "Самарская область"
+            }
+          ],
+          "coordinates": {
+            "lat": "53.191611",
+            "lng": "50.210111"
+          }
+        },
+        "bargainTerms": {
+          "price": 12000,
+          "priceType": "all",
+          "currency": "rur",
+          "paymentPeriod": "monthly",
+          "leaseTermType": "longTerm"
+        }
+      },
+      "offerPrice": "12 000 ₽/мес.",
+      "product": {
+        "@type": "Product",
+        "sku": 335066221,
+        "offers": {
+          "@type": "Offer",
+          "url": "https://samara.cian.ru/rent/flat/335066221/",
+          "priceCurrency": "RUB",
+          "availability": "https://schema.org/InStock",
+          "price": 12000
+        }
+      }
+    },
+    {
+      "case": "month_house",
+      "url": "https://samara.cian.ru/rent/suburban/328624096/",
+      "offer": {
+        "id": 328624096,
+        "cianId": 328624096,
+        "status": "published",
+        "category": "cottageRent",
+        "dealType": "rent",
+        "offerType": "suburban",
+        "totalArea": "270.0",
+        "land": {
+          "area": "20.0",
+          "areaUnitType": "sotka"
+        },
+        "building": {
+          "floorsCount": 2,
+          "totalArea": "270.0"
+        },
+        "geo": {
+          "address": [
+            {
+              "type": "location",
+              "id": 4608,
+              "locationTypeId": 2,
+              "fullName": "Самарская область"
+            }
+          ],
+          "coordinates": {
+            "lat": "53.516837",
+            "lng": "49.128369"
+          }
+        },
+        "bargainTerms": {
+          "price": 130000,
+          "priceType": "all",
+          "currency": "rur",
+          "paymentPeriod": "monthly",
+          "leaseTermType": "fewMonths"
+        }
+      },
+      "offerPrice": "133 000 ₽/мес.",
+      "product": {
+        "@type": "Product",
+        "sku": 328624096,
+        "offers": {
+          "@type": "Offer",
+          "url": "https://samara.cian.ru/rent/suburban/328624096/",
+          "priceCurrency": "RUB",
+          "availability": "https://schema.org/InStock",
+          "price": 133000
+        }
+      }
+    },
+    {
+      "case": "day_flat",
+      "url": "https://samara.cian.ru/rent/flat/329504239/",
+      "offer": {
+        "id": 329504239,
+        "cianId": 329504239,
+        "status": "published",
+        "category": "dailyFlatRent",
+        "dealType": "rent",
+        "offerType": "flat",
+        "totalArea": "32.0",
+        "roomsCount": 1,
+        "flatType": "rooms",
+        "floorNumber": 4,
+        "isApartments": false,
+        "building": {
+          "floorsCount": 23,
+          "totalArea": "32.0"
+        },
+        "geo": {
+          "address": [
+            {
+              "type": "location",
+              "id": 4608,
+              "locationTypeId": 2,
+              "fullName": "Самарская область"
+            }
+          ],
+          "coordinates": {
+            "lat": "53.220309",
+            "lng": "50.198244"
+          }
+        },
+        "bargainTerms": {
+          "price": 3000,
+          "priceType": "all",
+          "currency": "rur"
+        }
+      },
+      "offerPrice": "от 3 000 ₽/сут.",
+      "product": {
+        "@type": "Product",
+        "sku": 329504239,
+        "offers": {
+          "@type": "Offer",
+          "url": "https://samara.cian.ru/rent/flat/329504239/",
+          "priceCurrency": "RUB",
+          "availability": "https://schema.org/InStock",
+          "price": 3000
+        }
+      }
+    },
+    {
+      "case": "day_room",
+      "url": "https://samara.cian.ru/rent/flat/295679032/",
+      "offer": {
+        "id": 295679032,
+        "cianId": 295679032,
+        "status": "published",
+        "category": "dailyRoomRent",
+        "dealType": "rent",
+        "offerType": "flat",
+        "roomsCount": 2,
+        "roomsForSaleCount": 1,
+        "roomArea": "60.0",
+        "flatType": "rooms",
+        "floorNumber": 1,
+        "isApartments": false,
+        "building": {
+          "floorsCount": 2
+        },
+        "geo": {
+          "address": [
+            {
+              "type": "location",
+              "id": 4608,
+              "locationTypeId": 2,
+              "fullName": "Самарская область"
+            }
+          ],
+          "coordinates": {
+            "lat": "53.195069",
+            "lng": "50.115078"
+          }
+        },
+        "bargainTerms": {
+          "price": 6990,
+          "priceType": "all",
+          "currency": "rur"
+        }
+      },
+      "offerPrice": "от 6 990 ₽/сут.",
+      "product": {
+        "@type": "Product",
+        "sku": 295679032,
+        "offers": {
+          "@type": "Offer",
+          "url": "https://samara.cian.ru/rent/flat/295679032/",
+          "priceCurrency": "RUB",
+          "availability": "https://schema.org/InStock",
+          "price": 6990
+        }
+      }
+    },
+    {
+      "case": "day_house",
+      "url": "https://samara.cian.ru/rent/suburban/213894514/",
+      "offer": {
+        "id": 213894514,
+        "cianId": 213894514,
+        "status": "published",
+        "category": "dailyHouseRent",
+        "dealType": "rent",
+        "offerType": "suburban",
+        "totalArea": "250.0",
+        "land": {
+          "area": "10.0",
+          "areaUnitType": "sotka"
+        },
+        "building": {
+          "floorsCount": 2,
+          "totalArea": "250.0"
+        },
+        "geo": {
+          "address": [
+            {
+              "type": "location",
+              "id": 4608,
+              "locationTypeId": 2,
+              "fullName": "Самарская область"
+            }
+          ],
+          "coordinates": {
+            "lat": "53.296354",
+            "lng": "50.297859"
+          }
+        },
+        "bargainTerms": {
+          "price": 15000,
+          "priceType": "all",
+          "currency": "rur"
+        }
+      },
+      "offerPrice": "от 15 000 ₽/сут.",
+      "product": {
+        "@type": "Product",
+        "sku": 213894514,
+        "offers": {
+          "@type": "Offer",
+          "url": "https://samara.cian.ru/rent/suburban/213894514/",
+          "priceCurrency": "RUB",
+          "availability": "https://schema.org/InStock",
+          "price": 15000
+        }
+      }
+    },
+    {
+      "case": "removed",
+      "url": "https://samara.cian.ru/sale/flat/333705897/",
+      "offer": {
+        "id": 333705897,
+        "cianId": 333705897,
+        "status": "deleted",
+        "category": "flatSale",
+        "dealType": "sale",
+        "offerType": "flat",
+        "totalArea": "72.0",
+        "roomsCount": 2,
+        "flatType": "rooms",
+        "floorNumber": 9,
+        "land": {},
+        "isApartments": false,
+        "building": {
+          "floorsCount": 21,
+          "totalArea": 72
+        },
+        "geo": {
+          "address": [
+            {
+              "type": "location",
+              "id": 4608,
+              "locationTypeId": 2,
+              "fullName": "Самарская область"
+            }
+          ],
+          "coordinates": {
+            "lat": "53.222487",
+            "lng": "50.192324"
+          }
+        },
+        "bargainTerms": {
+          "price": 12050000,
+          "priceType": "all",
+          "currency": "rur"
+        }
+      },
+      "offerPrice": "12 050 000 ₽",
+      "product": {
+        "@type": "Product",
+        "sku": 333705897,
+        "offers": {
+          "@type": "Offer",
+          "url": "https://samara.cian.ru/sale/flat/333705897/",
+          "priceCurrency": "RUB",
+          "availability": "https://schema.org/InStock",
+          "price": 12050000
+        }
+      }
+    }
+  ]
+}

@@ -37,8 +37,10 @@ docker compose exec app python -m app.manage createsuperuser
 
 ## Сбор
 
-Сбор запускается отдельной командой Django. В текущем локальном срезе доступен
-проверенный маршрут одной карточки продажи на Циан. Например:
+Сбор одной карточки запускается отдельной командой Django. Поддержаны
+проверенные маршруты Циан, [Авито](app/collection/collectors/avito.md) и Домклик,
+включая партнёрские карточки Циан и Домклик и витрину Домклик 24.
+Пример запуска для Циан:
 
 ```sh
 docker compose run --rm app python -m app.manage collect 'https://samara.cian.ru/sale/flat/330631159/'

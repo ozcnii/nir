@@ -52,6 +52,15 @@ from app.catalog.reference_defaults import (
 MATCHED_TYPES = (APARTMENT_TYPE_ID, HOUSE_TYPE_ID)
 
 
+def publication_deal(source: str, key: str) -> Deal | None:
+    value = (
+        Ad.objects.filter(source_id=source, external_id=key)
+        .values_list("deal_type", flat=True)
+        .first()
+    )
+    return cast(Deal, value) if value in DealType.values else None
+
+
 def accept_snapshot(snapshot: Mapping[str, object]) -> SnapshotResult:
     """Accept one P3 snapshot atomically."""
     source = snapshot.get("source_code")
