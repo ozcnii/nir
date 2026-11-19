@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urlsplit
 from django.core.management import call_command
 from playwright.sync_api import Page, Route
 
-from app.catalog.reference_defaults import SAMARA_REGION_ID
+from app.catalog.reference_defaults import APARTMENT_TYPE_ID, SAMARA_REGION_ID
 from app.collection.browser import browser_page
 from app.collection.collectors.cian import parse_card
 from app.collection.normalization import as_object
@@ -187,12 +187,21 @@ def verify_cian_search() -> None:
 
     # Assert
     summary = json.loads(completed.getvalue())
+    assert summary["source"] == "cian"
+    assert summary["scope"] == {
+        "region_id": SAMARA_REGION_ID,
+        "property_type_id": APARTMENT_TYPE_ID,
+        "deal_type": "sale",
+        "market_segment": None,
+    }
     assert summary["listing_complete"] is True and summary["pages"] == 3, (
         summary,
         requests,
     )
     assert summary["issues"]["card_outside_scope"] == 1
     assert summary["issues"]["http_404"] >= 1
+    assert summary["issues_by_stage"]["card"]["card_outside_scope"] == 1
+    assert summary["issues_by_stage"]["known_card"]["http_404"] >= 1
     first = Ad.objects.get(source_id="cian", external_id=str(FIRST))
     third = Ad.objects.get(source_id="cian", external_id=str(THIRD))
     assert requests.count(card(FIRST)[0]) == 2
@@ -243,6 +252,7 @@ def verify_cian_search() -> None:
             stopped = json.loads(output.getvalue())
             reason = "pagination_cycle" if case == "cycle" else "listing_scope_changed"
             assert stopped["listing_complete"] is False and reason in stopped["issues"]
+            assert stopped["issues_by_stage"]["listing"] == {reason: 1}
 
     print(
         "Cian scope: Chromium waited for late state; pagination, known keys and stop verified"
