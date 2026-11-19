@@ -121,7 +121,6 @@ def _state(scripts: Iterable[str], key: str) -> dict[str, object] | None:
     removed_markers = []
     foreign_id = False
     ready_foreign = False
-    pending = False
     decoder = json.JSONDecoder(parse_float=Decimal)
     for script in scripts:
         if not (marker := _CONFIG.search(script)):
@@ -141,24 +140,26 @@ def _state(scripts: Iterable[str], key: str) -> dict[str, object] | None:
             identifier = offer.get("id")
             status = offer.get("status")
             secondary_id = offer.get("cianId", identifier)
-            if status is None:
-                pending = True
-            elif status not in ("published", "deleted"):
-                foreign_id = True
-            elif type(identifier) is int and str(identifier) == key:
+            if (
+                type(identifier) is int
+                and str(identifier) == key
+                and status is not None
+            ):
                 matching.append(data)
             elif identifier is None and secondary_id is None and status == "deleted":
                 removed_markers.append(data)
-            else:
+            elif identifier is not None or secondary_id is not None:
                 foreign_id = True
-                ready_foreign |= type(identifier) is int and secondary_id == identifier
+                ready_foreign |= (
+                    type(identifier) is int
+                    and secondary_id == identifier
+                    and status is not None
+                )
     if matching:
         return matching[0] if len(matching) == 1 else {}
     if removed_markers and not foreign_id:
         return removed_markers[0] if len(removed_markers) == 1 else {}
-    if ready_foreign or (foreign_id and not pending):
-        return {}
-    return None
+    return {} if ready_foreign else None
 
 
 def _documents(scripts: Iterable[str]) -> list[dict[str, object]]:
