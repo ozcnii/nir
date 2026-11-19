@@ -1,0 +1,69 @@
+{% with property=card.property %}
+  <article class="result">
+    <figure class="preview">
+      {% if card.photo %}
+        <img src="{{ card.photo }}" alt="Фото объекта" loading="lazy" data-preview>
+        <span class="photo-placeholder" hidden>Фото недоступно</span>
+      {% else %}
+        <span class="photo-placeholder">Фото не указано</span>
+      {% endif %}
+    </figure>
+    <div class="result-content">
+      <h3>
+        {{ card.title }}{% if property.area_m2 is not None %}, {{ property.area_m2|floatformat:"-2" }} м²{% endif %}
+      </h3>
+      <p class="address">
+        {% if property.address %}{{ property.address }} ·{% endif %}
+        {{ property.region.name }}
+      </p>
+      <ul class="facts">
+        {% if property.property_type_id == room_type_id %}
+          {% if property.rooms is not None %}
+            <li>Предлагаемых комнат: {{ property.rooms }}</li>
+          {% else %}
+            <li>Число предлагаемых комнат не указано</li>
+          {% endif %}
+        {% endif %}
+        {% if property.property_type_id == house_type_id %}
+          {% if property.floors_total is not None %}
+            <li>Этажность: {{ property.floors_total }}</li>
+          {% endif %}
+          {% if property.land_area_m2 is not None %}
+            <li>Участок: {{ property.land_area_m2|floatformat:"-2" }} м²</li>
+          {% else %}
+            <li>Площадь участка не указана</li>
+          {% endif %}
+        {% elif property.floor is not None %}
+          <li>
+            Этаж: {{ property.floor }}
+            {% if property.floors_total is not None %}из {{ property.floors_total }}{% endif %}
+          </li>
+        {% endif %}
+      </ul>
+      <ul class="offers" aria-label="Подходящие объявления">
+        {% for item in card.offers %}
+          <li class="offer">
+            <div>
+              <strong>{{ item.source }}</strong>
+              {% if item.segment %}<span> · {{ item.segment }}</span>{% endif %}
+              {% if item.price %}
+                <span class="price">
+                  {% if item.price.price_kind == "from" %}от{% endif %}
+                  {{ item.price.price_rub|floatformat:"-2g" }} {{ item.unit }}
+                </span>
+                <small>
+                  Последняя известная цена. Зафиксирована
+                  <time datetime="{{ item.price.observed_at|date:'c' }}">{{ item.price.observed_at|date:"d.m.Y" }}</time>
+                </small>
+              {% else %}
+                <small>Цена не получена</small>
+              {% endif %}
+            </div>
+            <a href="{{ item.ad.url }}">На площадку</a>
+          </li>
+        {% endfor %}
+      </ul>
+      <a class="object-link" href="{{ card.url }}">Открыть объект</a>
+    </div>
+  </article>
+{% endwith %}

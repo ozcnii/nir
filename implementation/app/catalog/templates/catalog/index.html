@@ -1,0 +1,81 @@
+{% extends "catalog/base.html" %}
+{% load static %}
+{% block scripts %}
+  <script defer src="{% static 'catalog/catalog.js' %}"></script>
+{% endblock scripts %}
+{% block content %}
+  <h1>Поиск недвижимости</h1>
+  <form id="catalog-filters" action="{% url 'catalog' %}" method="get">
+    <div class="choice-fields">
+      {% for field in choice_fields %}
+        <div class="field">
+          {{ field.label_tag }}
+          {{ field }}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="range-fields">
+      {% for label, minimum, maximum in ranges %}
+        <fieldset>
+          <legend>{{ label }}</legend>
+          <div class="range-pair">
+            <div class="field">
+              <label for="{{ minimum.id_for_label }}">От</label>
+              {{ minimum }}
+              {{ minimum.errors }}
+            </div>
+            <div class="field">
+              <label for="{{ maximum.id_for_label }}">До</label>
+              {{ maximum }}
+              {{ maximum.errors }}
+            </div>
+          </div>
+        </fieldset>
+      {% endfor %}
+    </div>
+    <p class="hint">Фильтр учитывает известную опубликованную сумму. Для цены «от» итог может быть выше.</p>
+    {% if form.category.value == "all" %}
+      <p class="hint">Для комнат фильтр учитывает число предлагаемых комнат, для квартир — число комнат квартиры.</p>
+    {% endif %}
+    <div class="toolbar">
+      <button type="submit">Найти</button>
+      <a href="{{ reset_url }}">Сбросить</a>
+      {% if json_url %}<a href="{{ json_url }}">JSON</a>{% endif %}
+    </div>
+  </form>
+  {% if errors %}
+    <section class="message" aria-labelledby="error-heading">
+      <h2 id="error-heading">Исправьте параметры запроса.</h2>
+      <ul>
+        {% for name, entries in errors %}
+          {% for entry in entries %}<li>{{ name }} — {{ entry.message }}</li>{% endfor %}
+        {% endfor %}
+      </ul>
+      <a href="{{ first_page_url }}">На первую страницу</a>
+    </section>
+  {% elif cards %}
+    <section aria-labelledby="results-heading">
+      <h2 id="results-heading">Найдено объектов: {{ count }}</h2>
+      {% for card in cards %}
+        {% include "catalog/result.html" %}
+      {% endfor %}
+    </section>
+  {% elif has_properties %}
+    <section class="message">
+      <h2>По выбранным фильтрам ничего не найдено</h2>
+      <a href="{{ reset_url }}">Сбросить фильтры</a>
+    </section>
+  {% else %}
+    <section class="message">
+      <h2>Данных пока нет</h2>
+    </section>
+  {% endif %}
+  {% if page and page.paginator.num_pages > 1 %}
+    <nav class="pagination" aria-label="Страницы результатов">
+      {% if previous_url %}<a href="{{ previous_url }}">Назад</a>{% endif %}
+      <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
+      {% if next_url %}<a href="{{ next_url }}">Вперёд</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock content %}
