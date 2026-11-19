@@ -767,6 +767,79 @@ class CianCardTests(TestCase):
                                 Decimal("9.00") if count == 1 else None,
                             )
 
+    def test_detached_room_area_respects_the_scope_of_a_reused_number(self) -> None:
+        detached_area = "Площадь предлагаемой комнаты № 2 — 11 м²."
+        for foreign_offer in (
+            "Продаётся комната № 2 в соседней квартире.",
+            "В соседней квартире продаётся комната № 2.",
+        ):
+            foreign = f"{foreign_offer} {detached_area}"
+            for subject, count, room_area, expected in (
+                ("Продаётся комната № 2.", 1, None, None),
+                ("Продаётся комната № 2 площадью 9 м².", 1, "9", Decimal("9.00")),
+                (
+                    "Продаются комната № 2 площадью 9 м² и комната № 3 площадью 10 м² "
+                    "одним лотом.",
+                    2,
+                    None,
+                    None,
+                ),
+            ):
+                for parts in ((subject, foreign), (foreign, subject)):
+                    with self.subTest(description=parts):
+                        # Arrange: two different offers use the same room number.
+                        url, offer, product = projection()
+                        offer.update(
+                            category="roomSale",
+                            roomsForSaleCount=count,
+                            roomArea=room_area,
+                            description=" ".join(parts),
+                        )
+
+                        # Act
+                        result = parsed(url, offer, product)
+
+                        # Assert: the foreign fact cannot supply or contradict a value.
+                        self.assertEqual(
+                            (result["rooms"], result["area_m2"]), (count, expected)
+                        )
+
+    def test_explicit_own_total_survives_neutral_text_without_a_count(self) -> None:
+        total = "Общая площадь предлагаемых комнат — 22,5 м²."
+        neutral = "Показ в субботу."
+        for offer_text, conflict in (
+            ("Продаются комнаты одним лотом.", False),
+            ("Продаются комнаты общей площадью 22,5 м² одним лотом.", False),
+            ("Продаются комнаты общей площадью 23 м² одним лотом.", True),
+        ):
+            for parts in ((offer_text, neutral, total), (total, neutral, offer_text)):
+                with self.subTest(description=parts):
+                    # Arrange: one offer is known; the detached size names it directly.
+                    url, offer, product = projection()
+                    offer.update(
+                        category="roomSale",
+                        roomsForSaleCount=None,
+                        roomArea="9",
+                        description=" ".join(parts),
+                    )
+                    if conflict:
+                        # Act
+                        with self.assertRaisesRegex(
+                            RejectedCard, "^conflicting_room_area$"
+                        ):
+                            parsed(url, offer, product)
+
+                        # Assert: a neutral sentence cannot hide the conflicting total.
+                    else:
+                        # Act
+                        result = parsed(url, offer, product)
+
+                        # Assert: the declared total needs no room count.
+                        self.assertEqual(
+                            (result["rooms"], result["area_m2"]),
+                            (None, Decimal("22.50")),
+                        )
+
     def test_explicit_lot_totals_are_compared_without_a_room_count(self) -> None:
         total = "Общая площадь этих комнат — 22,5 м²."
         for subject, expected_area, conflict in (
@@ -807,23 +880,28 @@ class CianCardTests(TestCase):
                             (result["rooms"], result["area_m2"]), (None, expected_area)
                         )
 
-        # Arrange: an intervening clause introduces another group.
-        url, offer, product = projection()
-        offer.update(
-            category="roomSale",
-            roomsForSaleCount=None,
-            roomArea="9",
-            description=(
-                "Продаются комнаты общей площадью 23 м² одним лотом. "
-                "В соседней квартире тоже продаются комнаты. " + total
-            ),
-        )
+        for owner in ("этих", "предлагаемых"):
+            with self.subTest(owner=owner):
+                # Arrange: an intervening clause introduces another group.
+                url, offer, product = projection()
+                offer.update(
+                    category="roomSale",
+                    roomsForSaleCount=None,
+                    roomArea="9",
+                    description=(
+                        "Продаются комнаты общей площадью 23 м² одним лотом. "
+                        "В соседней квартире тоже продаются комнаты. "
+                        f"Общая площадь {owner} комнат — 22,5 м²."
+                    ),
+                )
 
-        # Act
-        result = parsed(url, offer, product)
+                # Act
+                result = parsed(url, offer, product)
 
-        # Assert: the unbound total is not compared with the offered lot.
-        self.assertEqual((result["rooms"], result["area_m2"]), (None, Decimal("23.00")))
+                # Assert: the unbound total is not compared with the offered lot.
+                self.assertEqual(
+                    (result["rooms"], result["area_m2"]), (None, Decimal("23.00"))
+                )
 
     def test_known_member_claim_between_totals_keeps_the_same_lot(self) -> None:
         lot = "Продаются комнаты № 2 и № 3 общей площадью 22,5 м² одним лотом."
