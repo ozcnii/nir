@@ -39,6 +39,21 @@ class MatchingTests(TestCase):
         assert result is not None
         self.assertEqual(result.detail("квартира"), "25/1")
 
+    def test_apartment_retains_its_street_and_house_number_rules(self) -> None:
+        # Arrange
+        region = "Самарская область"
+        suffix = "Самара, Победы ул., дом 7, кв. 25"
+        marked_number = "Самара, улица Победы, дом № 7, кв. 25"
+
+        # Act
+        abbreviated = parse_address(suffix, region)
+        numbered = parse_address(marked_number, region)
+
+        # Assert
+        assert abbreviated is not None
+        self.assertEqual(abbreviated.street, "победы ул.")
+        self.assertIsNone(numbered)
+
     def test_layout_requires_asserted_dimensions_of_distinct_rooms(self) -> None:
         for text in (
             "кухня 28 м² и спальня 24 м² не предусмотрены",

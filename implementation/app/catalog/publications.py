@@ -8,7 +8,8 @@ from django.db import IntegrityError
 from django.db.models import Exists
 from psycopg.errors import CheckViolation
 
-from app.catalog.address_parser import parse_address
+from app.catalog.address import HouseAddress
+from app.catalog.address_parser import parse_address, parse_house_address
 from app.catalog.contracts import (
     PROPERTY_FACT_FIELDS,
     ActiveSnapshot,
@@ -20,13 +21,18 @@ from app.catalog.contracts import (
     is_nonblank_text,
     is_publication_url,
 )
+from app.catalog.house_matching import (
+    choose_house,
+    has_confirmed_block,
+    repeated_house_patch,
+)
 from app.catalog.locks import catalog_transaction
 from app.catalog.matching import (
     Match,
     choose_flat,
     repeated_flat_patch,
 )
-from app.catalog.matching_queries import flat_candidates, saved_property
+from app.catalog.matching_queries import matching_candidates, saved_property
 from app.catalog.models import (
     Ad,
     DealType,
@@ -36,7 +42,14 @@ from app.catalog.models import (
     Region,
     Source,
 )
-from app.catalog.reference_defaults import APARTMENT_TYPE_ID, REGION_NAMES, SOURCE_CODES
+from app.catalog.reference_defaults import (
+    APARTMENT_TYPE_ID,
+    HOUSE_TYPE_ID,
+    REGION_NAMES,
+    SOURCE_CODES,
+)
+
+MATCHED_TYPES = (APARTMENT_TYPE_ID, HOUSE_TYPE_ID)
 
 
 def accept_snapshot(snapshot: Mapping[str, object]) -> SnapshotResult:
@@ -107,45 +120,80 @@ def _write_snapshot(
         return SnapshotResult("rejected", reason="invalid_active_snapshot")
     if not _references_exist(snapshot):
         return SnapshotResult("rejected", reason="unknown_reference")
-    match: Match | None = None
     region = REGION_NAMES.get(snapshot["region_id"])
+    house = (
+        parse_house_address(snapshot["address"], region or "")
+        if snapshot["property_type_id"] == HOUSE_TYPE_ID
+        else None
+    )
+    match = None
     if previous is not None:
-        property_id = previous.property_id
-        saved = saved_property(property_id)
-        if APARTMENT_TYPE_ID in (
-            saved["property_type_id"],
-            snapshot["property_type_id"],
-        ):
-            if (
-                saved["region_id"] != snapshot["region_id"]
-                or saved["property_type_id"] != snapshot["property_type_id"]
-            ):
-                return SnapshotResult(
-                    "conflict",
-                    previous.id,
-                    property_id,
-                    reason="property_scope_changed",
-                )
-            if region is not None:
-                patch = repeated_flat_patch(saved, snapshot, region)
-                if patch is None:
-                    return SnapshotResult(
-                        "conflict",
-                        previous.id,
-                        property_id,
-                        reason="apartment_address_changed",
-                    )
-                match = Match(property_id, patch)
-    elif snapshot["property_type_id"] == APARTMENT_TYPE_ID and region is not None:
-        address = parse_address(snapshot["address"], region)
-        if address is not None:
-            match = choose_flat(
-                snapshot,
-                address,
-                flat_candidates(snapshot["region_id"]),
-                region,
-            )
+        repeat = _repeat_match(snapshot, previous, region, house)
+        if isinstance(repeat, SnapshotResult):
+            return repeat
+        match = repeat
+    if snapshot["property_type_id"] == HOUSE_TYPE_ID:
+        if snapshot["floor"] is not None or snapshot["rooms"] == 0:
+            return SnapshotResult("rejected", reason="invalid_house_facts")
+        if previous is None and not has_confirmed_block(house):
+            return SnapshotResult("rejected", reason="unconfirmed_house_block")
+    if previous is None:
+        match = _new_match(snapshot, region, house)
     return _store_active(snapshot, previous, match)
+
+
+def _new_match(
+    snapshot: ActiveSnapshot, region: str | None, house: HouseAddress | None
+) -> Match | None:
+    property_type = snapshot["property_type_id"]
+    if region is None or property_type not in MATCHED_TYPES:
+        return None
+    candidates = matching_candidates(snapshot["region_id"], property_type)
+    if property_type == HOUSE_TYPE_ID:
+        if snapshot["area_m2"] is None or snapshot["floors_total"] is None:
+            return None
+        if house is not None and house.complete:
+            return choose_house(snapshot, house, candidates, region)
+        return None
+    address = parse_address(snapshot["address"], region)
+    return choose_flat(snapshot, address, candidates, region) if address else None
+
+
+def _repeat_match(
+    snapshot: ActiveSnapshot,
+    previous: Ad,
+    region: str | None,
+    house: HouseAddress | None,
+) -> Match | SnapshotResult | None:
+    property_type = snapshot["property_type_id"]
+    property_id = previous.property_id
+    saved = saved_property(property_id)
+    if (
+        saved["property_type_id"] not in MATCHED_TYPES
+        and property_type not in MATCHED_TYPES
+    ):
+        return None
+    if (
+        saved["region_id"] != snapshot["region_id"]
+        or saved["property_type_id"] != property_type
+    ):
+        return SnapshotResult(
+            "conflict", previous.id, property_id, reason="property_scope_changed"
+        )
+    if property_type == HOUSE_TYPE_ID:
+        old_house = parse_house_address(saved["address"], region or "")
+        patch = repeated_house_patch(saved, snapshot, old_house, house)
+        reason = "house_address_changed"
+        if patch is not None and not has_confirmed_block(house, old_house):
+            return SnapshotResult("rejected", reason="unconfirmed_house_block")
+    elif region is None:
+        return None
+    else:
+        patch = repeated_flat_patch(saved, snapshot, region)
+        reason = "apartment_address_changed"
+    if patch is None:
+        return SnapshotResult("conflict", previous.id, property_id, reason=reason)
+    return Match(property_id, patch)
 
 
 def _references_exist(data: ActiveSnapshot) -> bool:
