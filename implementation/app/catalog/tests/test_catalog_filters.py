@@ -1,7 +1,7 @@
 """Exact URL validation shared by the catalog and its future JSON endpoint."""
 
 from django.http import QueryDict
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 
 from app.catalog.catalog_filters import CatalogFilters
 
@@ -57,6 +57,10 @@ class CatalogFiltersTests(TestCase):
             form.canonical_query(page=form.cleaned_data["page"], from_catalog=True),
             "from=catalog&deal_type=sale&category=all&price_max=0.50&rooms_min=0&page=1",
         )
+
+
+class CatalogFiltersHttpTests(TransactionTestCase):
+    """Let each catalog request manage its own database transaction."""
 
     def test_nonexistent_region_and_oversized_page(self) -> None:
         # Arrange
