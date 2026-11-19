@@ -12,7 +12,9 @@ from app.catalog.contracts import PropertyFacts
 from app.catalog.matching import Candidate, Match, property_patch
 
 
-def _conflicting_ids(left: dict[str, str], right: dict[str, str]) -> bool:
+def _conflicting_facts[Role, Value](
+    left: dict[Role, Value], right: dict[Role, Value]
+) -> bool:
     return any(left[tag] != right[tag] for tag in left.keys() & right.keys())
 
 
@@ -28,7 +30,7 @@ def _same_building(left: HouseAddress, right: HouseAddress) -> bool:
         and right.complete
         and left.location == right.location
         and _building_parts(left) == _building_parts(right)
-        and not _conflicting_ids(left.qualifiers, right.qualifiers)
+        and not _conflicting_facts(left.qualifiers, right.qualifiers)
     )
 
 
@@ -122,7 +124,7 @@ def repeated_house_patch(
         new_block = HOUSE_BLOCK_TAGS.intersection(new.qualifiers)
         if (
             _location_conflicts(old, new)
-            or _conflicting_ids(_building_parts(old), _building_parts(new))
+            or _conflicting_facts(_building_parts(old), _building_parts(new))
             or (new_block and old_block != new_block and (old_block or old.complete))
         ):
             return None
@@ -132,30 +134,25 @@ def repeated_house_patch(
 
 def _location_conflicts(old: HouseAddress, new: HouseAddress) -> bool:
     """Only disagreement on established location facts contradicts a repeat."""
-    if (
+    return (
         (old.street is not None and new.street is not None and old.street != new.street)
-        or _conflicting_ids(old.settlements, new.settlements)
-        or _conflicting_ids(old.areas, new.areas)
-    ):
-        return True
-    if len(old.settlements) == len(new.settlements) == 1 and next(
-        iter(old.settlements.values())
-    ) != next(iter(new.settlements.values())):
-        return True
-    return _conflicting_ids(
-        _known_settlement_types(old.settlements),
-        _known_settlement_types(new.settlements),
+        or _conflicting_facts(old.settlements, new.settlements)
+        or _conflicting_facts(old.areas, new.areas)
+        or _leading_settlement_conflicts(old, new)
+        or _conflicting_facts(
+            old.settlements_by_neighbors, new.settlements_by_neighbors
+        )
     )
 
 
-def _known_settlement_types(settlements: dict[str, str]) -> dict[str, str]:
-    """Pair names with types only when the published type is unambiguous."""
-    types_by_name: dict[str, set[str]] = {}
-    for kind, name in settlements.items():
-        if kind:
-            types_by_name.setdefault(name, set()).add(kind)
-    return {
-        name: next(iter(kinds))
-        for name, kinds in types_by_name.items()
-        if len(kinds) == 1
-    }
+def _leading_settlement_conflicts(old: HouseAddress, new: HouseAddress) -> bool:
+    """Compare leading city names with a common address landmark."""
+    return (
+        old.leading_settlement is not None
+        and new.leading_settlement is not None
+        and old.leading_settlement != new.leading_settlement
+        and (
+            (old.street is not None and old.street == new.street)
+            or bool(old.areas.items() & new.areas.items())
+        )
+    )

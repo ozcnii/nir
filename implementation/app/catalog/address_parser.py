@@ -2,9 +2,15 @@
 
 import re
 import unicodedata
+from collections import Counter
 from typing import Literal
 
-from app.catalog.address import Address, HouseAddress
+from app.catalog.address import (
+    Address,
+    HouseAddress,
+    LocationFact,
+    SettlementsByNeighbors,
+)
 from app.catalog.reference_defaults import REGION_NAMES
 
 _NUMBER = r"[0-9]+[а-я]?(?:[-/][0-9]+[а-я]?)*"
@@ -346,14 +352,17 @@ def _named_street(part: str) -> str | None:
 
 def _house_geography(
     location: list[str], street: str | None
-) -> tuple[dict[str, str], dict[str, str], bool]:
+) -> tuple[dict[str, str], dict[str, str], str | None, SettlementsByNeighbors, bool]:
     typed: dict[str, set[str]] = {}
     areas: dict[str, set[str]] = {}
     untyped: list[str] = []
+    geography: list[LocationFact | None] = []
     after_street = False
     complete = True
     for part in location:
+        geography.append(None)
         if part == street:
+            geography[-1] = ("street", part)
             after_street = True
             continue
         if after_street:
@@ -362,6 +371,7 @@ def _house_geography(
         if territory is not None:
             scope, name = territory
             areas.setdefault(scope, set()).add(name)
+            geography[-1] = territory
             continue
         role = _address_role(part, house=True)
         if role == "settlement":
@@ -370,6 +380,7 @@ def _house_geography(
                 name, kind = named
                 if kind is not None:
                     typed.setdefault(kind, set()).add(name)
+                    geography[-1] = (kind, name)
                     continue
             complete = False
         elif role == "district":
@@ -378,10 +389,12 @@ def _house_geography(
             scope = _LOCAL_DISTRICT if inside_place else _ENCLOSING_DISTRICT
             if name:
                 areas.setdefault(scope, set()).add(name)
+                geography[-1] = (scope, name)
             else:
                 complete = False
-        elif role == "name" and not after_street:
+        elif role == "name" and not after_street and _ADDRESS_TOKEN.fullmatch(part):
             untyped.append(part)
+            geography[-1] = ("", part)
         else:
             complete = False
     consistent = (
@@ -391,15 +404,49 @@ def _house_geography(
             not typed
             or all(any(name in names for names in typed.values()) for name in untyped)
         )
+        and all(len(names) <= 1 for names in (*typed.values(), *areas.values()))
     )
-    if not typed and len(untyped) == 1:
-        typed[""] = {untyped[0]}
+    settlements = {
+        kind: next(iter(names)) for kind, names in typed.items() if len(names) == 1
+    }
     return (
-        {kind: next(iter(names)) for kind, names in typed.items() if len(names) == 1},
+        settlements,
         {kind: next(iter(names)) for kind, names in areas.items() if len(names) == 1},
-        consistent
-        and all(len(names) <= 1 for names in (*typed.values(), *areas.values())),
+        _leading_settlement(geography, settlements.get("город"), consistent),
+        _settlements_by_neighbors(geography, settlements) if consistent else {},
+        consistent,
     )
+
+
+def _leading_settlement(
+    geography: list[LocationFact | None], city: str | None, consistent: bool
+) -> str | None:
+    for fact in geography:
+        if fact is None or fact[0] == _ENCLOSING_DISTRICT:
+            continue
+        kind, name = fact
+        if (kind == "город" and name == city) or (not kind and consistent):
+            return name
+        break
+    return None
+
+
+def _settlements_by_neighbors(
+    geography: list[LocationFact | None], settlements: dict[str, str]
+) -> SettlementsByNeighbors:
+    """Locate an explicit settlement between two unambiguous geographic facts."""
+    occurrences = Counter(geography)
+    return {
+        (outer, inner): place
+        for outer, place, inner in zip(
+            geography, geography[1:], geography[2:], strict=False
+        )
+        if outer is not None
+        and place is not None
+        and inner is not None
+        and settlements.get(place[0]) == place[1]
+        and all(occurrences[fact] == 1 for fact in (outer, place, inner))
+    }
 
 
 def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
@@ -462,10 +509,12 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
     }
     streets = [part for part in location if _named_street(part) is not None]
     street = streets[0] if len(streets) == 1 else None
-    settlements, areas, consistent = _house_geography(location, street)
+    settlements, areas, leading_settlement, neighbors, consistent = _house_geography(
+        location, street
+    )
     blocks = HOUSE_BLOCK_TAGS.intersection(identifiers)
     territory = bool(areas.keys() - _DISTRICT_SCOPES)
-    rural = any(kind not in ("", "город") for kind in settlements)
+    rural = any(kind != "город" for kind in settlements)
     only_subject = next(iter(subjects)) if len(subjects) == 1 else None
     subject_conflict = (
         isinstance(only_subject, int)
@@ -480,7 +529,11 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
         and len(streets) <= 1
         and len(blocks) <= 1
         and bool(HOUSE_BUILDING_TAGS & qualifiers.keys())
-        and (territory or rural or (street is not None and bool(settlements)))
+        and (
+            territory
+            or rural
+            or (street is not None and bool(settlements or leading_settlement))
+        )
     )
     chain: Literal["partial", "redundant", "complete"] = "partial"
     if identified:
@@ -493,6 +546,8 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
         location=tuple(location),
         settlements=settlements,
         areas=areas,
+        leading_settlement=leading_settlement,
+        settlements_by_neighbors=neighbors,
         street=street,
         qualifiers=qualifiers,
         chain=chain,
