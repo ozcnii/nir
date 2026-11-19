@@ -108,7 +108,6 @@ def _cian_cards() -> Iterator[SavedCard]:
         ("month_room", "month_rent", ROOM_TYPE_ID, "14.00", 1, 12000, None),
         ("month_house", "month_rent", HOUSE_TYPE_ID, "270.00", None, None, None),
         ("day_flat", "day_rent", FLAT, "32.00", 1, 3000, None),
-        ("day_room", "day_rent", ROOM_TYPE_ID, "60.00", 1, 6990, None),
         ("day_house", "day_rent", HOUSE_TYPE_ID, "250.00", None, 15000, None),
     ):
         url, offer, html = _cian_observation(family)
