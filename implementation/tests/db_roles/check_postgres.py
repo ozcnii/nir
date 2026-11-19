@@ -1,9 +1,9 @@
 """ACL acceptance on a dedicated PostgreSQL database with committed fixtures."""
 
 import os
-import sys
 
 import psycopg
+from fixture_database import require_fixture_database
 from psycopg.conninfo import make_conninfo
 
 SOURCE = "fixture"
@@ -17,15 +17,12 @@ INSERT_AD = """
 """
 
 
-def check_postgres(repeat: bool) -> None:
+def check_postgres() -> None:
     # Arrange
-    if os.environ["DB_NAME"] != "t06_acl_test":
-        raise ValueError("F25 requires the dedicated fixture database")
-    marker = "nir-f25:" + os.environ["NIR_PG_FIXTURE_TOKEN"]
     credentials = make_conninfo(
         dbname=os.environ["DB_NAME"],
-        host=os.environ["DB_HOST"],
-        port=os.environ["DB_PORT"],
+        host=os.getenv("DB_HOST", "db"),
+        port=os.getenv("DB_PORT", "5432"),
         require_auth="scram-sha-256",
     )
 
@@ -35,60 +32,40 @@ def check_postgres(repeat: bool) -> None:
         password=os.environ["DB_APP_PASSWORD"],
         autocommit=True,
     ) as app:
+        with app.cursor() as cursor:
+            require_fixture_database(cursor)
+
+        # Arrange
+        description = "committed"
         # Act
-        identity = app.execute("""
-            SELECT current_user, session_user, current_setting('server_version_num'),
-                   shobj_description(oid, 'pg_database')
-            FROM pg_database WHERE datname = current_database()
-        """).fetchone()
-        # Assert
-        if identity != ("app", "app", "170012", marker):
-            raise ValueError(
-                "F25 requires the marked disposable database and app login"
+        with app.transaction():
+            app.execute("UPDATE sources SET enabled = false WHERE code = %s", (SOURCE,))
+            app.execute("UPDATE regions SET name = 'Renamed region' WHERE id = 1")
+            app.execute("INSERT INTO regions (name) VALUES ('Unused region')")
+            app.execute("DELETE FROM regions WHERE name = 'Unused region'")
+            test_type = app.execute(
+                "INSERT INTO property_types (name) VALUES ('Type') RETURNING id"
+            ).fetchone()
+            assert test_type is not None
+            app.execute(
+                """
+                INSERT INTO properties (region_id, property_type_id, rooms, floor)
+                VALUES (1, %s, 0, -1)
+                """,
+                test_type,
             )
+            app.execute("UPDATE properties SET floor = 0 WHERE id = 1")
+            app.execute(INSERT_AD)
+            app.execute("UPDATE ads SET description = %s WHERE id = 1", (description,))
+            app.execute("""
+                INSERT INTO price_history (ad_id, observed_at, price_rub, price_kind)
+                VALUES (1, now(), 0, 'listed')
+            """)
 
-        if not repeat:
-            # Arrange
-            with psycopg.connect(
-                credentials,
-                user="migrator",
-                password=os.environ["DB_MIGRATOR_PASSWORD"],
-            ) as migrator:
-                migrator.execute("INSERT INTO sources VALUES (%s, true)", (SOURCE,))
-            description = "committed"
-            # Act
-            with app.transaction():
-                app.execute(
-                    "UPDATE sources SET enabled = false WHERE code = %s", (SOURCE,)
-                )
-                app.execute("UPDATE regions SET name = 'Renamed region' WHERE id = 1")
-                app.execute("INSERT INTO regions (name) VALUES ('Unused region')")
-                app.execute("DELETE FROM regions WHERE name = 'Unused region'")
-                test_type = app.execute(
-                    "INSERT INTO property_types (name) VALUES ('Type') RETURNING id"
-                ).fetchone()
-                assert test_type is not None
-                app.execute(
-                    """
-                    INSERT INTO properties (region_id, property_type_id, rooms, floor)
-                    VALUES (1, %s, 0, -1)
-                    """,
-                    test_type,
-                )
-                app.execute("UPDATE properties SET floor = 0 WHERE id = 1")
-                app.execute(INSERT_AD)
-                app.execute(
-                    "UPDATE ads SET description = %s WHERE id = 1", (description,)
-                )
-                app.execute("""
-                    INSERT INTO price_history (ad_id, observed_at, price_rub, price_kind)
-                    VALUES (1, now(), 0, 'listed')
-                """)
-
-            # Assert
-            assert app.execute(
-                "SELECT floor, rooms FROM properties WHERE id = 1"
-            ).fetchone() == (0, 0)
+        # Assert
+        assert app.execute(
+            "SELECT floor, rooms FROM properties WHERE id = 1"
+        ).fetchone() == (0, 0)
 
         # Arrange
         denied = (
@@ -165,4 +142,4 @@ def check_postgres(repeat: bool) -> None:
 
 
 if __name__ == "__main__":
-    check_postgres(repeat=sys.argv[1:] == ["repeat"])
+    check_postgres()

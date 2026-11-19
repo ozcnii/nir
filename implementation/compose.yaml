@@ -1,18 +1,14 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     init: true
-    user: "10001:10001"
-    restart: "no"
     stop_grace_period: 60s
     environment:
       DB_NAME: ${DB_NAME:-catalog}
-      DB_HOST: db
-      DB_PORT: "5432"
       DB_APP_PASSWORD: ${DB_APP_PASSWORD:-}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
-      NIR_RUNNER_GENERATION: ${NIR_RUNNER_GENERATION:-unmanaged}
-      NIR_HOST_RECOVERY_GENERATION: ${NIR_HOST_RECOVERY_GENERATION:-}
     ports:
       - host_ip: 127.0.0.1
         target: 8000
@@ -27,39 +23,18 @@ services:
       retries: 15
     security_opt:
       - seccomp=./docker/playwright-seccomp.json
-    tmpfs:
-      - /run/app:mode=0700,uid=10001,gid=10001
-    volumes:
-      - app_data:/var/lib/app
-    labels:
-      org.nir.runner.generation: ${NIR_RUNNER_GENERATION:-unmanaged}
-    logging:
-      driver: local
-      options:
-        max-size: 10m
-        max-file: "3"
-        mode: non-blocking
-        max-buffer-size: 1m
 
   db:
     image: postgres:17.12-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
-    restart: "no"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_DB: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
     healthcheck:
       test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "postgres"]
       interval: 2s
       timeout: 3s
       retries: 15
-    logging:
-      driver: local
     volumes:
       - db:/var/lib/postgresql/data
-    labels:
-      org.nir.runner.generation: ${NIR_RUNNER_GENERATION:-unmanaged}
 
 volumes:
-  app_data:
   db:
