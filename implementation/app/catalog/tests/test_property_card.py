@@ -228,6 +228,7 @@ class PropertyBrowserTests(StaticLiveServerTestCase):
             self.client.get(f"{path}?from=https://example.test/&page=-1"),
             self.client.get(f"{path}?from=catalog&from=catalog"),
         ]
+        mixed_errors = self.client.get(f"{path}?from=catalog&items=1&rooms_min=bad")
         missing = self.client.get(f"/properties/{BIGINT_MAX}/")
         too_large = self.client.get(f"/properties/{BIGINT_MAX + 1}/")
         previous_page = self.client.get(f"{path}?from=catalog&page=5000")
@@ -243,6 +244,12 @@ class PropertyBrowserTests(StaticLiveServerTestCase):
                 response, "Некорректный контекст поиска", status_code=400
             )
             self.assertContains(response, 'href="/catalog/"', status_code=400)
+        self.assertContains(
+            mixed_errors, "items — Неизвестный параметр.", status_code=400
+        )
+        self.assertContains(
+            mixed_errors, "rooms_min — Введите целое число.", status_code=400
+        )
         self.assertContains(missing, "Объект не найден", status_code=404)
         self.assertContains(too_large, "Объект не найден", status_code=404)
         self.assertContains(previous_page, "Назад к результатам")

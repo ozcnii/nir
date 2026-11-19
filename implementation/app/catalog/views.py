@@ -152,7 +152,10 @@ def property_detail(request: HttpRequest, property_id: int) -> HttpResponse:
             return render(
                 request,
                 "catalog/property_error.html",
-                {"title": "Некорректный контекст поиска", "errors": errors},
+                {
+                    "title": "Некорректный контекст поиска",
+                    "errors": list(errors.items()),
+                },
                 status=400,
             )
         search_query = filters.canonical_query(page=filters.cleaned_data["page"])

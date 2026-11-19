@@ -7,7 +7,7 @@
     <h1>{{ title }}</h1>
     {% if errors %}
       <ul class="errorlist">
-        {% for field, messages in errors.items %}
+        {% for field, messages in errors %}
           {% for error in messages %}
             <li>{{ field }} — {{ error.message }}</li>
           {% endfor %}
