@@ -416,11 +416,14 @@ class CianCardTests(TestCase):
         for description in (
             "Продаются два дома на одном участке.",
             "Продаётся дом 90,9 м² и второй дом 40 м² одним лотом.",
+            "Продаю дом площадью 90,9 м², второй дом площадью 40 м² "
+            "и третий дом площадью 55 м² одним лотом.",
             "Предложение недели, продаётся дом и коттедж одним лотом.",
             "СРОЧНО. Продаётся 1/2 доля дома без отдельного входа.",
             "Продаётся проект коттеджа.",
             "Продаётся дом, точнее блок.",
             "Продаётся дом, точнее блок № 2.",
+            "Продаётся дом, точнее — блок № 2.",
         ):
             with self.subTest(description=description):
                 # Arrange: replay the observed native house structure with a
@@ -463,12 +466,16 @@ class CianCardTests(TestCase):
                 "Продаётся дом 90,9 м². Площадь предлагаемого участка — 20 соток.",
                 True,
             ),
+            ("Продаётся дом 90,9 м². Площадь этого участка — 20 соток.", True),
+            ("Продаётся дом жилой площадью 20 м² на участке 20 соток.", True),
             (
                 "Продаётся дом 90,9 м². Площадь предлагаемого участка — 27 соток.",
                 False,
             ),
             ("Продаётся дом на участке 2700 м².", False),
             ("Продаётся дом 90,9 м² на участке 27 соток.", False),
+            ("Продаётся дом жилой площадью 20 м² на участке 27 соток.", False),
+            ("Продаётся дом площадью 20 м² (жилая) на участке 27 соток.", False),
             ("Продаётся дом 90,9 м². Соседний дом на участке 20 соток.", False),
             ("Продаётся дом 90,9 м². Продаётся блок № 2 в соседнем доме.", False),
             (
@@ -552,6 +559,13 @@ class CianCardTests(TestCase):
                 Decimal("9.00"),
             ),
             (
+                1,
+                "Продаются комната № 2 площадью 9 м², комната № 3 "
+                "площадью 10 м² и комната № 4 площадью 12 м² по отдельности.",
+                1,
+                Decimal("9.00"),
+            ),
+            (
                 None,
                 "Продаются несколько комнат суммарной площадью 21 м².",
                 None,
@@ -617,21 +631,55 @@ class CianCardTests(TestCase):
                 # Assert: the contradictory active snapshot never reaches storage.
 
     def test_bundle_rejects_two_conflicting_totals_for_those_rooms(self) -> None:
-        # Arrange: the joint lot is explicit and both totals refer to it.
-        url, offer, product = projection()
-        offer.update(
-            category="roomSale",
-            roomsForSaleCount=2,
-            roomArea="9.0",
-            description="Продаются две комнаты общей площадью 19 м². "
-            "Общая площадь этих комнат — 18 м².",
-        )
+        for first, second in (("19", "18"), ("18", "19")):
+            for rooms in ("этих комнат", "этих двух комнат", "обеих комнат"):
+                with self.subTest(first=first, second=second, rooms=rooms):
+                    # Arrange: both totals refer to the same explicit lot.
+                    url, offer, product = projection()
+                    offer.update(
+                        category="roomSale",
+                        roomsForSaleCount=2,
+                        roomArea="9.0",
+                        description=f"Продаются две комнаты общей площадью {first} м². "
+                        f"Общая площадь {rooms} — {second} м².",
+                    )
 
-        # Act
-        with self.assertRaisesRegex(RejectedCard, "^conflicting_room_area$"):
-            parsed(url, offer, product)
+                    # Act
+                    with self.assertRaisesRegex(
+                        RejectedCard, "^conflicting_room_area$"
+                    ):
+                        parsed(url, offer, product)
 
-        # Assert: the collector never chooses one of the contradictory totals.
+                    # Assert: either ordering of the contradictory totals rejects.
+
+    def test_room_checks_all_own_measurements_with_the_same_identity(self) -> None:
+        for first, second in (("9", "10"), ("10", "9"), ("9", "9")):
+            with self.subTest(first=first, second=second):
+                # Arrange: a repeated known room number is a single member.
+                url, offer, product = projection()
+                offer.update(
+                    category="roomSale",
+                    roomsForSaleCount=1,
+                    roomArea="9.0",
+                    description=f"Продаётся комната № 2 площадью {first} м² "
+                    f"и комната № 2 площадью {second} м².",
+                )
+                if first == second:
+                    # Act
+                    result = parsed(url, offer, product)
+
+                    # Assert: repeating the same facts preserves the room.
+                    self.assertEqual(
+                        (result["rooms"], result["area_m2"]), (1, Decimal("9.00"))
+                    )
+                else:
+                    # Act
+                    with self.assertRaisesRegex(
+                        RejectedCard, "^conflicting_room_area$"
+                    ):
+                        parsed(url, offer, product)
+
+                    # Assert: neither conflicting measurement is chosen.
 
     def test_block_checks_its_own_area_and_ignores_enclosing_house_total(self) -> None:
         # Arrange: one published block address and an enclosing building area.
@@ -669,6 +717,20 @@ class CianCardTests(TestCase):
         self.assertTrue(str(result["address"]).endswith("дом 7, блок 2"))
         self.assertEqual(result["area_m2"], Decimal("90.90"))
 
+    def test_addressed_block_does_not_authorize_a_joint_building_lot(self) -> None:
+        # Arrange: the address identifies one block, but the offer bundles two.
+        url, offer, product = native_case("sale_house")
+        extend_native_address(offer, "дом 7", "блок 2")
+        offer["description"] = (
+            "Продаётся блок № 2 площадью 90,9 м² и блок № 3 площадью 55 м² одним лотом."
+        )
+
+        # Act
+        with self.assertRaisesRegex(RejectedCard, "^unconfirmed_house_unit$"):
+            parsed(url, offer, product)
+
+        # Assert: even a known first block cannot stand for the entire lot.
+
     def test_incompatible_block_identity_is_rejected(self) -> None:
         for labels, description in (
             (("блок 2", "блок 3"), "Продаётся блок № 2."),
@@ -688,7 +750,14 @@ class CianCardTests(TestCase):
                 # Assert: the inconsistent scope never becomes a whole house.
 
     def test_marked_block_without_address_identity_does_not_become_house(self) -> None:
-        for label in ("блок", "секция №", "дом 7 блок", "СНТ Луч дом 7 блок"):
+        for label in (
+            "блок",
+            "секция №",
+            "дом 7 блок",
+            "СНТ Луч дом 7 блок",
+            "СНТ Луч дом 7 — блок",
+            "СНТ Луч д. 7: блок",
+        ):
             with self.subTest(label=label):
                 # Arrange: the source denotes block scope without its identifier.
                 url, offer, product = native_case("sale_house")

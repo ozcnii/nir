@@ -158,16 +158,25 @@ def verify_invalid_card(
     history_before = PriceHistory.objects.filter(ad_id=ad_id).count()
     redirect = url.replace(str(offer["id"]), "1234567890")
     foreign_id = int(redirect.rstrip("/").rsplit("/", 1)[1])
+    room_offer = {
+        **offer,
+        "category": "roomSale",
+        "roomsForSaleCount": 1,
+        "roomArea": "9.0",
+    }
     offers = {
         "redirect": offer,
         "foreign_state": {**offer, "id": foreign_id, "cianId": foreign_id},
         "invalid_area": {**offer, "totalArea": "47.211"},
         "contradictory_room_set": {
-            **offer,
-            "category": "roomSale",
-            "roomsForSaleCount": 1,
-            "roomArea": "9.0",
+            **room_offer,
             "description": "Продаётся комната № 2 и комната № 3 одним лотом.",
+        },
+        "contradictory_room_area": {
+            **room_offer,
+            "description": (
+                "Продаётся комната № 2 площадью 9 м² и комната № 2 площадью 10 м²."
+            ),
         },
     }
 
@@ -211,6 +220,7 @@ def verify_invalid_card(
         "unavailable",
         "invalid_precision",
         "conflicting_room_count",
+        "conflicting_room_area",
     ], outcomes
     assert (
         Ad.objects.values_list("observed_at", flat=True).get(pk=ad_id)
