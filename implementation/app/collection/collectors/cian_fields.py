@@ -191,12 +191,16 @@ _SEPARATE_OFFER = re.compile(
     r"[\s,]+(?:отдельно|по\s+отдельности|не\s+одним\s+лотом)\b",
     re.IGNORECASE,
 )
+_SHARE_FRACTION = r"[0-9]+/[0-9]+"
+_UNALLOCATED_SHARE = r"не\s*выделенн(?:ая|ую)"
+_UNALLOCATED_FRACTION = rf"\s+{_SHARE_FRACTION}\s*\({_UNALLOCATED_SHARE}\)"
 _ROOM_SHARE = re.compile(
-    _ROOM_OFFER + r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+(?:в\s+)?квартир[еы]\b",
-    re.IGNORECASE,
-)
-_SPECIFIC_ROOM_SHARE = re.compile(
-    _ROOM_OFFER + r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+комнаты\s+№?\s*[1-9][0-9]*\b",
+    _OFFER_START
+    + _ROOM_QUALIFIER
+    + rf"(?:{_OFFER_VERB}(?:{_SHARE_FRACTION}\s+)?"
+    + rf"(?:{_UNALLOCATED_SHARE}\s+)?дол[яю]\b(?:{_UNALLOCATED_FRACTION})?"
+    + r"(?:\s+(?:(?P<room>комнаты\s+№?\s*[1-9][0-9]*\b)|(?:в\s+)?квартир[еы]\b))?"
+    + rf"|доля{_UNALLOCATED_FRACTION})",
     re.IGNORECASE,
 )
 _ALLOCATION = re.compile(
@@ -393,12 +397,10 @@ def check_room(
 ) -> tuple[int | None, Decimal | None]:
     text = description or ""
     counts = {rooms} if rooms is not None else set()
-    if any(not share["foreign"] for share in _SPECIFIC_ROOM_SHARE.finditer(text)):
-        counts.add(1)
     for share in _ROOM_SHARE.finditer(text):
         if share["foreign"] or _OTHER_UNIT.match(text, share.end()):
             continue
-        if not _ALLOCATION.match(text, share.end()):
+        if not share["room"] and not _ALLOCATION.match(text, share.end()):
             raise RejectedCard("unconfirmed_room_unit")
         counts.add(1)
 

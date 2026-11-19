@@ -438,6 +438,52 @@ class CianCardTests(TestCase):
 
                 # Assert: no active whole-house snapshot is returned.
 
+    def test_room_requires_a_physical_unit_for_its_share_offer(self) -> None:
+        for description, rejected in (
+            ("Продаётся невыделенная доля в квартире.", True),
+            ("Доля 23/81 (невыделенная).", True),
+            ("Продаю невыделенную долю.", True),
+            ("Продаётся комната № 2 площадью 9 м².", False),
+            ("Продаётся комната № 2, а не доля.", False),
+            ("Продаю долю в квартире, выделена комната № 2.", False),
+            ("Продаётся доля комнаты № 2.", False),
+            (
+                "Продаётся комната № 2. В соседней квартире: "
+                "продаётся невыделенная доля в квартире.",
+                False,
+            ),
+            (
+                "Продаётся комната № 2. В соседней квартире: Доля 23/81 (невыделенная).",
+                False,
+            ),
+            (
+                "Продаётся комната № 2. Продаётся доля 23/81 (невыделенная) "
+                "в соседней квартире.",
+                False,
+            ),
+        ):
+            with self.subTest(description=description):
+                # Arrange: the structured fields report one room.
+                url, offer, product = native_case("sale_room")
+                offer["description"] = description
+
+                if rejected:
+                    # Act
+                    with self.assertRaisesRegex(
+                        RejectedCard, "^unconfirmed_room_unit$"
+                    ):
+                        parsed(url, offer, product)
+
+                    # Assert: the unallocated share cannot become one room.
+                else:
+                    # Act
+                    result = parsed(url, offer, product)
+
+                    # Assert: the established room keeps its own properties.
+                    self.assertEqual(
+                        (result["rooms"], result["area_m2"]), (1, Decimal("9.00"))
+                    )
+
     def test_house_compares_only_area_of_the_offered_building(self) -> None:
         # Arrange: the known house has 90.9 m² and three bedrooms, not three rooms.
         url, offer, product = native_case("sale_house")

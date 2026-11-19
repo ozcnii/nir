@@ -301,29 +301,35 @@ def verify_room_area_owner() -> None:
     cast(dict[str, object], offer["bargainTerms"])["price"] = 1_500_000
     cast(dict[str, object], product["offers"])["price"] = 1_500_000
     product["image"] = ["https://example.invalid/new-room.jpg"]
-    offer["description"] = (
+    room_conflict = (
         "Продаётся комната № 2 площадью 9 м². "
         "В соседней квартире: продаётся комната № 2 площадью 11 м². "
         "Продаётся комната № 2. Показ в субботу. "
         "Площадь предлагаемой комнаты № 2 — 12 м²."
     )
+    for description, reason in (
+        (room_conflict, "conflicting_room_area"),
+        ("Доля 23/81 (невыделенная).", "unconfirmed_room_unit"),
+    ):
+        # Arrange
+        offer["description"] = description
 
-    # Act
-    try:
-        collect_room(url, "1 500 000 ₽")
-    except CommandError as error:
-        # Assert
-        assert str(error) == "conflicting_room_area"
-    else:
-        raise AssertionError("the contradictory area reached the catalog")
-    assert [
-        list(rows.values()) for rows in (publications, properties, prices)
-    ] == before
-    assert (
-        Property.objects.count(),
-        Ad.objects.count(),
-        PriceHistory.objects.count(),
-    ) == counts_before
+        # Act
+        try:
+            collect_room(url, "1 500 000 ₽")
+        except CommandError as error:
+            # Assert
+            assert str(error) == reason
+        else:
+            raise AssertionError("the rejected room offer reached the catalog")
+        assert [
+            list(rows.values()) for rows in (publications, properties, prices)
+        ] == before
+        assert (
+            Property.objects.count(),
+            Ad.objects.count(),
+            PriceHistory.objects.count(),
+        ) == counts_before
 
     # Arrange: only the neighbor has an area. The same key keeps its known size.
     offer.update(
