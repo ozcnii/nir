@@ -406,28 +406,64 @@ class HouseMatchingTests(TestCase):
         self.assertEqual(stored.property.address, first_address)
         self.assertEqual(PriceHistory.objects.filter(ad=stored).count(), 1)
 
-    def test_repeated_block_keeps_omitted_scope_and_whole_cannot_become_block(
-        self,
-    ) -> None:
+    def test_repeated_block_updates_only_with_confirmed_scope(self) -> None:
         # Arrange
         block_address = f"{HOUSE}, блок 2"
         block = accept_snapshot(snapshot("block", block_address))
         whole = accept_snapshot(snapshot("whole", HOUSE))
+        assert block.ad_id is not None
         newer = TIME + timedelta(minutes=1)
-        without_block = "Самара, Садовая ул. дом 7"
+        without_block = "?, СНТ Луч, Садовая ул. дом 7"
+        explicit_whole = snapshot("block", HOUSE, time=newer, price=Decimal(200))
+        explicit_whole["description"] = "Продаётся весь дом."
+        incomplete = (
+            explicit_whole,
+            snapshot("block", without_block, time=newer, price=Decimal(200)),
+            snapshot("block", None, time=newer, price=Decimal(200)),
+        )
 
         # Act
-        omitted = accept_snapshot(snapshot("block", without_block, time=newer))
+        omitted = [accept_snapshot(item) for item in incomplete]
         changed = accept_snapshot(snapshot("whole", block_address, time=newer))
 
         # Assert
-        self.assertEqual(omitted.outcome, "unchanged")
-        self.assertEqual(changed.outcome, "conflict")
-        assert block.property_id is not None and whole.property_id is not None
+        self.assertEqual([item.outcome for item in omitted], ["rejected"] * 3)
         self.assertEqual(
-            Property.objects.get(pk=block.property_id).address, block_address
+            [item.reason for item in omitted], ["unconfirmed_house_block"] * 3
         )
+        self.assertEqual(changed.outcome, "conflict")
+        self.assertEqual(Ad.objects.get(pk=block.ad_id).observed_at, TIME)
+        self.assertEqual(Ad.objects.get(pk=block.ad_id).property.address, block_address)
+        self.assertEqual(
+            list(
+                PriceHistory.objects.filter(ad_id=block.ad_id).values_list(
+                    "price_rub", flat=True
+                )
+            ),
+            [Decimal(100)],
+        )
+        assert whole.property_id is not None
         self.assertEqual(Property.objects.get(pk=whole.property_id).address, HOUSE)
+
+        # Arrange
+        same_block = snapshot("block", block_address, time=newer, price=Decimal(250))
+
+        # Act
+        updated = accept_snapshot(same_block)
+
+        # Assert
+        self.assertEqual(updated.outcome, "updated")
+        self.assertEqual(updated.ad_id, block.ad_id)
+        self.assertEqual(updated.property_id, block.property_id)
+        self.assertEqual(Ad.objects.get(pk=block.ad_id).observed_at, newer)
+        self.assertEqual(
+            list(
+                PriceHistory.objects.filter(ad_id=block.ad_id)
+                .order_by("observed_at")
+                .values_list("price_rub", flat=True)
+            ),
+            [Decimal(100), Decimal(250)],
+        )
 
     def test_repeat_of_an_identified_block_does_not_require_attach_completeness(
         self,
@@ -632,7 +668,6 @@ class HouseMatchingTests(TestCase):
                 f"г. Самара, посёлок Новый, {tail}",
                 f"деревня Новый, {tail}",
             ),
-            ("unrecognized-name", f"г. Самара, {tail}", "?, СНТ Луч, ул. Садовая"),
             ("unknown-inside", complete_place, unknown_inside),
             ("known-incoming", unknown_inside, complete_place),
             ("blank-inside", complete_place, unknown_inside.replace("?", "")),

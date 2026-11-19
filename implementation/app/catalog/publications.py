@@ -135,7 +135,7 @@ def _write_snapshot(
     if snapshot["property_type_id"] == HOUSE_TYPE_ID:
         if snapshot["floor"] is not None or snapshot["rooms"] == 0:
             return SnapshotResult("rejected", reason="invalid_house_facts")
-        if (previous is None or region is None) and not has_confirmed_block(house):
+        if previous is None and not has_confirmed_block(house):
             return SnapshotResult("rejected", reason="unconfirmed_house_block")
     if previous is None:
         match = _new_match(snapshot, region, house)
@@ -180,14 +180,14 @@ def _repeat_match(
         return SnapshotResult(
             "conflict", previous.id, property_id, reason="property_scope_changed"
         )
-    if region is None:
-        return None
     if property_type == HOUSE_TYPE_ID:
-        old_house = parse_house_address(saved["address"], region)
+        old_house = parse_house_address(saved["address"], region or "")
         patch = repeated_house_patch(saved, snapshot, old_house, house)
         reason = "house_address_changed"
         if patch is not None and not has_confirmed_block(house, old_house):
             return SnapshotResult("rejected", reason="unconfirmed_house_block")
+    elif region is None:
+        return None
     else:
         patch = repeated_flat_patch(saved, snapshot, region)
         reason = "apartment_address_changed"

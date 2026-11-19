@@ -37,8 +37,10 @@ def _same_building(left: HouseAddress, right: HouseAddress) -> bool:
 def has_confirmed_block(
     incoming: HouseAddress | None, previous: HouseAddress | None = None
 ) -> bool:
-    """Confirm the block after checking address conflicts on a repeat."""
-    if incoming is None or not incoming.block_marked or incoming.complete:
+    """Require block evidence for a marked address or a previously saved block."""
+    if incoming is None or not incoming.block_marked:
+        return previous is None or not previous.block_marked
+    if incoming.complete:
         return True
     if incoming.chain != "redundant" or previous is None or not previous.complete:
         return False
