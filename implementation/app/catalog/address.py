@@ -58,37 +58,56 @@ class Address:
         return None
 
 
-def _geography_conflicts(
+def _geography_pairs(
     left: Address | PartialAddress, right: Address | PartialAddress
-) -> bool:
-    return any(
-        first is not None and second is not None and first != second
-        for first, second in (
-            (left.settlement, right.settlement),
-            (left.settlement_kind, right.settlement_kind),
-            (left.enclosing_district, right.enclosing_district),
-            (left.district, right.district),
-            (left.number, right.number),
-        )
+) -> tuple[tuple[str | None, str | None], ...]:
+    return (
+        (left.settlement, right.settlement),
+        (left.settlement_kind, right.settlement_kind),
+        (left.enclosing_district, right.enclosing_district),
+        (left.district, right.district),
+        (left.number, right.number),
     )
 
 
-def _street_parts(street: str) -> tuple[str | None, str]:
+def _geography_conflicts(left: Address, right: Address) -> bool:
+    return any(
+        first is not None and second is not None and first != second
+        for first, second in _geography_pairs(left, right)
+    )
+
+
+def _street_parts(street: str | None) -> tuple[str | None, str | None]:
+    if street is None:
+        return None, None
     kind, _, name = street.partition(" ")
     return (kind, name) if name and kind in STREET_TYPES else (None, street)
+
+
+def _location_pairs(
+    left: Address | PartialAddress, right: Address | PartialAddress
+) -> tuple[tuple[str | None, str | None], ...]:
+    left_kind, left_name = _street_parts(left.street)
+    right_kind, right_name = _street_parts(right.street)
+    return (
+        *_geography_pairs(left, right),
+        (left_name, right_name),
+        (left_kind, right_kind),
+    )
 
 
 def location_conflicts(
     left: Address | PartialAddress, right: Address | PartialAddress
 ) -> bool:
-    if _geography_conflicts(left, right):
-        return True
-    if left.street is None or right.street is None:
-        return False
-    left_kind, left_name = _street_parts(left.street)
-    right_kind, right_name = _street_parts(right.street)
-    return left_name != right_name or (
-        left_kind is not None and right_kind is not None and left_kind != right_kind
+    return any(
+        first is not None and second is not None and first != second
+        for first, second in _location_pairs(left, right)
+    )
+
+
+def retains_location(previous: Address, incoming: Address) -> bool:
+    return all(
+        old is None or old == new for old, new in _location_pairs(previous, incoming)
     )
 
 

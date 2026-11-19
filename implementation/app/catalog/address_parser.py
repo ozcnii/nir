@@ -341,6 +341,7 @@ def _room_address(
         if (
             last == (label, None)
             and place is not None
+            and label != place[0]
             and numbers[0][0] - index in (0, 1)
             and (
                 place[1] is not None
@@ -359,6 +360,8 @@ def _room_address(
         index, found, _ = numbers[0]
         if (
             strict_building
+            and roles
+            and (roles[-1] == "street" or street is not None)
             and len(numbers) == 1
             and index == detail_offset - 1
             and complete_details

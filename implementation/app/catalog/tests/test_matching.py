@@ -90,6 +90,10 @@ class MatchingTests(TestCase):
             parse_address(f"{address}, {tail}", region, room=True)
             for address in incomplete
         ]
+        streets = [
+            parse_address(f"г. Самара, {street}, дом 7, {tail}", region, room=True)
+            for street in ("улица Самара", "Советская")
+        ]
         repeated_number = parse_address(f"{valid[0]}, {tail}, дом 7", region, room=True)
         redundant_chain = [
             parse_address(f"{valid[0]}, {tail}, {label}", region, room=True)
@@ -106,6 +110,10 @@ class MatchingTests(TestCase):
             [("улица 8 марта", "7")] * len(valid),
         )
         self.assertEqual(results, [None] * len(incomplete))
+        self.assertEqual(
+            [address.street for address in streets if address is not None],
+            ["улица самара", "советская"],
+        )
         self.assertIsNone(repeated_number)
         self.assertEqual(redundant_chain, [None, None])
 
@@ -309,6 +317,16 @@ class MatchingTests(TestCase):
             (f"г. Новокуйбышевск, {unit}", f"Самара, г. Самара, {unit}", True),
             (f"г. Новокуйбышевск, {unit}", f"г. Самара, Самара, {unit}", True),
             (f"г. Самара, {unit}", f"Самара, г. Самара, {unit}", False),
+            (
+                f"г. Самара, {unit}",
+                "г. Самара, Самара, дом 7, квартира 25, комната 2",
+                False,
+            ),
+            (
+                f"г. Самара, {unit}",
+                "Самара, г. Самара, дом 7, квартира 25, комната 2",
+                False,
+            ),
             (f"г. Самара, {unit}", f"Самара, село Самара, {unit}", True),
             (
                 f"г. Самара, {unit}",

@@ -145,6 +145,8 @@ class SnapshotTests(TestCase):
             "Самара, улица Солнечная дом 7 дом 9, квартира 25, комната 2",
             f"г. Самара, {address}",
             f"{address}, комната дома 2",
+            "г. Самара, Самара, дом 7, квартира 25, комната 2",
+            "Самара, г. Самара, дом 7, квартира 25, комната 2",
         )
         with as_app():
             # Act
@@ -260,6 +262,59 @@ class SnapshotTests(TestCase):
         self.assertEqual(attached.property_id, created.property_id)
         self.assertEqual(before, (stored,))
         self.assertEqual(after, (confirmed_address,))
+
+    def test_room_repeat_preserves_known_location_before_enrichment(self) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        # Arrange
+        unit = "дом 7, квартира 25, комната 2"
+        address = f"Самара, ул. Советская, {unit}"
+        original: ActiveSnapshot = {
+            **card("room-location-facts"),
+            "property_type_id": ROOM_TYPE_ID,
+            "address": address,
+        }
+        repeats = (
+            (f"г. Самара, Самара, {unit}", Decimal("7500000")),
+            (f"г. Самара, Советская, {unit}", Decimal("7000000")),
+        )
+        with as_app():
+            first = self.accept(original)
+            assert first.ad_id is not None
+
+            # Act
+            outcomes = []
+            addresses = []
+            for index, (published, amount) in enumerate(repeats, 1):
+                outcomes.append(
+                    self.accept(
+                        {
+                            **later(original, index),
+                            "address": published,
+                            "price": price(str(amount)),
+                        }
+                    )
+                )
+                addresses.append(
+                    Ad.objects.values_list("property__address", flat=True).get(
+                        pk=first.ad_id
+                    )
+                )
+            history = list(
+                PriceHistory.objects.filter(ad_id=first.ad_id)
+                .order_by("id")
+                .values_list("price_rub", flat=True)
+            )
+
+        # Assert
+        self.assertEqual([result.outcome for result in outcomes], ["updated"] * 2)
+        self.assertEqual(
+            [result.property_id for result in outcomes], [first.property_id] * 2
+        )
+        self.assertEqual(addresses, [address] * 2)
+        self.assertEqual(
+            history, [Decimal("8000000"), *(amount for _, amount in repeats)]
+        )
 
     def test_repeated_room_does_not_change_unit_or_complete_partial_chain(self) -> None:
         from app.catalog.models import Ad, PriceHistory
