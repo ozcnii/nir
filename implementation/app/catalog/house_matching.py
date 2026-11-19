@@ -18,13 +18,32 @@ def _building_parts(address: HouseAddress) -> dict[str, str]:
     }
 
 
+def _same_building_identity(left: HouseAddress, right: HouseAddress) -> bool:
+    return left.location == right.location and _building_parts(left) == _building_parts(
+        right
+    )
+
+
 def _same_building(left: HouseAddress, right: HouseAddress) -> bool:
     return (
         left.complete
         and right.complete
-        and left.location == right.location
-        and _building_parts(left) == _building_parts(right)
+        and _same_building_identity(left, right)
         and not _conflicting_ids(left.qualifiers, right.qualifiers)
+    )
+
+
+def has_confirmed_block(
+    incoming: HouseAddress | None, previous: HouseAddress | None = None
+) -> bool:
+    """Keep a known block on repeat when the same address repeats a marker."""
+    if incoming is None or not incoming.block_marked or incoming.complete:
+        return True
+    return (
+        incoming.chain == "redundant"
+        and previous is not None
+        and previous.complete
+        and _same_building_identity(previous, incoming)
     )
 
 
@@ -91,12 +110,11 @@ def _enriched_address(
 def repeated_house_patch(
     previous: PropertyFacts,
     incoming: PropertyFacts,
-    region: str,
+    old: HouseAddress | None,
     new: HouseAddress | None,
 ) -> dict[str, object] | None:
     if new is not None and new.subject_conflict:
         return None
-    old = parse_house_address(previous["address"], region)
     updated_address = incoming["address"] if previous["address"] is None else None
     if old is not None and new is not None:
         old_block = HOUSE_BLOCK_TAGS.intersection(old.qualifiers)

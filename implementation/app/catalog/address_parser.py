@@ -2,8 +2,10 @@
 
 import re
 import unicodedata
+from typing import Literal
 
 from app.catalog.address import Address, HouseAddress
+from app.catalog.reference_defaults import REGION_NAMES
 
 _NUMBER = r"[0-9]+[а-я]?(?:[-/][0-9]+[а-я]?)*"
 _HOUSE_NUMBER = re.compile(_NUMBER)
@@ -272,8 +274,33 @@ def _house_component(part: str) -> tuple[str, list[tuple[str, str]]]:
     return part[: markers[0].start()].strip(), labels
 
 
-def _house_subject(part: str, region: str) -> str | None:
-    if part == region and _address_role(part) == "territory":
+def _house_subject_names() -> dict[str, int]:
+    identities: dict[str, set[int]] = {}
+    for identifier, label in REGION_NAMES.items():
+        name = _plain(label)
+        if _address_role(name) != "territory":
+            continue
+        full, opening, alias = name.partition(" (")
+        spellings = [name]
+        if opening and alias.endswith(")"):
+            spellings.extend((full, alias[:-1]))
+        for spelling in spellings:
+            identities.setdefault(spelling, set()).add(identifier)
+    return {
+        spelling: next(iter(ids))
+        for spelling, ids in identities.items()
+        if len(ids) == 1
+    }
+
+
+_HOUSE_SUBJECT_IDS = _house_subject_names()
+
+
+def _house_subject(part: str, expected: int | None, *, leading: bool) -> str | None:
+    identity = _HOUSE_SUBJECT_IDS.get(part)
+    if identity is not None and (
+        _address_role(part) == "territory" or (leading and identity == expected)
+    ):
         return part
     if not (
         part.startswith("республика ")
@@ -375,15 +402,23 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
     parts = [part for part in parts if part]
     if parts[:1] == ["россия"]:
         parts.pop(0)
-    expected_subject = _plain(region)
-    subjects: set[str] = set()
+    expected_subject = _HOUSE_SUBJECT_IDS.get(_plain(region))
+    subjects: set[int | str] = set()
     location: list[str] = []
     identifiers: dict[str, list[str]] = {}
     for raw_part in parts:
         part, labels = _house_component(raw_part)
-        subject = _house_subject(part, expected_subject) if part else None
+        subject = (
+            _house_subject(
+                part,
+                expected_subject,
+                leading=not (subjects or location or identifiers),
+            )
+            if part
+            else None
+        )
         if subject is not None:
-            subjects.add(subject)
+            subjects.add(_HOUSE_SUBJECT_IDS.get(subject, subject))
         elif part:
             area = _house_area_component(part)
             building = None if area else _building_component(part)
@@ -422,30 +457,36 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
     blocks = HOUSE_BLOCK_TAGS.intersection(identifiers)
     territory = bool(areas.keys() - _DISTRICT_SCOPES)
     rural = any(kind not in ("", "город") for kind in settlements)
+    only_subject = next(iter(subjects)) if len(subjects) == 1 else None
     subject_conflict = (
-        len(subjects) == 1
-        and bool(expected_subject)
-        and expected_subject not in subjects
+        isinstance(only_subject, int)
+        and expected_subject is not None
+        and only_subject != expected_subject
     )
-    complete = (
+    identified = (
         valid
         and consistent
-        and len(subjects) <= 1
-        and not subject_conflict
+        and subjects <= {expected_subject}
         and len(qualifiers) == len(identifiers)
-        and all(len(ids) == 1 for ids in identifiers.values())
         and len(streets) <= 1
         and len(blocks) <= 1
         and bool(_BUILDING_TAGS & qualifiers.keys())
         and (territory or rural or (street is not None and bool(settlements)))
     )
+    chain: Literal["partial", "redundant", "complete"] = "partial"
+    if identified:
+        chain = (
+            "complete"
+            if all(len(ids) == 1 for ids in identifiers.values())
+            else "redundant"
+        )
     return HouseAddress(
         location=tuple(location),
         settlements=settlements,
         areas=areas,
         street=street,
         qualifiers=qualifiers,
-        complete=complete,
+        chain=chain,
         block_marked=bool(blocks),
         subject_conflict=subject_conflict,
     )

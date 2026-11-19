@@ -6,7 +6,7 @@ from django.test import TestCase
 from app.catalog.contracts import ActiveSnapshot
 from app.catalog.models import Ad, PriceHistory, Property
 from app.catalog.publications import accept_snapshot
-from app.catalog.reference_defaults import HOUSE_TYPE_ID, SAMARA_REGION_ID
+from app.catalog.reference_defaults import HOUSE_TYPE_ID, REGION_NAMES, SAMARA_REGION_ID
 
 TIME = datetime(2026, 11, 17, tzinfo=UTC)
 HOUSE = "Самарская область, Самара, СНТ Луч, ул. Садовая, дом 7"
@@ -21,6 +21,8 @@ def snapshot(
     area: Decimal | None = Decimal("80"),
     floors: int | None = 2,
     land: Decimal | None = None,
+    region_id: int = SAMARA_REGION_ID,
+    price: Decimal = Decimal(100),
 ) -> ActiveSnapshot:
     return {
         "state": "active",
@@ -28,7 +30,7 @@ def snapshot(
         "external_id": key,
         "observed_at": time,
         "url": f"https://example.test/offer/{key}",
-        "region_id": SAMARA_REGION_ID,
+        "region_id": region_id,
         "property_type_id": HOUSE_TYPE_ID,
         "deal_type": "sale",
         "market_segment": None,
@@ -44,7 +46,7 @@ def snapshot(
         "price": {
             "status": "known",
             "price_kind": "listed",
-            "price_rub": Decimal(100),
+            "price_rub": price,
             "currency": "RUB",
         },
         "photos": {"status": "known", "urls": ["https://example.test/first.jpg"]},
@@ -158,6 +160,7 @@ class HouseMatchingTests(TestCase):
             "Самара, Тольятти, СНТ Луч, улица Садовая, дом 7",
             "Самара, СНТ Луч, улица Садовая, Тольятти, дом 7",
             HOUSE.replace("Самарская область", "Саратовская обл."),
+            HOUSE.replace("Самарская область", "Неизвестная область"),
         )
         for index, address in enumerate(addresses):
             with self.subTest(address=address):
@@ -172,6 +175,54 @@ class HouseMatchingTests(TestCase):
                 self.assertEqual(first.outcome, "created")
                 self.assertEqual(second.outcome, "created")
                 self.assertNotEqual(first.property_id, second.property_id)
+
+    def test_repeat_and_attach_use_the_same_seeded_subject_identity(self) -> None:
+        # Arrange
+        region_id = 19
+        location = "Казань, ул. Садовая, дом 7"
+        address = f"{REGION_NAMES[region_id]}, {location}"
+        first = accept_snapshot(
+            snapshot("registered-subject", address, region_id=region_id)
+        )
+        newer = TIME + timedelta(minutes=1)
+        alternate = snapshot(
+            "registered-subject",
+            f"Республика Татарстан, {location}",
+            time=newer,
+            region_id=region_id,
+            price=Decimal(250),
+        )
+        alias = snapshot(
+            "subject-alias",
+            f"Татарстан, {location}",
+            source="domclick",
+            region_id=region_id,
+        )
+        unknown = snapshot(
+            "registered-subject",
+            f"Неизвестная область, {location}",
+            time=newer + timedelta(minutes=1),
+            region_id=region_id,
+            price=Decimal(250),
+        )
+
+        # Act
+        compatible = accept_snapshot(alternate)
+        joined = accept_snapshot(alias)
+        partial = accept_snapshot(unknown)
+
+        # Assert
+        self.assertEqual(compatible.outcome, "updated")
+        self.assertEqual(partial.outcome, "unchanged")
+        self.assertEqual(
+            [compatible.property_id, joined.property_id, partial.property_id],
+            [first.property_id] * 3,
+        )
+        assert first.ad_id is not None
+        ad = Ad.objects.get(pk=first.ad_id)
+        self.assertEqual(ad.property.address, address)
+        self.assertEqual(ad.observed_at, unknown["observed_at"])
+        self.assertEqual(PriceHistory.objects.filter(ad=ad).count(), 2)
 
     def test_territory_and_inline_block_retain_separate_address_roles(self) -> None:
         # Arrange
@@ -374,3 +425,49 @@ class HouseMatchingTests(TestCase):
             Property.objects.get(pk=block.property_id).address, block_address
         )
         self.assertEqual(Property.objects.get(pk=whole.property_id).address, HOUSE)
+
+    def test_repeat_of_an_identified_block_does_not_require_attach_completeness(
+        self,
+    ) -> None:
+        # Arrange
+        address = f"{HOUSE}, блок 2"
+        first = accept_snapshot(snapshot("repeated-block", address))
+        duplicate_house = address.replace("дом 7", "дом 7, дом 7")
+        newer = TIME + timedelta(minutes=1)
+        repeat = snapshot(
+            "repeated-block", duplicate_house, time=newer, price=Decimal(250)
+        )
+        incomplete = (
+            address.replace("дом 7", "дом 7, дом 8"),
+            address.replace("блок 2", "блок"),
+            address.replace("блок 2", "блок 2, блок 3"),
+        )
+
+        # Act
+        compatible = accept_snapshot(repeat)
+        separate = accept_snapshot(snapshot("new-block", duplicate_house))
+        rejected = [
+            accept_snapshot(
+                snapshot("repeated-block", item, time=newer + timedelta(minutes=1))
+            )
+            for item in incomplete
+        ]
+
+        # Assert
+        self.assertEqual(compatible.outcome, "updated")
+        self.assertEqual(compatible.property_id, first.property_id)
+        self.assertEqual(separate.reason, "unconfirmed_house_block")
+        self.assertEqual(
+            [item.reason for item in rejected],
+            ["unconfirmed_house_block"] * len(incomplete),
+        )
+        assert first.ad_id is not None
+        ad = Ad.objects.get(pk=first.ad_id)
+        self.assertEqual(ad.observed_at, newer)
+        self.assertEqual(ad.property.address, address)
+        self.assertEqual(Property.objects.count(), 1)
+        self.assertEqual(Ad.objects.count(), 1)
+        self.assertEqual(
+            set(PriceHistory.objects.filter(ad=ad).values_list("price_rub", flat=True)),
+            {Decimal(100), Decimal(250)},
+        )

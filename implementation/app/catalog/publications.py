@@ -21,7 +21,11 @@ from app.catalog.contracts import (
     is_nonblank_text,
     is_publication_url,
 )
-from app.catalog.house_matching import choose_house, repeated_house_patch
+from app.catalog.house_matching import (
+    choose_house,
+    has_confirmed_block,
+    repeated_house_patch,
+)
 from app.catalog.locks import catalog_transaction
 from app.catalog.matching import (
     Match,
@@ -131,7 +135,7 @@ def _write_snapshot(
     if snapshot["property_type_id"] == HOUSE_TYPE_ID:
         if snapshot["floor"] is not None or snapshot["rooms"] == 0:
             return SnapshotResult("rejected", reason="invalid_house_facts")
-        if house is not None and house.block_marked and not house.complete:
+        if (previous is None or region is None) and not has_confirmed_block(house):
             return SnapshotResult("rejected", reason="unconfirmed_house_block")
     if previous is None:
         match = _new_match(snapshot, region, house)
@@ -179,8 +183,11 @@ def _repeat_match(
     if region is None:
         return None
     if property_type == HOUSE_TYPE_ID:
-        patch = repeated_house_patch(saved, snapshot, region, house)
+        old_house = parse_house_address(saved["address"], region)
+        patch = repeated_house_patch(saved, snapshot, old_house, house)
         reason = "house_address_changed"
+        if patch is not None and not has_confirmed_block(house, old_house):
+            return SnapshotResult("rejected", reason="unconfirmed_house_block")
     else:
         patch = repeated_flat_patch(saved, snapshot, region)
         reason = "apartment_address_changed"

@@ -1,6 +1,7 @@
 """Compare and enrich parsed property addresses."""
 
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -10,9 +11,13 @@ class HouseAddress:
     areas: dict[str, str]
     street: str | None
     qualifiers: dict[str, str]
-    complete: bool
+    chain: Literal["partial", "redundant", "complete"]
     block_marked: bool
     subject_conflict: bool
+
+    @property
+    def complete(self) -> bool:
+        return self.chain == "complete"
 
 
 @dataclass(frozen=True)
