@@ -195,9 +195,8 @@ _OFFERED_HOUSE = re.compile(
 )
 
 
-def _own_area(text: str, start: int, *, bundle: bool = False) -> Decimal | None:
-    pattern = _SET_AREA if bundle else _OWN_AREA
-    match = pattern.match(text, start)
+def _own_area(text: str, start: int) -> Decimal | None:
+    match = _OWN_AREA.match(text, start)
     if match is None or _OTHER_UNIT.match(text, match.end()):
         return None
     return area_m2(match["area"])
