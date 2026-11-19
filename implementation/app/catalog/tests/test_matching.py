@@ -3,6 +3,7 @@ from unittest import TestCase
 from app.catalog.address_parser import parse_address
 from app.catalog.contracts import PropertyFacts
 from app.catalog.matching_room import repeated_room_patch
+from app.catalog.room_address_parser import parse_room_address
 from app.catalog.seller_description import matching_description
 
 
@@ -41,6 +42,21 @@ class MatchingTests(TestCase):
         assert result is not None
         self.assertEqual(result.detail("квартира"), "25/1")
 
+    def test_apartment_retains_its_street_and_house_number_rules(self) -> None:
+        # Arrange
+        region = "Самарская область"
+        suffix = "Самара, Победы ул., дом 7, кв. 25"
+        marked_number = "Самара, улица Победы, дом № 7, кв. 25"
+
+        # Act
+        abbreviated = parse_address(suffix, region)
+        numbered = parse_address(marked_number, region)
+
+        # Assert
+        assert abbreviated is not None
+        self.assertEqual(abbreviated.street, "победы ул.")
+        self.assertIsNone(numbered)
+
     def test_room_street_suffix_uses_the_canonical_street_type(self) -> None:
         # Arrange
         region = "Самарская область"
@@ -53,10 +69,8 @@ class MatchingTests(TestCase):
         )
 
         # Act
-        results = [parse_address(address, region, room=True) for address in addresses]
-        misplaced_street = parse_address(
-            "Солнечная ул., Песочная ул., 7", region, room=True
-        )
+        results = [parse_room_address(address, region) for address in addresses]
+        misplaced_street = parse_room_address("Солнечная ул., Песочная ул., 7", region)
 
         # Assert
         self.assertEqual(
@@ -84,19 +98,18 @@ class MatchingTests(TestCase):
 
         # Act
         complete = [
-            parse_address(f"{address}, {tail}", region, room=True) for address in valid
+            parse_room_address(f"{address}, {tail}", region) for address in valid
         ]
         results = [
-            parse_address(f"{address}, {tail}", region, room=True)
-            for address in incomplete
+            parse_room_address(f"{address}, {tail}", region) for address in incomplete
         ]
         streets = [
-            parse_address(f"г. Самара, {street}, дом 7, {tail}", region, room=True)
+            parse_room_address(f"г. Самара, {street}, дом 7, {tail}", region)
             for street in ("улица Самара", "Советская")
         ]
-        repeated_number = parse_address(f"{valid[0]}, {tail}, дом 7", region, room=True)
+        repeated_number = parse_room_address(f"{valid[0]}, {tail}, дом 7", region)
         redundant_chain = [
-            parse_address(f"{valid[0]}, {tail}, {label}", region, room=True)
+            parse_room_address(f"{valid[0]}, {tail}, {label}", region)
             for label in ("кв. 25", "комн. 2")
         ]
 
@@ -375,7 +388,7 @@ class MatchingTests(TestCase):
 
                 # Assert
                 self.assertEqual(patch, None if conflict else {})
-                self.assertIsNone(parse_address(incoming, region, room=True))
+                self.assertIsNone(parse_room_address(incoming, region))
 
     def test_layout_requires_asserted_dimensions_of_distinct_rooms(self) -> None:
         for text in (

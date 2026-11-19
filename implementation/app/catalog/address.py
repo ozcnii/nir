@@ -2,6 +2,29 @@
 
 from collections.abc import Collection
 from dataclasses import dataclass
+from typing import Literal
+
+type LocationFact = tuple[str, str]
+type SettlementsByNeighbors = dict[tuple[LocationFact, LocationFact], LocationFact]
+
+
+@dataclass(frozen=True)
+class HouseAddress:
+    location: tuple[str, ...]
+    settlements: dict[str, str]
+    areas: dict[str, str]
+    leading_settlement: str | None
+    settlements_by_neighbors: SettlementsByNeighbors
+    street: str | None
+    qualifiers: dict[str, str]
+    chain: Literal["partial", "redundant", "complete"]
+    block_marked: bool
+    subject_conflict: bool
+
+    @property
+    def complete(self) -> bool:
+        return self.chain == "complete"
+
 
 STREET_TYPES = (
     "улица",

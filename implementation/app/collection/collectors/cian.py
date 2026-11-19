@@ -1,9 +1,10 @@
-"""One verified Cian route: new flats for sale in Samara Oblast."""
+"""Read the public Cian card's published inline state."""
 
 import json
 import re
 import time
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import TypedDict, cast
@@ -12,44 +13,107 @@ from urllib.parse import urlsplit
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from app.catalog.contracts import ActiveSnapshot, SnapshotKey
-from app.collection.collectors.cian_fields import (
-    RejectedCard,
-    as_object,
-    normalize_cian_card,
+from app.catalog.contracts import (
+    Deal,
+    Market,
+    Snapshot,
+    SnapshotKey,
+    UnavailableSnapshot,
+    is_publication_url,
 )
+from app.catalog.reference_defaults import (
+    APARTMENT_TYPE_ID,
+    HOUSE_TYPE_ID,
+    ROOM_TYPE_ID,
+)
+from app.collection.collectors.cian_fields import normalize_cian_card
+from app.collection.collectors.cian_partner import (
+    PARTNER_HOST,
+    parse_partner,
+    partner_key,
+)
+from app.collection.normalization import RejectedCard, as_object
 
-CARD_PATH = re.compile(r"/sale/flat/([1-9][0-9]{0,19})/?")
-CONFIG = re.compile(
+_NATIVE_HOSTS = {
+    "cian.ru",
+    "www.cian.ru",
+    "samara.cian.ru",
+    "tolyatti.cian.ru",
+    "saratov.cian.ru",
+}
+_CARD_PATH = re.compile(r"/(sale|rent)/(flat|suburban)/([1-9][0-9]{0,19})/?")
+_CONFIG = re.compile(
     r"""_cianConfig\[['"]frontend-offer-card['"]\].*?\.concat\(\s*""", re.DOTALL
 )
 
 
-def card_key(url: str) -> str | None:
-    try:
-        parts = urlsplit(url)
-        match = CARD_PATH.fullmatch(parts.path)
-        if parts.scheme == "https" and parts.netloc == "samara.cian.ru" and match:
-            return match[1]
-    except ValueError:
+@dataclass(frozen=True)
+class _Route:
+    deal: str
+    kind: str
+    external_id: str
+
+
+def _route(url: str) -> _Route | None:
+    if not is_publication_url(url) or "\\" in url:
         return None
+    parts = urlsplit(url)
+    if parts.port not in (None, 443 if parts.scheme == "https" else 80):
+        return None
+    if parts.hostname == PARTNER_HOST and (key := partner_key(url)):
+        return _Route("rent", "partner", key)
+    if (
+        parts.scheme == "https"
+        and parts.hostname in _NATIVE_HOSTS
+        and (native := _CARD_PATH.fullmatch(parts.path))
+    ):
+        return _Route(native[1], native[2], native[3])
     return None
 
 
-class _CardPending(RejectedCard):
-    """The document has not published the requested offer yet."""
+def card_key(url: str) -> str | None:
+    route = _route(url)
+    return route.external_id if route else None
 
 
-def _state(scripts: Iterable[str], requested_id: str) -> dict[str, object]:
-    found: dict[str, object] | None = None
-    incompatible_offer = False
+def same_card(requested_url: str, loaded_url: str) -> bool:
+    requested = _route(requested_url)
+    return requested is not None and requested == _route(loaded_url)
+
+
+@dataclass(frozen=True)
+class _Direction:
+    deal: Deal
+    property_type_id: int
+    market: Market | None = None
+
+
+_DIRECTIONS = {
+    "newBuildingFlatSale": _Direction("sale", APARTMENT_TYPE_ID, "new_build"),
+    "flatSale": _Direction("sale", APARTMENT_TYPE_ID, "resale"),
+    "roomSale": _Direction("sale", ROOM_TYPE_ID),
+    "houseSale": _Direction("sale", HOUSE_TYPE_ID),
+    "flatRent": _Direction("month_rent", APARTMENT_TYPE_ID),
+    "roomRent": _Direction("month_rent", ROOM_TYPE_ID),
+    "cottageRent": _Direction("month_rent", HOUSE_TYPE_ID),
+    "dailyFlatRent": _Direction("day_rent", APARTMENT_TYPE_ID),
+    "dailyRoomRent": _Direction("day_rent", ROOM_TYPE_ID),
+    "dailyHouseRent": _Direction("day_rent", HOUSE_TYPE_ID),
+}
+
+
+def _state(scripts: Iterable[str], key: str) -> dict[str, object] | None:
+    """Select one ready native state. None means the offer may still be loading."""
+    matching = []
+    removed_markers = []
+    has_offer_id = False
+    ready_foreign = False
+    decoder = json.JSONDecoder(parse_float=Decimal)
     for script in scripts:
-        if not (marker := CONFIG.search(script)):
+        if not (marker := _CONFIG.search(script)):
             continue
         try:
-            entries, _ = json.JSONDecoder(parse_float=Decimal).raw_decode(
-                script, marker.end()
-            )
+            entries, _ = decoder.raw_decode(script, marker.end())
         except (ValueError, InvalidOperation, RecursionError):
             continue
         if not isinstance(entries, list):
@@ -60,65 +124,165 @@ def _state(scripts: Iterable[str], requested_id: str) -> dict[str, object]:
                 continue
             data = as_object(as_object(entry.get("value")).get("offerData"))
             offer = as_object(data.get("offer"))
-            offer_id = offer.get("id")
-            if (
-                type(offer_id) is not int
-                or str(offer_id) != requested_id
-                or offer.get("status") != "published"
-            ):
-                incompatible_offer |= bool(offer)
+            identifier = offer.get("id")
+            status = offer.get("status")
+            secondary_id = offer.get("cianId", identifier)
+            if identifier is None and secondary_id is None:
+                if status == "deleted":
+                    removed_markers.append(data)
                 continue
-            if found is not None:
-                raise RejectedCard("no_published_card")
-            found = data
-    if found is None:
-        reason = "invalid_card_direction" if incompatible_offer else "no_published_card"
-        raise _CardPending(reason)
-    return found
+            has_offer_id = True
+            if (
+                type(identifier) is not int
+                or type(secondary_id) is not int
+                or secondary_id != identifier
+                or status is None
+            ):
+                continue
+            if str(identifier) == key:
+                matching.append(data)
+            else:
+                ready_foreign = True
+    if matching:
+        return matching[0] if len(matching) == 1 else {}
+    if removed_markers and not has_offer_id:
+        return removed_markers[0] if len(removed_markers) == 1 else {}
+    return {} if ready_foreign else None
 
 
-def _product(scripts: Iterable[str], key: str) -> dict[str, object]:
-    matches = []
+def _documents(scripts: Iterable[str]) -> list[dict[str, object]]:
+    documents = []
     for script in scripts:
         try:
-            product = as_object(json.loads(script, parse_float=Decimal))
+            document = as_object(json.loads(script, parse_float=Decimal))
         except (ValueError, InvalidOperation, RecursionError):
             continue
+        if document:
+            documents.append(document)
+    return documents
+
+
+def _product(
+    documents: Iterable[dict[str, object]], route: _Route
+) -> dict[str, object]:
+    matches = []
+    for product in documents:
         sku = product.get("sku")
         url = as_object(product.get("offers")).get("url")
         if (
             product.get("@type") == "Product"
-            and isinstance(sku, (int, str))
-            and str(sku) == key
+            and type(sku) in (int, str)
+            and str(sku) == route.external_id
             and isinstance(url, str)
-            and card_key(url) == key
+            and _route(url) == route
         ):
             matches.append(product)
     return matches[0] if len(matches) == 1 else {}
 
 
+def _identity(url: str, observed_at: datetime) -> tuple[_Route, SnapshotKey]:
+    route = _route(url)
+    if route is None or observed_at.utcoffset() is None:
+        raise RejectedCard("invalid_identity")
+    return route, {
+        "source_code": "cian",
+        "external_id": route.external_id,
+        "observed_at": observed_at,
+    }
+
+
 def parse_card(
-    requested_id: str,
+    requested_url: str,
     observed_at: datetime,
     config_scripts: Iterable[str],
     product_scripts: Iterable[str],
     *,
     loaded_url: str,
-) -> ActiveSnapshot:
-    if card_key(loaded_url) != requested_id:
-        raise RejectedCard("unexpected_redirect")
-    data = _state(config_scripts, requested_id)
-    key: SnapshotKey = {
-        "source_code": "cian",
-        "external_id": requested_id,
-        "observed_at": observed_at,
-    }
+) -> Snapshot:
+    route, key = _identity(requested_url, observed_at)
+    return _parse_observation(
+        route, key, config_scripts, product_scripts, loaded_url
+    ) or {**key, "state": "unavailable"}
+
+
+def _parse_observation(
+    route: _Route,
+    key: SnapshotKey,
+    config_scripts: Iterable[str],
+    product_scripts: Iterable[str],
+    loaded_url: str,
+) -> Snapshot | None:
+    unavailable: UnavailableSnapshot = {**key, "state": "unavailable"}
+    if _route(loaded_url) != route:
+        return unavailable
+    if route.kind == "partner":
+        return (
+            parse_partner(loaded_url, key, config_scripts, _documents(product_scripts))
+            or unavailable
+        )
+
+    data = _state(config_scripts, route.external_id)
+    if data is None:
+        return None
+    if not data:
+        return unavailable
+    offer = as_object(data.get("offer"))
+    identifier = offer.get("id")
+    status = offer.get("status")
+    category = offer.get("category")
+    direction = _DIRECTIONS.get(category) if isinstance(category, str) else None
+    # A removed native sale can lose its active fields after publication ends.
+    # The exact loaded path and explicit deleted marker still identify it.
+    if (
+        status == "deleted"
+        and identifier is None
+        and route.deal == "sale"
+        and offer.get("offerType") in (None, route.kind)
+        and offer.get("dealType") in (None, route.deal)
+        and (
+            category is None
+            or (
+                direction is not None
+                and direction.deal == "sale"
+                and (direction.property_type_id == HOUSE_TYPE_ID)
+                == (route.kind == "suburban")
+            )
+        )
+    ):
+        return {**key, "state": "removed", "url": loaded_url, "deal_type": "sale"}
+    if (
+        status not in ("published", "deleted")
+        or identifier is None
+        or offer.get("offerType") != route.kind
+        or offer.get("dealType") != route.deal
+    ):
+        return unavailable
+    if direction is None:
+        raise RejectedCard("invalid_card_direction")
+    if (direction.deal == "sale") != (route.deal == "sale") or (
+        direction.property_type_id == HOUSE_TYPE_ID
+    ) != (route.kind == "suburban"):
+        return unavailable
+    if status == "deleted":
+        return {
+            **key,
+            "state": "removed",
+            "url": loaded_url,
+            "deal_type": direction.deal,
+        }
+
     return normalize_cian_card(
-        loaded_url, key, data, _product(product_scripts, requested_id)
+        loaded_url,
+        key,
+        data,
+        _product(_documents(product_scripts), route),
+        deal=direction.deal,
+        property_type_id=direction.property_type_id,
+        market_segment=direction.market,
     )
 
 
-class EmbeddedPage(TypedDict):
+class _EmbeddedPage(TypedDict):
     url: str
     captcha: bool
     config: list[str]
@@ -126,47 +290,50 @@ class EmbeddedPage(TypedDict):
 
 
 def capture_card(
-    page: Page, url: str, key: str, observed_at: datetime, deadline: float
-) -> ActiveSnapshot:
+    page: Page, url: str, observed_at: datetime, deadline: float
+) -> Snapshot:
+    route, key = _identity(url, observed_at)
     previous_config: list[str] = []
     while True:
-        data = _wait_for_scripts(page, url, deadline, previous_config)
+        data = _wait_for_card_scripts(page, url, deadline, previous_config)
         if data["captcha"]:
             raise RejectedCard("source_captcha")
-        try:
-            return parse_card(
-                key,
-                observed_at,
-                data["config"],
-                data["products"],
-                loaded_url=data["url"],
-            )
-        except _CardPending:
-            previous_config = data["config"]
+        snapshot = _parse_observation(
+            route, key, data["config"], data["products"], data["url"]
+        )
+        if snapshot is not None:
+            return snapshot
+        previous_config = data["config"]
 
 
-def _wait_for_scripts(
+def _wait_for_card_scripts(
     page: Page, url: str, deadline: float, previous_config: list[str]
-) -> EmbeddedPage:
+) -> _EmbeddedPage:
     remaining_ms = (deadline - time.monotonic()) * 1000
     if remaining_ms <= 0:
         raise PlaywrightTimeout("Card attempt deadline elapsed")
     handle = page.wait_for_function(
-        r"""({requested, previousConfig}) => {
-            const expected = new URL(requested);
+        r"""({url, partnerHost, previousConfig}) => {
             const trimSlash = path => path.replace(/\/$/, "");
-            const redirected = location.origin !== expected.origin
-                || trimSlash(location.pathname) !== trimSlash(expected.pathname);
+            const expected = new URL(url);
+            const partner = expected.hostname === partnerHost;
+            const shifted = trimSlash(location.pathname) !== trimSlash(expected.pathname)
+                || partner !== (location.hostname === partnerHost);
             const captcha = trimSlash(location.pathname) === "/cian-captcha"
                 || document.title.toLowerCase().includes("captcha");
-            if (!redirected && !captcha && document.readyState !== "complete") return false;
+            if (!shifted && !captcha && document.readyState !== "complete") return false;
             const scripts = Array.from(document.scripts).filter(script => !script.src);
-            const config = scripts.map(script => script.textContent).filter(text =>
-                text.includes("_cianConfig") && text.includes("frontend-offer-card")
-            );
+            const config = partner
+                ? scripts.filter(script =>
+                    script.id === "__NUXT_DATA__" && script.type === "application/json"
+                ).map(script => script.textContent)
+                : scripts.map(script => script.textContent).filter(text =>
+                    text.includes("_cianConfig") && text.includes("frontend-offer-card")
+                    && text.includes("defaultState") && text.includes("offerData")
+                );
             const changed = config.length !== previousConfig.length
                 || config.some((text, index) => text !== previousConfig[index]);
-            if (!redirected && !captcha && !changed) return false;
+            if (!shifted && !captcha && !changed) return false;
             return {
                 url: location.href, captcha, config,
                 products: scripts
@@ -174,13 +341,14 @@ def _wait_for_scripts(
                     .map(script => script.textContent),
             };
         }""",
-        arg={"requested": url, "previousConfig": previous_config},
+        arg={
+            "url": url,
+            "partnerHost": PARTNER_HOST,
+            "previousConfig": previous_config,
+        },
         timeout=remaining_ms,
     )
     try:
-        data = cast(EmbeddedPage, handle.json_value())
+        return cast(_EmbeddedPage, handle.json_value())
     finally:
         handle.dispose()
-    if time.monotonic() >= deadline:
-        raise PlaywrightTimeout("Card attempt deadline elapsed")
-    return data

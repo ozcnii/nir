@@ -5,6 +5,7 @@ Changes to the initial data require a new migration.
 
 APARTMENT_TYPE_ID = 1
 ROOM_TYPE_ID = 2
+HOUSE_TYPE_ID = 3
 SAMARA_REGION_ID = 68
 
 SOURCE_CODES = ("cian", "domclick", "avito")
@@ -12,7 +13,7 @@ SOURCE_CODES = ("cian", "domclick", "avito")
 PROPERTY_TYPES = (
     (APARTMENT_TYPE_ID, "Квартира"),
     (ROOM_TYPE_ID, "Комната"),
-    (3, "Дом"),
+    (HOUSE_TYPE_ID, "Дом"),
 )
 
 REGIONS = (

@@ -11,9 +11,9 @@ from app.catalog.address import (
     retains_location,
     same_house,
 )
-from app.catalog.address_parser import parse_address, read_room_address
 from app.catalog.contracts import ActiveSnapshot, PropertyFacts
 from app.catalog.matching import Candidate, Match, property_patch
+from app.catalog.room_address_parser import parse_room_address, read_room_address
 
 ROOM_DETAILS = ("квартира", "комната", "комната дома")
 
@@ -76,7 +76,7 @@ def choose_room(
         facts = candidate.facts
         if facts["rooms"] != 1 or not _compatible_facts(incoming, facts):
             continue
-        other = parse_address(facts["address"], region, room=True)
+        other = parse_room_address(facts["address"], region)
         if (
             other is not None
             and _unit(other.details) == unit
