@@ -276,8 +276,9 @@ class SnapshotTests(TestCase):
         }
         moved: ActiveSnapshot = {
             **later(full, 5),
-            "address": f"{address}, комната 3".replace(
-                "Самара,", "Самара, микрорайон Солнечный,"
+            "address": (
+                "Самара, микрорайон Солнечный, улица Ставропольская, "
+                "дом 131, корпус 2, квартира 25"
             ),
             "price": conflict["price"],
             "photos": conflict["photos"],

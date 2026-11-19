@@ -1,6 +1,13 @@
 """Compare and enrich parsed property addresses."""
 
+from collections.abc import Collection
 from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class AddressNumbers:
+    number: str | None
+    details: dict[str, tuple[str, str]]
 
 
 @dataclass(frozen=True)
@@ -28,7 +35,7 @@ class Address:
         return (self.locality, self.street, self.number)
 
 
-def _location_conflicts(left: Address, right: Address) -> bool:
+def location_conflicts(left: Address, right: Address) -> bool:
     return left.location != right.location or any(
         first is not None and second is not None and first != second
         for first, second in (
@@ -39,26 +46,27 @@ def _location_conflicts(left: Address, right: Address) -> bool:
 
 
 def same_house(left: Address, right: Address) -> bool:
-    return left.building_parts == right.building_parts and not _location_conflicts(
+    return left.building_parts == right.building_parts and not location_conflicts(
         left, right
     )
 
 
 def details_conflict(
-    previous: Address, incoming: Address, *, ignore: str | None = None
+    previous: Address | AddressNumbers,
+    incoming: Address | AddressNumbers,
+    *,
+    ignore: Collection[str] = (),
 ) -> bool:
     return any(
         previous.details[name][0] != incoming.details[name][0]
         for name in previous.details.keys() & incoming.details.keys()
-        if name != ignore
+        if name not in ignore
     )
 
 
-def address_conflicts(
-    previous: Address, incoming: Address, *, ignore: str | None = None
-) -> bool:
-    return _location_conflicts(previous, incoming) or details_conflict(
-        previous, incoming, ignore=ignore
+def address_conflicts(previous: Address, incoming: Address) -> bool:
+    return location_conflicts(previous, incoming) or details_conflict(
+        previous, incoming
     )
 
 

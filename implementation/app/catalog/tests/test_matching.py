@@ -1,6 +1,8 @@
 from unittest import TestCase
 
-from app.catalog.address_parser import parse_address, published_room_details
+from app.catalog.address_parser import parse_address
+from app.catalog.contracts import PropertyFacts
+from app.catalog.matching_room import repeated_room_patch
 from app.catalog.seller_description import matching_description
 
 
@@ -61,30 +63,56 @@ class MatchingTests(TestCase):
         )
         self.assertIsNone(misplaced_street)
 
-    def test_room_qualifiers_need_an_explicit_unambiguous_address_tail(self) -> None:
+    def test_room_repeat_compares_only_known_numbers_in_incomplete_addresses(
+        self,
+    ) -> None:
         # Arrange
-        address = "Самара, микрорайон Солнечный, улица Солнечная, дом 7"
-        tails = (
-            "кв. 25, комн. № 2",
-            "комната дома 25",
-            "квартира 25, комната 2, квартира 26",
-            "квартира 25, другое здание, комната 2",
-            "квартира 25, комната А",
+        region = "Самарская область"
+        territory = "Самара, микрорайон Солнечный, улица Солнечная"
+        known = "дом 7, корпус 2, строение а, квартира 25, комната 2"
+        previous: PropertyFacts = {
+            "address": f"Самара, улица Солнечная, {known}",
+            "latitude": None,
+            "longitude": None,
+            "area_m2": None,
+            "rooms": 1,
+            "floor": None,
+            "floors_total": None,
+            "land_area_m2": None,
+        }
+        cases = (
+            (f"{territory}, дом 7, кв. 25, комн. № 2", False),
+            (f"{territory}, д. 7, квартира 26", True),
+            (f"{territory}, дом 9, квартира 25", True),
+            (f"{territory} д. 9, квартира 25", True),
+            (f"{territory}, дом 7, корп. 4", True),
+            (f"{territory}, дом 7, стр. б", True),
+            (f"{territory}, дом 7, квартира 25, комната 3", True),
+            (f"{territory}, дом 7, комната дома 2", True),
+            (f"{territory}, дом 7, квартира 25", False),
+            (f"{territory}, дом 7, комната 3", False),
+            (f"{territory}, дом 7, квартира 25, комната дома 3", False),
+            (f"{territory}, 9, квартира 25", False),
+            (f"{territory}, участок 9, квартира 25", False),
+            (f"{territory}, дом 7, дом 9, квартира 25", False),
+            (f"{territory}, дом 7, квартира 25, комната 3, квартира 26", False),
+            (f"{territory}, дом 7, квартира 25, другое здание, комната 3", False),
         )
 
-        # Act
-        result = parse_address(f"{address}, {tails[0]}", "Самарская область", room=True)
-        qualifiers = [published_room_details(f"{address}, {tail}") for tail in tails]
+        for address, conflict in cases:
+            with self.subTest(address=address):
+                # Arrange
+                incoming: PropertyFacts = {**previous, "address": address}
 
-        # Assert
-        self.assertIsNone(result)
-        self.assertEqual(
-            [
-                {name: number for name, (number, _) in details.items()}
-                for details in qualifiers
-            ],
-            [{"квартира": "25", "комната": "2"}, {"комната дома": "25"}, {}, {}, {}],
-        )
+                # Act
+                strict_saved = repeated_room_patch(previous, incoming, region)
+                partial_saved = repeated_room_patch(
+                    {**previous, "address": f"{territory}, {known}"}, incoming, region
+                )
+
+                # Assert
+                expected: dict[str, object] | None = None if conflict else {}
+                self.assertEqual((strict_saved, partial_saved), (expected, expected))
 
     def test_layout_requires_asserted_dimensions_of_distinct_rooms(self) -> None:
         for text in (
