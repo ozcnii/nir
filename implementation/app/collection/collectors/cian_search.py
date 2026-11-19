@@ -16,6 +16,7 @@ from app.catalog.reference_defaults import (
     ROOM_TYPE_ID,
 )
 from app.collection.collectors.cian import card_key
+from app.collection.listing_page import SearchPage
 from app.collection.normalization import RejectedCard, as_object
 
 # Published starting routes and effective region IDs in CIAN64-FINAL-PRIMARY.md.
@@ -145,17 +146,6 @@ def route_for(
         return None
     observed = _STARTS.get((REGION_NAMES.get(region_id, ""), deal, property_type_id))
     return SearchRoute(*observed, deal, property_type_id) if observed else None
-
-
-@dataclass(frozen=True)
-class SearchPage:
-    number: int
-    filters: dict[str, object]
-    urls: dict[str, str]
-    next_url: str | None
-    incomplete: tuple[str, ...]
-    next_control: str | None = None
-    group_urls: tuple[str, ...] = ()
 
 
 class _Projection(TypedDict):

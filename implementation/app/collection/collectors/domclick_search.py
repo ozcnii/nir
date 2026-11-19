@@ -2,7 +2,7 @@
 
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TypedDict, cast
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
@@ -18,7 +18,7 @@ from app.catalog.reference_defaults import (
 )
 from app.collection.collectors.domclick import card_key, read_daily_listing_quote
 from app.collection.collectors.domclick_state import ssr_state
-from app.collection.domclick_normalization import DailyListingQuote
+from app.collection.listing_page import SearchPage
 from app.collection.normalization import RejectedCard, as_object
 
 _NATIVE_HOST = "samara.domclick.ru"
@@ -43,18 +43,6 @@ _NATIVE_NEXT = '[data-e2e-id="paginate-next-btn"], a[aria-label="Следующ�
 _CARD_PREFIX = "/card/"
 _GROUP_TYPE = "sale__new_flat__"
 _UUID = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", re.IGNORECASE)
-
-
-@dataclass(frozen=True)
-class SearchPage:
-    number: int
-    filters: dict[str, object]
-    urls: dict[str, str]
-    next_url: str | None
-    incomplete: tuple[str, ...]
-    next_control: str | None = None
-    quotes: dict[str, DailyListingQuote] = field(default_factory=dict)
-    group_urls: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
