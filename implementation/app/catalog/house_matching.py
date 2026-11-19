@@ -3,11 +3,7 @@
 from collections.abc import Iterable
 
 from app.catalog.address import HouseAddress
-from app.catalog.address_parser import (
-    HOUSE_BLOCK_TAGS,
-    marked_house_ids,
-    parse_house_address,
-)
+from app.catalog.address_parser import HOUSE_BLOCK_TAGS, parse_house_address
 from app.catalog.contracts import PropertyFacts
 from app.catalog.matching import Candidate, Match, property_patch
 
@@ -94,37 +90,40 @@ def _enriched_address(
 
 
 def repeated_house_patch(
-    previous: PropertyFacts, incoming: PropertyFacts, region: str
+    previous: PropertyFacts,
+    incoming: PropertyFacts,
+    region: str,
+    new: HouseAddress | None,
 ) -> dict[str, object] | None:
     old = parse_house_address(previous["address"], region)
-    new = parse_house_address(incoming["address"], region)
-    old_ids = _house_ids(old, previous["address"])
-    new_ids = _house_ids(new, incoming["address"])
-    old_block = HOUSE_BLOCK_TAGS.intersection(old_ids)
-    new_block = HOUSE_BLOCK_TAGS.intersection(new_ids)
-    if _conflicting_ids(old_ids, new_ids) or (
-        new_block and old_block != new_block and (old_block or (old and old.complete))
-    ):
-        return None
     updated_address = incoming["address"] if previous["address"] is None else None
     if old is not None and new is not None:
+        old_block = HOUSE_BLOCK_TAGS.intersection(old.qualifiers)
+        new_block = HOUSE_BLOCK_TAGS.intersection(new.qualifiers)
         if (
-            old.complete
-            and new.complete
-            and not _contains_location(old.location, new.location)
-            and not _contains_location(new.location, old.location)
+            _location_conflicts(old, new)
+            or _conflicting_ids(_building_parts(old), _building_parts(new))
+            or (new_block and old_block != new_block and (old_block or old.complete))
         ):
             return None
         updated_address = _enriched_address(old, new, incoming)
     return property_patch(previous, incoming, updated_address)
 
 
-def _house_ids(parsed: HouseAddress | None, raw: str | None) -> dict[str, str]:
-    if parsed is None:
-        identifiers = marked_house_ids(raw)
-    else:
-        identifiers = dict(parsed.qualifiers)
-        if parsed.number is not None:
-            identifiers["дом"] = parsed.number
-    identifiers.pop("участок", None)
-    return identifiers
+def _location_conflicts(old: HouseAddress, new: HouseAddress) -> bool:
+    if any(
+        left is not None and right is not None and left != right
+        for left, right in ((old.number, new.number), (old.street, new.street))
+    ) or _conflicting_ids(old.settlements, new.settlements):
+        return True
+    if len(old.settlements) == len(new.settlements) == 1:
+        old_kind, old_name = next(iter(old.settlements.items()))
+        new_kind, new_name = next(iter(new.settlements.items()))
+        if old_name != new_name or (old_kind and new_kind and old_kind != new_kind):
+            return True
+    return (
+        old.complete
+        and new.complete
+        and not _contains_location(old.location, new.location)
+        and not _contains_location(new.location, old.location)
+    )

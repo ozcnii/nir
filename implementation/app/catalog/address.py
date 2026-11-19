@@ -6,9 +6,12 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class HouseAddress:
     location: tuple[str, ...]
+    settlements: dict[str, str]
+    street: str | None
     number: str | None
     qualifiers: dict[str, str]
     complete: bool
+    block_marked: bool
 
 
 @dataclass(frozen=True)

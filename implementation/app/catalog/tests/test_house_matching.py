@@ -55,22 +55,27 @@ class HouseMatchingTests(TestCase):
     def test_concrete_house_and_block_are_distinct_units(self) -> None:
         # Arrange
         first = snapshot("house", HOUSE, area=None, floors=None)
-        bad_block = snapshot("no-id", f"{HOUSE}, блок")
-        valid_block = snapshot("block", f"{HOUSE}, блок 2")
+        bad_blocks = (
+            snapshot("no-id", f"{HOUSE}, блок"),
+            snapshot("no-inline-id", f"{HOUSE} блок"),
+        )
+        valid_block = snapshot("block", f"{HOUSE} блок 2")
 
         # Act
         whole = accept_snapshot(first)
-        rejected = accept_snapshot(bad_block)
+        rejected = [accept_snapshot(item) for item in bad_blocks]
         block = accept_snapshot(valid_block)
 
         # Assert
         self.assertEqual(whole.outcome, "created")
-        self.assertEqual(rejected.reason, "unconfirmed_house_block")
+        self.assertEqual(
+            [item.reason for item in rejected], ["unconfirmed_house_block"] * 2
+        )
         self.assertEqual(block.outcome, "created")
         self.assertNotEqual(whole.property_id, block.property_id)
         assert block.property_id is not None
         saved_block = Property.objects.get(pk=block.property_id)
-        self.assertEqual(saved_block.address, f"{HOUSE}, блок 2")
+        self.assertEqual(saved_block.address, f"{HOUSE} блок 2")
         self.assertIsNone(saved_block.floor)
         self.assertEqual(Ad.objects.count(), 2)
         self.assertEqual(PriceHistory.objects.count(), 2)
@@ -80,7 +85,7 @@ class HouseMatchingTests(TestCase):
         original = accept_snapshot(
             snapshot("original", f"{HOUSE}, секция А", land=Decimal(600))
         )
-        alternative = "Самара, СНТ Луч, Садовая улица, 7, секция а"
+        alternative = "Самара, СНТ Луч, Садовая ул. дом 7 секция а"
         same_block = snapshot("same", alternative, source="domclick")
         same_block["rooms"] = 3
         others = (
@@ -144,6 +149,19 @@ class HouseMatchingTests(TestCase):
             len({first.property_id, second.property_id, third.property_id}), 3
         )
 
+    def test_inconsistent_locality_cannot_determine_the_same_house(self) -> None:
+        # Arrange
+        address = "город Самара, город Тольятти, улица Садовая, дом 7"
+        first = accept_snapshot(snapshot("first", address))
+
+        # Act
+        second = accept_snapshot(snapshot("second", address, source="domclick"))
+
+        # Assert
+        self.assertEqual(first.outcome, "created")
+        self.assertEqual(second.outcome, "created")
+        self.assertNotEqual(first.property_id, second.property_id)
+
     def test_repeat_preserves_bytes_and_timestamp_on_address_conflict(self) -> None:
         # Arrange
         saved_address = f"{HOUSE}, блок 2"
@@ -152,6 +170,9 @@ class HouseMatchingTests(TestCase):
             f"{HOUSE}, блок 3",
             HOUSE.replace("дом 7", "дом 8"),
             "Самара, блок 3",
+            "Самара, СНТ Луч, ул. Полевая",
+            "город Тольятти, улица Садовая",
+            "Самара, улица Садовая, 8, СНТ Луч",
         )
         newer = TIME + timedelta(minutes=1)
 
@@ -227,9 +248,10 @@ class HouseMatchingTests(TestCase):
         block = accept_snapshot(snapshot("block", block_address))
         whole = accept_snapshot(snapshot("whole", HOUSE))
         newer = TIME + timedelta(minutes=1)
+        without_block = "Самара, СНТ Луч, Садовая ул. дом 7"
 
         # Act
-        omitted = accept_snapshot(snapshot("block", HOUSE, time=newer))
+        omitted = accept_snapshot(snapshot("block", without_block, time=newer))
         changed = accept_snapshot(snapshot("whole", block_address, time=newer))
 
         # Assert

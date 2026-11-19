@@ -8,11 +8,8 @@ from django.db import IntegrityError
 from django.db.models import Exists
 from psycopg.errors import CheckViolation
 
-from app.catalog.address_parser import (
-    mentions_house_block,
-    parse_address,
-    parse_house_address,
-)
+from app.catalog.address import HouseAddress
+from app.catalog.address_parser import parse_address, parse_house_address
 from app.catalog.contracts import (
     PROPERTY_FACT_FIELDS,
     ActiveSnapshot,
@@ -120,26 +117,30 @@ def _write_snapshot(
     if not _references_exist(snapshot):
         return SnapshotResult("rejected", reason="unknown_reference")
     region = REGION_NAMES.get(snapshot["region_id"])
+    house = (
+        parse_house_address(snapshot["address"], region or "")
+        if snapshot["property_type_id"] == HOUSE_TYPE_ID
+        else None
+    )
     match = None
     if previous is not None:
-        repeat = _repeat_match(snapshot, previous, region)
+        repeat = _repeat_match(snapshot, previous, region, house)
         if isinstance(repeat, SnapshotResult):
             return repeat
         match = repeat
     if snapshot["property_type_id"] == HOUSE_TYPE_ID:
-        address = snapshot["address"]
         if snapshot["floor"] is not None or snapshot["rooms"] == 0:
             return SnapshotResult("rejected", reason="invalid_house_facts")
-        if address is not None and mentions_house_block(address):
-            parsed = parse_house_address(address, region or "")
-            if parsed is None or not parsed.complete:
-                return SnapshotResult("rejected", reason="unconfirmed_house_block")
+        if house is not None and house.block_marked and not house.complete:
+            return SnapshotResult("rejected", reason="unconfirmed_house_block")
     if previous is None:
-        match = _new_match(snapshot, region)
+        match = _new_match(snapshot, region, house)
     return _store_active(snapshot, previous, match)
 
 
-def _new_match(snapshot: ActiveSnapshot, region: str | None) -> Match | None:
+def _new_match(
+    snapshot: ActiveSnapshot, region: str | None, house: HouseAddress | None
+) -> Match | None:
     property_type = snapshot["property_type_id"]
     if region is None or property_type not in MATCHED_TYPES:
         return None
@@ -147,7 +148,6 @@ def _new_match(snapshot: ActiveSnapshot, region: str | None) -> Match | None:
     if property_type == HOUSE_TYPE_ID:
         if snapshot["area_m2"] is None or snapshot["floors_total"] is None:
             return None
-        house = parse_house_address(snapshot["address"], region)
         if house is not None and house.complete:
             return choose_house(snapshot, house, candidates, region)
         return None
@@ -156,7 +156,10 @@ def _new_match(snapshot: ActiveSnapshot, region: str | None) -> Match | None:
 
 
 def _repeat_match(
-    snapshot: ActiveSnapshot, previous: Ad, region: str | None
+    snapshot: ActiveSnapshot,
+    previous: Ad,
+    region: str | None,
+    house: HouseAddress | None,
 ) -> Match | SnapshotResult | None:
     property_type = snapshot["property_type_id"]
     property_id = previous.property_id
@@ -176,7 +179,7 @@ def _repeat_match(
     if region is None:
         return None
     if property_type == HOUSE_TYPE_ID:
-        patch = repeated_house_patch(saved, snapshot, region)
+        patch = repeated_house_patch(saved, snapshot, region, house)
         reason = "house_address_changed"
     else:
         patch = repeated_flat_patch(saved, snapshot, region)
