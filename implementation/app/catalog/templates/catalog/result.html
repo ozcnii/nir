@@ -48,8 +48,7 @@
               {% if item.segment %}<span> · {{ item.segment }}</span>{% endif %}
               {% if item.price %}
                 <span class="price">
-                  {% if item.price.price_kind == "from" %}от{% endif %}
-                  {{ item.price.price_rub|floatformat:"-2g" }} {{ item.unit }}
+                  {% include "catalog/price_value.html" with price=item.price unit=item.unit only %}
                 </span>
                 <small>
                   Последняя известная цена. Зафиксирована

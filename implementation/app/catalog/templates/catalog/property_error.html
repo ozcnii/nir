@@ -1,0 +1,19 @@
+{% extends "catalog/base.html" %}
+{% block title %}
+  {{ title }}
+{% endblock title %}
+{% block content %}
+  <section class="message">
+    <h1>{{ title }}</h1>
+    {% if errors %}
+      <ul class="errorlist">
+        {% for field, messages in errors %}
+          {% for error in messages %}
+            <li>{{ field }} — {{ error.message }}</li>
+          {% endfor %}
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <a href="{% url 'catalog' %}">В каталог</a>
+  </section>
+{% endblock content %}
