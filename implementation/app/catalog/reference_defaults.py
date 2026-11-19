@@ -9,6 +9,7 @@ HOUSE_TYPE_ID = 3
 SAMARA_REGION_ID = 68
 
 SOURCE_CODES = ("cian", "domclick", "avito")
+SOURCE_LABELS = {"cian": "Циан", "domclick": "Домклик", "avito": "Авито"}
 
 PROPERTY_TYPES = (
     (APARTMENT_TYPE_ID, "Квартира"),
