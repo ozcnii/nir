@@ -1,0 +1,34 @@
+<section class="publication-photos">
+  <h4>Фотографии</h4>
+  {% if ad.photos %}
+    <div data-gallery>
+      <div class="gallery-photos">
+        {% for url in ad.photos %}
+          <figure data-slide>
+            <div class="preview gallery-image">
+              <img src="{{ url }}"
+                   alt="Фото {{ forloop.counter }}"
+                   loading="lazy"
+                   data-preview>
+              <span class="photo-placeholder" hidden>Фото недоступно</span>
+            </div>
+            <figcaption>
+              <a href="{{ url }}">Открыть опубликованное фото</a>
+            </figcaption>
+          </figure>
+        {% endfor %}
+      </div>
+      {% if ad.photos|length > 1 %}
+        <div class="gallery-controls" data-controls hidden>
+          <button type="button" data-previous>Предыдущее</button>
+          <span aria-live="polite" data-position></span>
+          <button type="button" data-next>Следующее</button>
+        </div>
+      {% endif %}
+    </div>
+  {% elif ad.photos_observed_at %}
+    <p>Фото не опубликованы</p>
+  {% else %}
+    <p>Фото не получены</p>
+  {% endif %}
+</section>
