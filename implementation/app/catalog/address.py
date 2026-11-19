@@ -1,5 +1,6 @@
 """Compare and enrich parsed property addresses."""
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Literal
 
@@ -25,6 +26,30 @@ class HouseAddress:
         return self.chain == "complete"
 
 
+STREET_TYPES = (
+    "улица",
+    "проспект",
+    "переулок",
+    "бульвар",
+    "шоссе",
+    "набережная",
+    "проезд",
+    "площадь",
+    "тракт",
+)
+
+
+@dataclass(frozen=True)
+class PartialAddress:
+    settlement: str | None
+    settlement_kind: str | None
+    enclosing_district: str | None
+    district: str | None
+    street: str | None
+    number: str | None
+    details: dict[str, tuple[str, str]]
+
+
 @dataclass(frozen=True)
 class Address:
     locality: tuple[str, ...]
@@ -46,36 +71,97 @@ class Address:
         return item[0] if item is not None else None
 
     @property
-    def location(self) -> tuple[tuple[str, ...], str, str]:
-        return (self.locality, self.street, self.number)
+    def settlement(self) -> str:
+        return self.locality[-1]
+
+    @property
+    def enclosing_district(self) -> str | None:
+        if len(self.locality) > 1:
+            return self.locality[0].removeprefix("район ")
+        return None
 
 
-def _location_conflicts(left: Address, right: Address) -> bool:
-    return left.location != right.location or any(
+def _geography_pairs(
+    left: Address | PartialAddress, right: Address | PartialAddress
+) -> tuple[tuple[str | None, str | None], ...]:
+    return (
+        (left.settlement, right.settlement),
+        (left.settlement_kind, right.settlement_kind),
+        (left.enclosing_district, right.enclosing_district),
+        (left.district, right.district),
+        (left.number, right.number),
+    )
+
+
+def _geography_conflicts(left: Address, right: Address) -> bool:
+    return any(
         first is not None and second is not None and first != second
-        for first, second in (
-            (left.district, right.district),
-            (left.settlement_kind, right.settlement_kind),
-        )
+        for first, second in _geography_pairs(left, right)
+    )
+
+
+def _street_parts(street: str | None) -> tuple[str | None, str | None]:
+    if street is None:
+        return None, None
+    kind, _, name = street.partition(" ")
+    return (kind, name) if name and kind in STREET_TYPES else (None, street)
+
+
+def _location_pairs(
+    left: Address | PartialAddress, right: Address | PartialAddress
+) -> tuple[tuple[str | None, str | None], ...]:
+    left_kind, left_name = _street_parts(left.street)
+    right_kind, right_name = _street_parts(right.street)
+    return (
+        *_geography_pairs(left, right),
+        (left_name, right_name),
+        (left_kind, right_kind),
+    )
+
+
+def location_conflicts(
+    left: Address | PartialAddress, right: Address | PartialAddress
+) -> bool:
+    return any(
+        first is not None and second is not None and first != second
+        for first, second in _location_pairs(left, right)
+    )
+
+
+def retains_location(previous: Address, incoming: Address) -> bool:
+    return all(
+        old is None or old == new for old, new in _location_pairs(previous, incoming)
     )
 
 
 def same_house(left: Address, right: Address) -> bool:
-    return left.building_parts == right.building_parts and not _location_conflicts(
-        left, right
+    return (
+        left.locality == right.locality
+        and left.street == right.street
+        and left.building_parts == right.building_parts
+        and not _geography_conflicts(left, right)
     )
 
 
-def details_conflict(previous: Address, incoming: Address) -> bool:
+def details_conflict(
+    previous: Address | PartialAddress,
+    incoming: Address | PartialAddress,
+    *,
+    ignore: Collection[str] = (),
+) -> bool:
     return any(
         previous.details[name][0] != incoming.details[name][0]
         for name in previous.details.keys() & incoming.details.keys()
+        if name not in ignore
     )
 
 
-def apartment_address_conflicts(previous: Address, incoming: Address) -> bool:
-    return _location_conflicts(previous, incoming) or details_conflict(
-        previous, incoming
+def address_conflicts(previous: Address, incoming: Address) -> bool:
+    return (
+        previous.locality != incoming.locality
+        or previous.street != incoming.street
+        or _geography_conflicts(previous, incoming)
+        or details_conflict(previous, incoming)
     )
 
 

@@ -18,6 +18,7 @@ from psycopg import Connection
 from psycopg.rows import TupleRow
 
 from app.catalog.contracts import ActiveSnapshot, KnownPrice, SnapshotResult
+from app.catalog.reference_defaults import ROOM_TYPE_ID
 
 START = datetime(2026, 11, 18, 12, tzinfo=UTC)
 PHOTO = "https://images.example.test/card.jpg?size=40"
@@ -118,6 +119,592 @@ class SnapshotTests(TestCase):
         from app.catalog.publications import accept_snapshot
 
         self.accept = accept_snapshot
+
+    def test_matching_rooms_requires_full_address_and_common_fact(self) -> None:
+        # Arrange
+        address = "Самара, улица Солнечная, дом 7, квартира 25, комната 2"
+        first: ActiveSnapshot = {
+            **card("room-first"),
+            "property_type_id": ROOM_TYPE_ID,
+            "address": address,
+            "area_m2": Decimal("9.00"),
+        }
+        second = {**first, "source_code": "domclick", "external_id": "room-second"}
+        different: tuple[Mapping[str, object], ...] = (
+            {"address": address.replace("комната 2", "комната 3")},
+            {"address": address.removesuffix(", комната 2")},
+            {"address": address.replace(", квартира 25", "")},
+            {"area_m2": Decimal("9.20")},
+            {"floors_total": 17},
+            {"rooms": 2},
+            {"rooms": None},
+            {"area_m2": None, "floor": None},
+        )
+        ambiguous_addresses = (
+            "Самара, участок 9, квартира 25, комната 2",
+            "Самара, улица Солнечная дом 7 дом 9, квартира 25, комната 2",
+            f"г. Самара, {address}",
+            f"{address}, комната дома 2",
+            "г. Самара, Самара, дом 7, квартира 25, комната 2",
+            "Самара, г. Самара, дом 7, квартира 25, комната 2",
+        )
+        with as_app():
+            # Act
+            a = self.accept(first)
+            b = self.accept(second)
+            others = [
+                self.accept({**second, **changes, "external_id": f"room-{index}"})
+                for index, changes in enumerate(different)
+            ]
+            ambiguous = [
+                self.accept(
+                    {**offer, "address": address, "external_id": f"room-{site}-{i}"}
+                )
+                for i, address in enumerate(ambiguous_addresses)
+                for site, offer in (("first", first), ("second", second))
+            ]
+
+        # Assert
+        self.assertEqual(a.outcome, "created")
+        self.assertEqual(b.outcome, "created")
+        self.assertEqual(a.property_id, b.property_id)
+        self.assertNotEqual(a.ad_id, b.ad_id)
+        self.assertEqual({result.outcome for result in others}, {"created"})
+        self.assertEqual(
+            len({a.property_id, *(result.property_id for result in others)}),
+            len(different) + 1,
+        )
+        self.assertEqual({record.outcome for record in ambiguous}, {"created"})
+        self.assertEqual(
+            len({record.property_id for record in ambiguous}), len(ambiguous)
+        )
+
+    def test_room_standalone_scope_and_ambiguous_candidates(self) -> None:
+        # Arrange: neither a room in an apartment nor the same number alone qualifies.
+        building = "Самара, улица Солнечная, дом 9"
+        standalone: ActiveSnapshot = {
+            **card("room-standalone"),
+            "property_type_id": ROOM_TYPE_ID,
+            "address": f"{building}, комната дома 2",
+            "area_m2": None,
+        }
+        second: ActiveSnapshot = {
+            **standalone,
+            "source_code": "domclick",
+            "external_id": "room-standalone-second",
+        }
+        with as_app():
+            # Act
+            one = self.accept(standalone)
+            same = self.accept(second)
+            apartment = self.accept(
+                {
+                    **second,
+                    "external_id": "room-apartment-number",
+                    "address": f"{building}, квартира 25, комната 2",
+                }
+            )
+            separate = self.accept(
+                {
+                    **standalone,
+                    "external_id": "room-area-only",
+                    "floor": None,
+                    "area_m2": Decimal("9.00"),
+                }
+            )
+            multiple = self.accept(
+                {**second, "external_id": "room-ambiguous", "area_m2": Decimal("9.00")}
+            )
+
+        # Assert: room scope is part of identity and neither of two candidates wins.
+        self.assertEqual(one.property_id, same.property_id)
+        self.assertEqual(
+            len(
+                {
+                    one.property_id,
+                    apartment.property_id,
+                    separate.property_id,
+                    multiple.property_id,
+                }
+            ),
+            4,
+        )
+
+    def test_matching_room_keeps_one_published_address(self) -> None:
+        # Arrange
+        unit = "улица Солнечная, дом 8, квартира 25, комната 2"
+        stored = f"Самара, Кировский район, {unit}"
+        first: ActiveSnapshot = {
+            **card("room-address-owner"),
+            "property_type_id": ROOM_TYPE_ID,
+            "address": stored,
+        }
+        other: ActiveSnapshot = {
+            **first,
+            "source_code": "domclick",
+            "external_id": "room-other-address",
+            "address": f"город Самара, {unit}",
+        }
+        confirmed_address = f"город Самара, Кировский район, {unit}"
+        with as_app() as connection:
+            # Act
+            created = self.accept(first)
+            attached = self.accept(other)
+            before = connection.execute(
+                "SELECT address FROM properties WHERE id=%s", (created.property_id,)
+            ).fetchone()
+            self.accept({**later(other, 1), "address": confirmed_address})
+            after = connection.execute(
+                "SELECT address FROM properties WHERE id=%s", (created.property_id,)
+            ).fetchone()
+
+        # Assert
+        self.assertEqual(attached.property_id, created.property_id)
+        self.assertEqual(before, (stored,))
+        self.assertEqual(after, (confirmed_address,))
+
+    def test_room_repeat_preserves_known_location_before_enrichment(self) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        # Arrange
+        unit = "дом 7, квартира 25, комната 2"
+        address = f"Самара, ул. Советская, {unit}"
+        original: ActiveSnapshot = {
+            **card("room-location-facts"),
+            "property_type_id": ROOM_TYPE_ID,
+            "address": address,
+        }
+        repeats = (
+            (f"г. Самара, Самара, {unit}", Decimal("7500000")),
+            (f"г. Самара, Советская, {unit}", Decimal("7000000")),
+        )
+        with as_app():
+            first = self.accept(original)
+            assert first.ad_id is not None
+
+            # Act
+            outcomes = []
+            addresses = []
+            for index, (published, amount) in enumerate(repeats, 1):
+                outcomes.append(
+                    self.accept(
+                        {
+                            **later(original, index),
+                            "address": published,
+                            "price": price(str(amount)),
+                        }
+                    )
+                )
+                addresses.append(
+                    Ad.objects.values_list("property__address", flat=True).get(
+                        pk=first.ad_id
+                    )
+                )
+            history = list(
+                PriceHistory.objects.filter(ad_id=first.ad_id)
+                .order_by("id")
+                .values_list("price_rub", flat=True)
+            )
+
+        # Assert
+        self.assertEqual([result.outcome for result in outcomes], ["updated"] * 2)
+        self.assertEqual(
+            [result.property_id for result in outcomes], [first.property_id] * 2
+        )
+        self.assertEqual(addresses, [address] * 2)
+        self.assertEqual(
+            history, [Decimal("8000000"), *(amount for _, amount in repeats)]
+        )
+
+    def test_repeated_room_does_not_change_unit_or_complete_partial_chain(self) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        # Arrange
+        building = "Самара, улица Ставропольская, дом 130"
+        address = f"{building}, корпус 2, квартира 25"
+        source: ActiveSnapshot = {
+            **card("room-repeated"),
+            "property_type_id": ROOM_TYPE_ID,
+            "address": address,
+            "area_m2": Decimal("12"),
+        }
+        partial: ActiveSnapshot = {
+            **later(source, 1),
+            "address": f"{building}, комната 2",
+        }
+        without_building_part: ActiveSnapshot = {
+            **later(source, 2),
+            "address": f"{building}, квартира 25, комната 2",
+        }
+        conflict: ActiveSnapshot = {
+            **later(source, 3),
+            "rooms": 2,
+            "price": price("7000000"),
+            "photos": {"status": "known", "urls": []},
+        }
+        full: ActiveSnapshot = {
+            **later(source, 4),
+            "address": f"{address}, комната 2",
+        }
+        moved: ActiveSnapshot = {
+            **later(full, 5),
+            "address": (
+                "Самара, микрорайон Солнечный, улица Ставропольская, "
+                "130, корпус 3, квартира 25, квартира 26"
+            ),
+            "price": conflict["price"],
+            "photos": conflict["photos"],
+        }
+        with as_app():
+            # Act
+            first = self.accept(source)
+            next_result = self.accept(partial)
+            self.accept(without_building_part)
+            same_time = self.accept(
+                {**conflict, "observed_at": without_building_part["observed_at"]},
+            )
+            old_time = self.accept({**conflict, "observed_at": START})
+            new_conflict = self.accept(conflict)
+            assert first.ad_id is not None
+            stored = Ad.objects.values_list(
+                "property__address", "property__rooms", "observed_at", "photos"
+            ).get(pk=first.ad_id)
+            history = list(
+                PriceHistory.objects.filter(ad_id=first.ad_id).values_list(
+                    "price_rub", flat=True
+                )
+            )
+            independent = self.accept(
+                {**full, "source_code": "domclick", "external_id": "room-qualified"},
+            )
+            confirmed = self.accept(full)
+            changed_unit = self.accept(moved)
+            after_move = Ad.objects.values_list(
+                "property_id", "property__address", "observed_at", "photos"
+            ).get(pk=first.ad_id)
+            after_move_history = list(
+                PriceHistory.objects.filter(ad_id=first.ad_id).values_list(
+                    "price_rub", flat=True
+                )
+            )
+
+        # Assert
+        self.assertEqual(first.property_id, next_result.property_id)
+        self.assertEqual((same_time.outcome, old_time.outcome), ("ignored", "stale"))
+        self.assertEqual(new_conflict.outcome, "conflict")
+        self.assertEqual(
+            stored, (address, 1, without_building_part["observed_at"], [PHOTO])
+        )
+        self.assertEqual(history, [price()["price_rub"]])
+        self.assertNotEqual(independent.property_id, first.property_id)
+        self.assertEqual(confirmed.outcome, "updated")
+        self.assertEqual(changed_unit.outcome, "conflict")
+        self.assertEqual(
+            after_move,
+            (first.property_id, full["address"], full["observed_at"], [PHOTO]),
+        )
+        self.assertEqual(after_move_history, history)
+
+    def test_room_repeat_compares_known_location_with_incomplete_unit(self) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        # Arrange
+        address = (
+            "Красноярский район, село Красный Яр, Советская, "
+            "дом 7, корпус 2, квартира 25, комната 2"
+        )
+        source: ActiveSnapshot = {
+            **card("room-district"),
+            "property_type_id": ROOM_TYPE_ID,
+            "address": address,
+            "area_m2": Decimal("12"),
+        }
+        changed_district: ActiveSnapshot = {
+            **later(source, 1),
+            "address": address.replace("Красноярский", "Приволжский")
+            .replace("Советская", "Советский район, Советская")
+            .replace("комната 2", "комната ?"),
+            "price": price("6000000"),
+            "photos": {"status": "known", "urls": []},
+        }
+        changed_house: ActiveSnapshot = {
+            **later(changed_district, 2),
+            "address": f"{address.replace('дом 7', 'дом 9')}, дом 9",
+        }
+        changed_street: ActiveSnapshot = {
+            **later(changed_district, 3),
+            "address": address.replace(
+                "Советская", "Советский район, Кировская"
+            ).replace("комната 2", "комната ?"),
+        }
+        changed_region: ActiveSnapshot = {**later(changed_street, 4), "region_id": 69}
+        repeated_claim_conflicts: tuple[ActiveSnapshot, ...] = tuple(
+            {**later(changed_district, 5), "address": address.replace(old, new)}
+            for old, new in (
+                ("комната 2", "комната 3, комн. 3"),
+                ("квартира 25", "квартира 26, кв. 26"),
+                (
+                    "Красноярский район",
+                    "Приволжский район, Приволжский р-н",
+                ),
+            )
+        )
+        ambiguous_building: ActiveSnapshot = {
+            **later(source, 6),
+            "address": f"{address.replace('дом 7', 'дом 9')}, дом 7",
+            "price": price("7000000"),
+        }
+        ambiguous_street: ActiveSnapshot = {
+            **later(ambiguous_building, 7),
+            "address": address.replace(
+                "Советская, дом 7", "Кировская дом 7 и Советская дом 7"
+            ),
+            "price": price("7500000"),
+        }
+        with as_app():
+            first = self.accept(source)
+            assert first.ad_id is not None
+            ad = Ad.objects.filter(pk=first.ad_id)
+            history = PriceHistory.objects.filter(ad_id=first.ad_id).order_by("id")
+
+            # Act
+            conflicts = [
+                self.accept(snapshot)
+                for snapshot in (
+                    changed_district,
+                    changed_house,
+                    changed_street,
+                    changed_region,
+                    *repeated_claim_conflicts,
+                )
+            ]
+            after_conflict = ad.values_list(
+                "property_id", "property__address", "observed_at", "photos"
+            ).get()
+            compatible = self.accept(ambiguous_building)
+            compatible_street = self.accept(ambiguous_street)
+            after_compatible = ad.values_list(
+                "property_id", "property__address", "observed_at", "photos"
+            ).get()
+            prices = list(history.values_list("price_rub", flat=True))
+
+        # Assert
+        self.assertEqual(
+            [conflict.outcome for conflict in conflicts],
+            ["conflict"] * 7,
+        )
+        self.assertEqual(after_conflict, (first.property_id, address, START, [PHOTO]))
+        self.assertEqual(compatible.outcome, "updated")
+        self.assertEqual(compatible_street.outcome, "updated")
+        self.assertEqual(
+            after_compatible,
+            (first.property_id, address, ambiguous_street["observed_at"], [PHOTO]),
+        )
+        self.assertEqual(
+            prices, [Decimal("8000000"), Decimal("7000000"), Decimal("7500000")]
+        )
+
+    def test_room_repeat_keeps_confirmed_facts_despite_ambiguous_address(self) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        # Arrange
+        street_and_house = "улица Советская, дом 7"
+        address = f"г. Новокуйбышевск, {street_and_house}, комната дома 2"
+        source: ActiveSnapshot = {
+            **card("room-published-scope"),
+            "property_type_id": ROOM_TYPE_ID,
+            "address": address,
+        }
+        changed_city = (
+            "Самара, г. Самара",
+            "г. Самара, Самара",
+        )
+        unclear_scope: ActiveSnapshot = {
+            **later(source, 3),
+            "address": f"Новокуйбышевск, {address}, квартира 25, комната 2",
+            "price": price("7500000"),
+        }
+        with as_app():
+            first = self.accept(source)
+            assert first.ad_id is not None
+            ad = Ad.objects.filter(pk=first.ad_id).values_list(
+                "property_id", "property__address", "observed_at", "photos"
+            )
+            history = PriceHistory.objects.filter(ad_id=first.ad_id).order_by("id")
+
+            # Act
+            conflicts = [
+                self.accept(
+                    {
+                        **later(source, index),
+                        "address": f"{city}, {street_and_house}, комната дома ?",
+                        "price": price("6000000"),
+                        "photos": {"status": "known", "urls": []},
+                    }
+                )
+                for index, city in enumerate(changed_city, 1)
+            ]
+            after_conflicts = ad.get()
+            prices_after_conflicts = list(history.values_list("price_rub", flat=True))
+            compatible = self.accept(unclear_scope)
+            after_repeat = ad.get()
+            prices_after_repeat = list(history.values_list("price_rub", flat=True))
+
+        # Assert
+        self.assertEqual([result.outcome for result in conflicts], ["conflict"] * 2)
+        self.assertEqual(after_conflicts, (first.property_id, address, START, [PHOTO]))
+        self.assertEqual(prices_after_conflicts, [Decimal("8000000")])
+        self.assertEqual(compatible.outcome, "updated")
+        self.assertEqual(
+            after_repeat,
+            (first.property_id, address, unclear_scope["observed_at"], [PHOTO]),
+        )
+        self.assertEqual(prices_after_repeat, [Decimal("8000000"), Decimal("7500000")])
+
+    def test_room_repeat_keeps_resolved_locality_with_unreadable_component(
+        self,
+    ) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        places = (
+            ("г. Новокуйбышевск", "г. Новокуйбышевск, ?", "г. Самара, ?"),
+            ("г. Самара, ?", "г. Самара, ?", "г. Новокуйбышевск"),
+            (
+                "Красноярский район, село Красный Яр",
+                "?, Красноярский район, село Красный Яр",
+                "?, Приволжский район, село Красный Яр",
+            ),
+            (
+                "г. Самара, Советский район",
+                "г. Самара, Советский район, ?",
+                "г. Самара, Кировский район, ?",
+            ),
+        )
+        with as_app():
+            for index, (saved, compatible, moved) in enumerate(places, 1):
+                with self.subTest(saved=saved, moved=moved):
+                    # Arrange
+                    unit = f"улица Советская, дом {700 + index}, квартира 25, комната 2"
+                    source: ActiveSnapshot = {
+                        **card(f"room-locality-{index}"),
+                        "property_type_id": ROOM_TYPE_ID,
+                        "address": f"{saved}, {unit}",
+                    }
+                    original = self.accept(source)
+                    assert original.ad_id is not None
+                    ad = Ad.objects.filter(pk=original.ad_id).values_list(
+                        "property_id", "property__address", "observed_at", "photos"
+                    )
+                    prices = (
+                        PriceHistory.objects.filter(ad_id=original.ad_id)
+                        .order_by("observed_at")
+                        .values_list("price_rub", flat=True)
+                    )
+                    changes: ActiveSnapshot = {
+                        **later(source, 1),
+                        "address": f"{moved}, {unit}",
+                        "price": price("7000000"),
+                        "photos": {"status": "known", "urls": []},
+                    }
+                    repeat = {
+                        **later(source, 2),
+                        "address": f"{compatible}, {unit}",
+                        "price": price("7500000"),
+                    }
+
+                    # Act
+                    rejected_change = self.accept(changes)
+                    after_conflict = ad.get(), list(prices.iterator())
+                    updated = self.accept(repeat)
+                    independent = self.accept(
+                        {
+                            **repeat,
+                            "source_code": "domclick",
+                            "external_id": f"room-locality-secondary-{index}",
+                        }
+                    )
+
+                    # Assert
+                    self.assertEqual(rejected_change.outcome, "conflict")
+                    self.assertEqual(
+                        after_conflict,
+                        (
+                            (original.property_id, source["address"], START, [PHOTO]),
+                            [Decimal("8000000")],
+                        ),
+                    )
+                    self.assertEqual(updated.outcome, "updated")
+                    self.assertEqual(updated.ad_id, original.ad_id)
+                    self.assertEqual(
+                        ad.get(),
+                        (
+                            original.property_id,
+                            source["address"],
+                            repeat["observed_at"],
+                            [PHOTO],
+                        ),
+                    )
+                    self.assertEqual(
+                        list(prices.iterator()),
+                        [Decimal("8000000"), Decimal("7500000")],
+                    )
+                    self.assertEqual(independent.outcome, "created")
+                    self.assertNotEqual(independent.property_id, original.property_id)
+
+    def test_apartment_keeps_existing_street_and_house_syntax(self) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        # Arrange
+        address = "Самара, улица Лесная, дом 7, квартира 25"
+        original: ActiveSnapshot = {**card("flat-address-syntax"), "address": address}
+        same: ActiveSnapshot = {
+            **original,
+            "source_code": "domclick",
+            "external_id": "flat-established-abbreviation",
+            "address": address.replace("улица Лесная", "ул. Лесная"),
+        }
+        suffix: ActiveSnapshot = {
+            **same,
+            "external_id": "flat-unrecognized-suffix",
+            "address": address.replace("улица Лесная", "Лесная ул."),
+        }
+        with as_app():
+            # Act
+            first = self.accept(original)
+            matched = self.accept(same)
+            separate = self.accept(suffix)
+            changed_syntax = self.accept(
+                {
+                    **later(original, 1),
+                    "address": address.replace("дом 7", "дом №7"),
+                    "price": price("6000000"),
+                }
+            )
+            assert first.ad_id is not None
+            before_repeat = Ad.objects.values_list("observed_at", flat=True).get(
+                pk=first.ad_id
+            )
+            compatible = self.accept(
+                {
+                    **later(original, 2),
+                    "address": same["address"],
+                    "price": price("7500000"),
+                }
+            )
+            prices = list(
+                PriceHistory.objects.filter(ad_id=first.ad_id)
+                .order_by("id")
+                .values_list("price_rub", flat=True)
+            )
+
+        # Assert
+        self.assertEqual(matched.property_id, first.property_id)
+        self.assertNotEqual(separate.property_id, first.property_id)
+        self.assertEqual(changed_syntax.outcome, "conflict")
+        self.assertEqual(before_repeat, START)
+        self.assertEqual(compatible.outcome, "updated")
+        self.assertEqual(compatible.property_id, first.property_id)
+        self.assertEqual(prices, [Decimal("8000000"), Decimal("7500000")])
 
     def test_matching_apartment_numbers_and_unique_candidate(self) -> None:
         # Arrange: one exact A match and two contradictory existing room counts.

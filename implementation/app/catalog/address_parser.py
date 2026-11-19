@@ -6,6 +6,7 @@ from collections import Counter
 from typing import Literal
 
 from app.catalog.address import (
+    STREET_TYPES,
     Address,
     HouseAddress,
     LocationFact,
@@ -13,8 +14,8 @@ from app.catalog.address import (
 )
 from app.catalog.reference_defaults import REGION_NAMES
 
-_NUMBER = r"[0-9]+[а-я]?(?:[-/][0-9]+[а-я]?)*"
-_HOUSE_NUMBER = re.compile(_NUMBER)
+ADDRESS_NUMBER = r"[0-9]+[а-я]?(?:[-/][0-9]+[а-я]?)*"
+_HOUSE_NUMBER = re.compile(ADDRESS_NUMBER)
 _PREFIXES = {
     "г.": "город",
     "с.": "село",
@@ -26,7 +27,7 @@ _PREFIXES = {
     "бул.": "бульвар",
     "ш.": "шоссе",
 }
-_TAGS = {
+ADDRESS_DETAILS = {
     "кв": "квартира",
     "квартира": "квартира",
     "корп": "корпус",
@@ -35,17 +36,8 @@ _TAGS = {
     "строение": "строение",
     "подъезд": "подъезд",
 }
-_TAG = re.compile(rf"({'|'.join(_TAGS)})\.?\s*(?:№\s*)?({_NUMBER}|[а-я])")
-_STREET_TYPES = (
-    "улица",
-    "проспект",
-    "переулок",
-    "бульвар",
-    "шоссе",
-    "набережная",
-    "проезд",
-    "площадь",
-    "тракт",
+_TAG = re.compile(
+    rf"({'|'.join(ADDRESS_DETAILS)})\.?\s*(?:№\s*)?({ADDRESS_NUMBER}|[а-я])"
 )
 _DISTRICTS = {"район", "р-н"}
 _SETTLEMENT_TYPES = {"город", "село", "поселок", "деревня", "станица", "хутор", "аул"}
@@ -64,9 +56,9 @@ _TERRITORIES = {
     "территория",
     "поселение",
 }
-_HOUSE = re.compile(rf"(?<!\S)(?:(дом|д\.)\s*(?:№\s*)?)?({_NUMBER})\Z")
-_FLAT_HOUSE = re.compile(rf"(?:дом\s*|д\.\s*)?({_NUMBER})")
-_ADDRESS_TOKEN = re.compile(r"[а-я][а-я0-9 .’'-]*")
+_HOUSE = re.compile(rf"(?<!\S)(?:(дом|д\.)\s*(?:№\s*)?)?({ADDRESS_NUMBER})\Z")
+_FLAT_HOUSE = re.compile(rf"(?:дом\s*|д\.\s*)?({ADDRESS_NUMBER})")
+ADDRESS_TOKEN = re.compile(r"[а-я][а-я0-9 .’'-]*")
 _ADDRESS_FORMAT = str.maketrans("ё–—", "е--")
 HOUSE_BLOCK_TAGS = {"блок", "секция", "таунхаус"}
 _HOUSE_MARKERS = {
@@ -98,60 +90,66 @@ _PLACE_LANDMARKS = {"street", "территория", *_HOUSE_TERRITORIES.values
 HOUSE_BUILDING_TAGS = {"дом", "строение", "таунхаус"}
 
 
-def _plain(value: str) -> str:
+def normalize_address_text(value: str) -> str:
     return " ".join(
         unicodedata.normalize("NFC", value).lower().translate(_ADDRESS_FORMAT).split()
     )
 
 
-def _component(value: str) -> str:
+def expand_address_prefix(value: str) -> str:
     head, space, tail = value.partition(" ")
     return _PREFIXES.get(head, head) + space + tail
 
 
 def _street_type(word: str) -> str | None:
     kind = _PREFIXES.get(word, word).strip(".")
-    return kind if kind in _STREET_TYPES else None
+    return kind if kind in STREET_TYPES else None
 
 
-def _canonical_street(street: str, *, house: bool = False) -> str:
+def canonical_street(street: str, *, abbreviations: bool = False) -> str:
     name, _, suffix = street.rpartition(" ")
-    kind = suffix if suffix in _STREET_TYPES else None
-    if house and kind is None:
+    kind = suffix if suffix in STREET_TYPES else None
+    if abbreviations and kind is None:
         kind = _street_type(suffix)
     return f"{kind} {name}" if name and kind else street
 
 
-def _building_component(component: str) -> tuple[str, str, bool] | None:
+def building_component(component: str) -> tuple[str, str, bool] | None:
     match = _HOUSE.search(component)
     if match is None:
         return None
     return component[: match.start()].rstrip(), match[2], match[1] is not None
 
 
-def _address_role(component: str, *, house: bool = False) -> str:
+def is_address_territory(words: list[str]) -> bool:
+    return bool(set(words) & _TERRITORIES)
+
+
+def address_role(component: str, *, abbreviations: bool = False) -> str:
     words = component.split()
+    if not words:
+        return "other"
     terms = {word.strip(".") for word in words}
     ends = {words[0].strip("."), words[-1].strip(".")}
     if words[:2] == ["жилой", "комплекс"]:
         return "territory"
     if ends & _SETTLEMENT_TYPES:
         return "settlement"
-    if ends.intersection(_STREET_TYPES) or (
-        house and any(_street_type(word) for word in (words[0], words[-1]))
+    if ends.intersection(STREET_TYPES) or (
+        abbreviations and any(_street_type(word) for word in (words[0], words[-1]))
     ):
         return "street"
     if ends & _DISTRICTS:
         return "district"
     if terms & (_TERRITORIES | _DISTRICTS):
         return "territory"
-    if ends.intersection((*_TAGS.values(), "дом")):
+    if ends.intersection((*ADDRESS_DETAILS.values(), "дом")):
         return "other"
     return "name"
 
 
-def _settlement_name(component: str, role: str) -> tuple[str, str | None] | None:
-    if not _ADDRESS_TOKEN.fullmatch(component):
+def settlement_name(component: str, role: str) -> tuple[str, str | None] | None:
+    if not ADDRESS_TOKEN.fullmatch(component):
         return None
     if role != "settlement":
         return component, None
@@ -163,7 +161,7 @@ def _settlement_name(component: str, role: str) -> tuple[str, str | None] | None
     return " ".join(words), kind
 
 
-def _district_name(component: str) -> str:
+def district_name(component: str) -> str:
     words = component.split()
     label = words[1:] if words[0].strip(".") in _DISTRICTS else words[:-1]
     return " ".join(label)
@@ -173,10 +171,10 @@ def parse_address(value: str | None, region: str) -> Address | None:
     if not value:
         return None
     parts = [item.strip() for item in value.split(",")]
-    normalized = [_component(_plain(item)) for item in parts]
+    normalized = [expand_address_prefix(normalize_address_text(item)) for item in parts]
     if not all(normalized):
         return None
-    first = int(normalized[0] == _plain(region))
+    first = int(normalized[0] == normalize_address_text(region))
     if len(parts) - first < 2:
         return None
     detail_start = len(parts)
@@ -184,7 +182,7 @@ def parse_address(value: str | None, region: str) -> Address | None:
     for index, part in enumerate(normalized[first:], first):
         match = _TAG.fullmatch(part)
         if match:
-            name, number = _TAGS[match[1]], match[2]
+            name, number = ADDRESS_DETAILS[match[1]], match[2]
             if name in details or (
                 name in ("квартира", "подъезд") and not number[0].isdigit()
             ):
@@ -211,22 +209,41 @@ def parse_address(value: str | None, region: str) -> Address | None:
         if street_name and house_marker in ("дом", "д."):
             street = street_name
 
-    if not all(_ADDRESS_TOKEN.fullmatch(part) for part in (*locality, street)):
+    components = [*locality, street]
+    roles = [address_role(part) for part in components]
+    return complete_street_address(
+        tuple(parts), first, components, roles, number, details
+    )
+
+
+def complete_street_address(
+    parts: tuple[str, ...],
+    first: int,
+    components: list[str],
+    roles: list[str],
+    number: str,
+    details: dict[str, tuple[str, str]],
+    *,
+    abbreviations: bool = False,
+) -> Address | None:
+    locality, street = components[:-1], components[-1]
+    if not all(ADDRESS_TOKEN.fullmatch(part) for part in (*locality, street)):
         return None
-    roles = [_address_role(part) for part in locality]
-    if _address_role(street) not in ("street", "name"):
+    if roles[-1] not in ("street", "name"):
         return None
     # Only one component may identify the settlement. Districts can qualify it.
-    settlements = [i for i, role in enumerate(roles) if role in ("settlement", "name")]
-    districts = [i for i, role in enumerate(roles) if role == "district"]
+    settlements = [
+        i for i, role in enumerate(roles[:-1]) if role in ("settlement", "name")
+    ]
+    districts = [i for i, role in enumerate(roles[:-1]) if role == "district"]
     if (
         len(settlements) != 1
         or len(districts) > 1
-        or any(role not in ("settlement", "name", "district") for role in roles)
+        or any(role not in ("settlement", "name", "district") for role in roles[:-1])
     ):
         return None
     settlement_index = settlements[0]
-    named = _settlement_name(locality[settlement_index], roles[settlement_index])
+    named = settlement_name(locality[settlement_index], roles[settlement_index])
     if named is None:
         return None
     locality_name, kind = named
@@ -234,7 +251,7 @@ def parse_address(value: str | None, region: str) -> Address | None:
     district = district_text = None
     if districts:
         index = districts[0]
-        name = _district_name(locality[index])
+        name = district_name(locality[index])
         if not name:
             return None
         if index > settlement_index:
@@ -244,19 +261,21 @@ def parse_address(value: str | None, region: str) -> Address | None:
             settlement = (f"район {name}", *settlement)
     return Address(
         settlement,
-        _canonical_street(street),
+        canonical_street(street, abbreviations=abbreviations),
         district,
         number,
         details,
         kind,
         first + settlement_index,
-        tuple(parts),
+        parts,
         district_text,
     )
 
 
 def mentions_unit(address: str) -> bool:
-    return any(_TAG.fullmatch(_plain(part)) for part in address.split(","))
+    return any(
+        _TAG.fullmatch(normalize_address_text(part)) for part in address.split(",")
+    )
 
 
 def _valid_house_identifier(label: str, identifier: str) -> bool:
@@ -292,8 +311,8 @@ def _house_component(part: str) -> tuple[str, list[tuple[str, str]]]:
 def _house_subject_names() -> dict[str, int]:
     identities: dict[str, set[int]] = {}
     for identifier, label in REGION_NAMES.items():
-        name = _plain(label)
-        if _address_role(name, house=True) != "territory":
+        name = normalize_address_text(label)
+        if address_role(name, abbreviations=True) != "territory":
             continue
         full, opening, alias = name.partition(" (")
         spellings = [name]
@@ -314,7 +333,7 @@ _HOUSE_SUBJECT_IDS = _house_subject_names()
 def _house_subject(part: str, expected: int | None, *, leading: bool) -> str | None:
     identity = _HOUSE_SUBJECT_IDS.get(part)
     if identity is not None and (
-        _address_role(part, house=True) == "territory"
+        address_role(part, abbreviations=True) == "territory"
         or (leading and identity == expected)
     ):
         return part
@@ -336,9 +355,9 @@ def _house_area_component(part: str) -> str | None:
     territory = _house_territory(part)
     if territory is not None:
         return " ".join(territory)
-    role = _address_role(part, house=True)
+    role = address_role(part, abbreviations=True)
     if role == "district":
-        name = _district_name(part)
+        name = district_name(part)
         return f"район {name}" if name else None
     if role == "settlement":
         return part
@@ -346,8 +365,8 @@ def _house_area_component(part: str) -> str | None:
 
 
 def _named_street(part: str) -> str | None:
-    if " " in part and _address_role(part, house=True) == "street":
-        return _canonical_street(part, house=True)
+    if " " in part and address_role(part, abbreviations=True) == "street":
+        return canonical_street(part, abbreviations=True)
     return None
 
 
@@ -376,9 +395,9 @@ def _house_geography(
             areas.setdefault(scope, set()).add(name)
             geography[-1] = territory
             continue
-        role = _address_role(part, house=True)
+        role = address_role(part, abbreviations=True)
         if role == "settlement":
-            named = _settlement_name(part, role)
+            named = settlement_name(part, role)
             if named is not None:
                 name, kind = named
                 if kind is not None:
@@ -389,7 +408,7 @@ def _house_geography(
                     continue
             complete = False
         elif role == "district":
-            name = _district_name(part)
+            name = district_name(part)
             inside_place = typed or untyped or areas.keys() - _DISTRICT_SCOPES
             scope = _LOCAL_DISTRICT if inside_place else _ENCLOSING_DISTRICT
             if name:
@@ -397,7 +416,7 @@ def _house_geography(
                 geography[-1] = (scope, name)
             else:
                 complete = False
-        elif role == "name" and not after_street and _ADDRESS_TOKEN.fullmatch(part):
+        elif role == "name" and not after_street and ADDRESS_TOKEN.fullmatch(part):
             untyped.append(part)
             geography[-1] = ("", part)
         else:
@@ -478,11 +497,13 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
     """Read positive address evidence and retain known parts of incomplete addresses."""
     if not value:
         return None
-    parts = [_component(_plain(part)) for part in value.split(",")]
+    parts = [
+        expand_address_prefix(normalize_address_text(part)) for part in value.split(",")
+    ]
     valid = all(parts)
     if parts[:1] == ["россия"]:
         parts.pop(0)
-    expected_subject = _HOUSE_SUBJECT_IDS.get(_plain(region))
+    expected_subject = _HOUSE_SUBJECT_IDS.get(normalize_address_text(region))
     subjects: set[int | str] = set()
     location: list[str] = []
     identifiers: dict[str, list[str]] = {}
@@ -506,7 +527,7 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
                 location.append("")
         elif part:
             area = _house_area_component(part)
-            building = None if area else _building_component(part)
+            building = None if area else building_component(part)
             prefix, number, _ = building or ("", "", False)
             inline_street = _named_street(prefix) if prefix else None
             follows_street = bool(location and _named_street(location[-1]))

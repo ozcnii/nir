@@ -33,6 +33,7 @@ from app.catalog.matching import (
     repeated_flat_patch,
 )
 from app.catalog.matching_queries import matching_candidates, saved_property
+from app.catalog.matching_room import choose_room, repeated_room_patch
 from app.catalog.models import (
     Ad,
     DealType,
@@ -46,10 +47,12 @@ from app.catalog.reference_defaults import (
     APARTMENT_TYPE_ID,
     HOUSE_TYPE_ID,
     REGION_NAMES,
+    ROOM_TYPE_ID,
     SOURCE_CODES,
 )
+from app.catalog.room_address_parser import parse_room_address
 
-MATCHED_TYPES = (APARTMENT_TYPE_ID, HOUSE_TYPE_ID)
+MATCHED_TYPES = (APARTMENT_TYPE_ID, ROOM_TYPE_ID, HOUSE_TYPE_ID)
 
 
 def publication_deal(source: str, key: str) -> Deal | None:
@@ -127,6 +130,8 @@ def _write_snapshot(
         )
     if not has_active_payload(snapshot):
         return SnapshotResult("rejected", reason="invalid_active_snapshot")
+    if snapshot["property_type_id"] == ROOM_TYPE_ID and snapshot["rooms"] == 0:
+        return SnapshotResult("rejected", reason="invalid_active_snapshot")
     if not _references_exist(snapshot):
         return SnapshotResult("rejected", reason="unknown_reference")
     region = REGION_NAMES.get(snapshot["region_id"])
@@ -164,6 +169,9 @@ def _new_match(
         if house is not None and house.complete:
             return choose_house(snapshot, house, candidates, region)
         return None
+    if property_type == ROOM_TYPE_ID:
+        address = parse_room_address(snapshot["address"], region)
+        return choose_room(snapshot, address, candidates, region) if address else None
     address = parse_address(snapshot["address"], region)
     return choose_flat(snapshot, address, candidates, region) if address else None
 
@@ -195,6 +203,9 @@ def _repeat_match(
         reason = "house_address_changed"
         if patch is not None and not has_confirmed_block(house, old_house):
             return SnapshotResult("rejected", reason="unconfirmed_house_block")
+    elif property_type == ROOM_TYPE_ID:
+        patch = repeated_room_patch(saved, snapshot, region)
+        reason = "room_unit_changed"
     elif region is None:
         return None
     else:

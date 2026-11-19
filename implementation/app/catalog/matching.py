@@ -1,4 +1,4 @@
-"""Conservative apartment matching over plain catalog data."""
+"""Shared matching data and apartment rules over plain catalog data."""
 
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -6,8 +6,8 @@ from itertools import combinations
 
 from app.catalog.address import (
     Address,
+    address_conflicts,
     address_patch,
-    apartment_address_conflicts,
     details_conflict,
     same_house,
 )
@@ -71,7 +71,7 @@ def repeated_flat_patch(
             # A unit qualifier in an unparseable chain cannot establish compatibility.
             return None
         return {}
-    if old is not None and new is not None and apartment_address_conflicts(old, new):
+    if old is not None and new is not None and address_conflicts(old, new):
         return None
     address = (
         address_patch(old, new)
