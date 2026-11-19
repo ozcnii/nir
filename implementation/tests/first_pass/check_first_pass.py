@@ -279,8 +279,35 @@ def verify_avito() -> None:
         Property.objects.count(),
         PriceHistory.objects.count(),
     )
+    # Arrange: the same saved room shape now advertises a set with its own total.
+    card = avito_projection("room")
+    url = card["url"]
+    card["title"] = "Две комнаты на продажу"
+    buyer = as_object(card["route"]["buyerItem"])
+    item = as_object(buyer["item"])
+    item.update(
+        title="Комната 12,5 м²",
+        description="Продаются комната 12,5 м², комната 10 м², общей площадью 22,5 м².",
+    )
+    params = as_object(buyer["paramsDto"])
+    params["items"] = [
+        row
+        for row in cast(list[dict[str, object]], params["items"])
+        if row["title"] != "Условия продажи"
+    ]
+
+    # Act
+    bundle = collect()
+
+    # Assert: one offered unit, with its own announced count and total.
+    saved_bundle = Ad.objects.get(source_id="avito", external_id="7697142163")
+    assert bundle["outcome"] == "created"
+    assert saved_bundle.property.rooms == 2
+    assert saved_bundle.property.area_m2 == Decimal("22.50")
+    assert Ad.objects.count() == counts[0] + 1
+    assert Property.objects.count() == counts[1] + 1
     print(
-        "Avito: terminal collection, repeat, wrong ID and explicit close verified in PostgreSQL"
+        "Avito: terminal collection, room bundle, repeat, wrong ID and explicit close verified in PostgreSQL"
     )
 
 

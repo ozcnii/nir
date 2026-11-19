@@ -594,6 +594,11 @@ class AvitoCardTests(TestCase):
         cases = (
             ("Удобный район. Продаются две комнаты одним лотом.", 2, None),
             (
+                "Продаются комната 12,5 м², комната 10 м², общей площадью 22,5 м².",
+                2,
+                "22.50",
+            ),
+            (
                 "Удобный район. Продаются две комнаты общей площадью 22,5 м².",
                 2,
                 "22.50",
@@ -643,10 +648,46 @@ class AvitoCardTests(TestCase):
                 "unconfirmed_room_unit",
             ),
             (
+                "room",
+                "Доля: комната № 2 12,5 м²",
+                "Рядом школа, площадь предлагаемой комнаты № 2 9,2 м².",
+                "conflicting_room_area",
+            ),
+            (
+                "room",
+                "Доля: комната № 2 12,5 м²",
+                "Показы по записи. Комната № 2 — соседская.",
+                "unconfirmed_room_unit",
+            ),
+            (
+                "room",
+                "Доля: комната № 2 12,5 м²",
+                "Этой доле не соответствует комната № 2.",
+                "unconfirmed_room_unit",
+            ),
+            (
                 "house",
                 None,
                 "Рядом лес. Продаются два дома одним лотом.",
                 "unconfirmed_house_unit",
+            ),
+            (
+                "house",
+                None,
+                "Предлагается дом 59,2 м² и второй дом 40 м² одним лотом.",
+                "unconfirmed_house_unit",
+            ),
+            (
+                "house",
+                None,
+                "Рядом лес, площадь участка: 5 соток.",
+                "conflicting_house_measurement",
+            ),
+            (
+                "house",
+                None,
+                "Продаётся дом 59,2 м² на участке 5 соток.",
+                "conflicting_house_measurement",
             ),
             (
                 "house",
@@ -675,6 +716,25 @@ class AvitoCardTests(TestCase):
 
                 # Assert
                 self.assertEqual(str(raised.exception), reason)
+
+    def test_house_ignores_living_measurement_and_unrelated_second_building(
+        self,
+    ) -> None:
+        # Arrange
+        card = projection("house")
+        item_for(card)["description"] = (
+            "Продаётся дом 59,2 м² на участке 6 соток, жилая площадь дома 38 м². "
+            "Площадь дома: 38 м² жилая. "
+            "Второй дом на участке остаётся у владельца."
+        )
+
+        # Act
+        snapshot = parsed(card)
+
+        # Assert
+        assert snapshot["state"] == "active"
+        self.assertEqual(snapshot["area_m2"], Decimal("59.20"))
+        self.assertEqual(snapshot["land_area_m2"], Decimal("600.00"))
 
     def test_browser_projection_preserves_malformed_geo(self) -> None:
         # Arrange: serve only the local replay document at the public card URL.
