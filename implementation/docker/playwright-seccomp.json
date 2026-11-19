@@ -242,8 +242,6 @@
 				"open",
 				"openat",
 				"pause",
-				"pidfd_open",
-				"pidfd_send_signal",
 				"pipe",
 				"pipe2",
 				"poll",

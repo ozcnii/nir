@@ -73,7 +73,7 @@
 
 ## 5. Внутренний контракт
 
-`catalog.services.accept_publication(data) → AcceptanceResult` — обычный Python-вызов внутри монолита, не HTTP API. `AcceptanceResult` — возвращаемая структура, не таблица. Каталог не обращается к сети и не импортирует `collection`; все записи предметных данных проходят эту функцию.
+`catalog.publications.accept_publication(data) → AcceptanceResult` — обычный Python-вызов внутри монолита, не HTTP API. `AcceptanceResult` — возвращаемая структура, не таблица. Каталог не обращается к сети и не импортирует `collection`; все записи предметных данных проходят эту функцию.
 
 Вход `operation=upsert`:
 
