@@ -288,6 +288,7 @@ class SnapshotTests(TestCase):
             )
             old_time = self.accept({**conflict, "observed_at": START})
             new_conflict = self.accept(conflict)
+            assert first.ad_id is not None
             stored = Ad.objects.values_list(
                 "property__address", "property__rooms", "observed_at", "photos"
             ).get(pk=first.ad_id)
