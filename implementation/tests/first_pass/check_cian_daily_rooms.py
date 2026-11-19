@@ -5,10 +5,13 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from decimal import Decimal
 from io import StringIO
+from typing import Literal
 from unittest.mock import patch
 
 from django.core.management import call_command
 from playwright.sync_api import Page, Route
+from playwright.sync_api import Response as BrowserResponse
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from app.catalog.reference_defaults import ROOM_TYPE_ID, SAMARA_REGION_ID
 from app.collection.browser import browser_page
@@ -176,10 +179,30 @@ def verify_cian_daily_rooms() -> None:
         result: dict[str, object] = json.loads(output.getvalue())
         return result
 
+    navigations = 0
+    goto = Page.goto
+
+    def timeout_first_navigation(
+        page: Page,
+        address: str,
+        *,
+        wait_until: Literal["commit", "domcontentloaded", "load", "networkidle"],
+        timeout: float,
+    ) -> BrowserResponse | None:
+        nonlocal navigations
+        if address == _REGIONAL:
+            navigations += 1
+            if navigations == 1:
+                assert page.url == "about:blank"
+                raise PlaywrightTimeout("Timeout before document commit")
+        return goto(page, address, wait_until=wait_until, timeout=timeout)
+
     # Act
-    result = collect()
+    with patch.object(Page, "goto", timeout_first_navigation):
+        result = collect()
 
     # Assert
+    assert navigations == 2
     assert pages == [1, 2, 3] and searches == [
         (_NATIVE, *_FILLER),
         (_NATIVE, *_FILLER),

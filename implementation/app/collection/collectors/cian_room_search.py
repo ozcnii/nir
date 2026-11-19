@@ -57,6 +57,7 @@ def _initial_map(
     def is_map(request: Request) -> bool:
         return request.url == _MAP_URL and request.method == "POST"
 
+    previous_url = page.url
     with browser_post_status(page, _MAP_URL) as failed_status:
         try:
             with page.expect_request_finished(
@@ -74,9 +75,10 @@ def _initial_map(
                     raise RejectedCard(f"http_{document.status}")
                 _check_document(page, route)
         except PlaywrightTimeout as error:
-            _check_document(page, route)
             if (status := failed_status()) is not None:
                 raise RejectedCard(f"http_{status}") from error
+            if page.url != previous_url:
+                _check_document(page, route)
             raise
     request = pending.value
     response = request.response()
