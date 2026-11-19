@@ -98,9 +98,15 @@ def listing(page_number: int, *, mode: str) -> str:
         following = 1 if mode == "cycle" and page_number == 2 else page_number + 1
         path = f"/cat.php?deal_type=sale&engine_version=2&offer_type=flat&p={following}&region={region}"
         follow = f'<a href="{escape(path)}">Дальше</a>'
+    state_script = f"window._cianConfig = {{'frontend-serp': {config}}};"
+    if mode == "late-state" and page_number == 1:
+        state_script = (
+            "window.addEventListener('load', () => "
+            f"setTimeout(() => {{ {state_script} }}, 700));"
+        )
     return (
         "<title>Продажа квартир в Самарской области</title>"
-        f"<script>window._cianConfig = {{'frontend-serp': {config}}};</script>"
+        f"<script>{state_script}</script>"
         f'{links}{follow}<aside><a href="{card(RECOMMENDED)[0]}">Похожие</a></aside>'
     )
 
@@ -137,7 +143,7 @@ def verify_cian_search() -> None:
         assert accept_snapshot(snapshot).outcome == "created"
     missing = Ad.objects.get(source_id="cian", external_id=str(MISSING))
     missing_at = missing.observed_at
-    mode = "complete"
+    mode = "late-state"
     requests: list[str] = []
 
     def serve(route: Route) -> None:
@@ -239,5 +245,5 @@ def verify_cian_search() -> None:
             assert stopped["listing_complete"] is False and reason in stopped["issues"]
 
     print(
-        "Cian scope: Chromium pagination, region, retries, known keys and stop verified"
+        "Cian scope: Chromium waited for late state; pagination, known keys and stop verified"
     )

@@ -132,18 +132,24 @@ def read_page(page: Page, route: SearchRoute, deadline: float) -> SearchPage:
         raise PlaywrightTimeout("Result page attempt deadline elapsed")
     handle = page.wait_for_function(
         """() => {
-            if (document.readyState !== "complete") return false;
             const captcha = location.pathname === "/cian-captcha"
                 || document.title.toLowerCase().includes("captcha");
+            if (!captcha && document.readyState !== "complete") return false;
             const entries = window._cianConfig?.["frontend-serp"];
             // The captured result object has offers, totalOffers and jsonQuery.
             // Inspect item values and their direct children in the SERP config.
             const values = Array.isArray(entries)
-                ? entries.flatMap(({value}) => value && typeof value === "object"
-                    ? [value, ...Object.values(value)] : []) : [];
+                ? entries.map(entry => entry?.value)
+                    .filter(value => value && typeof value === "object")
+                    .flatMap(value => [value, ...Object.values(value)]) : [];
             const results = [...new Set(values)].filter(value =>
                 value && Array.isArray(value.offers) && value.jsonQuery
                 && Number.isInteger(value.totalOffers));
+            const published = Array.isArray(entries)
+                ? entries.some(entry => entry?.key === "defaultState" && entry.value != null
+                    && (typeof entry.value !== "object" || Object.keys(entry.value).length > 0))
+                : entries != null;
+            if (!captcha && results.length === 0 && !published) return false;
             const result = results.length === 1 ? results[0] : null;
             const controls = Array.from(document.querySelectorAll("a[href], button"))
                 .filter(element => element.textContent.trim() === "Дальше"
