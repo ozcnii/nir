@@ -521,3 +521,90 @@ class HouseMatchingTests(TestCase):
                 self.assertEqual(
                     set(prices), {Decimal(100), Decimal(200), Decimal(250)}
                 )
+
+    def test_repeat_detects_explicit_type_change_of_known_nested_settlement(
+        self,
+    ) -> None:
+        for original_kind, equivalent_kind, changed_kind in (
+            ("посёлок", "пос.", "деревня"),
+            ("деревня", "деревня", "посёлок"),
+        ):
+            with self.subTest(original_kind=original_kind):
+                # Arrange
+                tail = "СНТ Луч, ул. Садовая, дом 7, блок 2"
+                original = f"г. Самара, {original_kind} Новый, {tail}"
+                equivalent = f"г. Самара, {equivalent_kind} Новый, {tail}"
+                changed = f"г. Самара, {changed_kind} Новый, {tail}"
+                later = TIME + timedelta(minutes=2)
+                first = accept_snapshot(snapshot(original_kind, original))
+
+                # Act
+                same_place = accept_snapshot(
+                    snapshot(
+                        original_kind,
+                        equivalent,
+                        time=later - timedelta(minutes=1),
+                        price=Decimal(200),
+                    )
+                )
+                omitted = accept_snapshot(
+                    snapshot(
+                        original_kind,
+                        f"г. Самара, {tail}",
+                        time=later,
+                        price=Decimal(250),
+                    )
+                )
+                conflict = accept_snapshot(
+                    snapshot(
+                        original_kind,
+                        changed,
+                        time=later + timedelta(minutes=1),
+                        price=Decimal(400),
+                    )
+                )
+
+                # Assert
+                self.assertEqual(same_place.outcome, "updated")
+                self.assertEqual(omitted.outcome, "updated")
+                self.assertEqual(omitted.property_id, first.property_id)
+                self.assertEqual(conflict.outcome, "conflict")
+                assert first.ad_id is not None
+                ad = Ad.objects.get(pk=first.ad_id)
+                self.assertEqual(ad.observed_at, later)
+                self.assertEqual(ad.property.address, original)
+                self.assertEqual(
+                    set(
+                        PriceHistory.objects.filter(ad=ad).values_list(
+                            "price_rub", flat=True
+                        )
+                    ),
+                    {Decimal(100), Decimal(200), Decimal(250)},
+                )
+
+    def test_repeat_does_not_assign_type_from_repeated_settlement_name(self) -> None:
+        # Arrange
+        tail = "СНТ Луч, ул. Садовая, дом 7, блок 2"
+        original = f"г. Самара, посёлок Новый, деревня Новый, {tail}"
+        first = accept_snapshot(snapshot("ambiguous-place-type", original))
+
+        # Act
+        repeated = accept_snapshot(
+            snapshot(
+                "ambiguous-place-type",
+                f"г. Самара, посёлок Новый, {tail}",
+                time=TIME + timedelta(minutes=1),
+                price=Decimal(250),
+            )
+        )
+
+        # Assert
+        self.assertEqual(repeated.outcome, "updated")
+        self.assertEqual(repeated.property_id, first.property_id)
+        assert first.ad_id is not None
+        ad = Ad.objects.get(pk=first.ad_id)
+        self.assertEqual(ad.property.address, original)
+        self.assertEqual(
+            set(PriceHistory.objects.filter(ad=ad).values_list("price_rub", flat=True)),
+            {Decimal(100), Decimal(250)},
+        )

@@ -138,9 +138,24 @@ def _location_conflicts(old: HouseAddress, new: HouseAddress) -> bool:
         or _conflicting_ids(old.areas, new.areas)
     ):
         return True
-    if len(old.settlements) == len(new.settlements) == 1:
-        old_kind, old_name = next(iter(old.settlements.items()))
-        new_kind, new_name = next(iter(new.settlements.items()))
-        if old_name != new_name or (old_kind and new_kind and old_kind != new_kind):
-            return True
-    return False
+    if len(old.settlements) == len(new.settlements) == 1 and next(
+        iter(old.settlements.values())
+    ) != next(iter(new.settlements.values())):
+        return True
+    return _conflicting_ids(
+        _known_settlement_types(old.settlements),
+        _known_settlement_types(new.settlements),
+    )
+
+
+def _known_settlement_types(settlements: dict[str, str]) -> dict[str, str]:
+    """Pair names with types only when the published type is unambiguous."""
+    types_by_name: dict[str, set[str]] = {}
+    for kind, name in settlements.items():
+        if kind:
+            types_by_name.setdefault(name, set()).add(kind)
+    return {
+        name: next(iter(kinds))
+        for name, kinds in types_by_name.items()
+        if len(kinds) == 1
+    }
