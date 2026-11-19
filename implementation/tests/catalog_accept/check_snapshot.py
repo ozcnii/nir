@@ -245,6 +245,8 @@ class SnapshotTests(TestCase):
         self.assertEqual(after, (confirmed_address,))
 
     def test_repeated_room_does_not_change_unit_or_complete_partial_chain(self) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
         # Arrange
         building = "Самара, улица Ставропольская, дом 130"
         address = f"{building}, корпус 2, квартира 25"
@@ -276,7 +278,7 @@ class SnapshotTests(TestCase):
             **later(full, 5),
             "address": f"{address}, комната 3",
         }
-        with as_app() as connection:
+        with as_app():
             # Act
             first = self.accept(source)
             next_result = self.accept(partial)
@@ -286,14 +288,14 @@ class SnapshotTests(TestCase):
             )
             old_time = self.accept({**conflict, "observed_at": START})
             new_conflict = self.accept(conflict)
-            stored = connection.execute(
-                """
-                SELECT p.address, p.rooms, a.observed_at, a.photos,
-                       (SELECT count(*) FROM price_history WHERE ad_id=a.id)
-                FROM ads a JOIN properties p ON p.id=a.property_id WHERE a.id=%s
-                """,
-                (first.ad_id,),
-            ).fetchone()
+            stored = Ad.objects.values_list(
+                "property__address", "property__rooms", "observed_at", "photos"
+            ).get(pk=first.ad_id)
+            history = list(
+                PriceHistory.objects.filter(ad_id=first.ad_id).values_list(
+                    "price_rub", flat=True
+                )
+            )
             independent = self.accept(
                 {**full, "source_code": "domclick", "external_id": "room-qualified"},
             )
@@ -305,8 +307,9 @@ class SnapshotTests(TestCase):
         self.assertEqual((same_time.outcome, old_time.outcome), ("ignored", "stale"))
         self.assertEqual(new_conflict.outcome, "conflict")
         self.assertEqual(
-            stored, (address, 1, without_building_part["observed_at"], [PHOTO], 1)
+            stored, (address, 1, without_building_part["observed_at"], [PHOTO])
         )
+        self.assertEqual(history, [price()["price_rub"]])
         self.assertNotEqual(independent.property_id, first.property_id)
         self.assertEqual(confirmed.outcome, "updated")
         self.assertEqual(changed_unit.outcome, "conflict")
