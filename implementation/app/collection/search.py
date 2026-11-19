@@ -44,6 +44,7 @@ class Direction:
     card_key: Callable[[str], str | None]
     read: Callable[[Page, float, int | None], SearchPage]
     read_group: Callable[[Page, float, str], SearchPage]
+    advance: Callable[[Page, int, str, float], SearchPage] | None = None
 
 
 def _directions(
@@ -89,6 +90,13 @@ def _domclick_direction(source: str, route: domclick_search.SearchRoute) -> Dire
         lambda page, deadline, address: domclick_search.read_group(
             page, route, deadline, group_url=address
         ),
+        (
+            lambda page, previous, selector, deadline: domclick_search.advance(
+                page, route, previous, selector, deadline
+            )
+        )
+        if route.deal == "day_rent"
+        else None,
     )
 
 
@@ -372,6 +380,14 @@ def _walk_route(
             listing, deadline, previous_page if next_control else None
         )
 
+    def advance(deadline: float) -> SearchPage:
+        assert (
+            direction.advance is not None
+            and previous_page is not None
+            and next_control is not None
+        )
+        return direction.advance(listing, previous_page, next_control, deadline)
+
     while next_url is not None or next_control is not None:
         check_stop(stopped)
         address = next_url if next_url is not None else listing.url
@@ -388,6 +404,7 @@ def _walk_route(
                 loaded == direction.start or direction.permits_next(loaded)
             ),
             next_control=next_control,
+            advance=advance if direction.advance is not None and next_control else None,
         )
         if previous_page is not None and page.number <= previous_page:
             raise CollectionError("pagination_cycle")
