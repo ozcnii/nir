@@ -1,6 +1,7 @@
 """Convert the supported Cian payload to catalog fields."""
 
 import re
+from collections.abc import Iterator
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import cast
 from unicodedata import normalize
@@ -162,8 +163,20 @@ _OWN_AREA = re.compile(r"[,\s:]+(?:(?:общей\s+)?площадью\s+)?" + _A
 _SET_AREA = re.compile(
     r"[,\s:]+(?:общей|суммарной)\s+площадью\s+" + _AREA, re.IGNORECASE
 )
+_NEXT_CLAIM = r"(?:[.!?;]\s*|\n\s*)"
+_CLAIM_VALUE = r"\s*(?:[—–:-]\s*)?"
+_LINKED_SET_AREA = re.compile(
+    _NEXT_CLAIM
+    + r"(?:общая|суммарная)\s+площадь\s+(?:этих|предлагаемых)\s+комнат\b"
+    + _CLAIM_VALUE
+    + _AREA,
+    re.IGNORECASE,
+)
 _OTHER_UNIT = re.compile(r"[\s,]+(?:в|из)\s+(?:соседн|друг)\w+", re.IGNORECASE)
-_SEPARATE_OFFER = re.compile(r"[\s,]+(?:отдельно|не\s+одним\s+лотом)\b", re.IGNORECASE)
+_SEPARATE_OFFER = re.compile(
+    r"[\s,]+(?:отдельно|по\s+отдельности|не\s+одним\s+лотом)\b",
+    re.IGNORECASE,
+)
 _ROOM_SHARE = re.compile(
     _OFFER + r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+(?:в\s+)?квартир[еы]\b",
     re.IGNORECASE,
@@ -177,59 +190,82 @@ _ALLOCATION = re.compile(
     re.IGNORECASE,
 )
 
-_HOUSE_SET_OR_PROJECT = re.compile(
-    _OFFER + r"(?:(?:два|три|четыре|несколько|[2-9]|[1-9][0-9]+)\s+"
+_UNSUPPORTED_HOUSE_SUBJECT = (
+    r"(?:(?:два|три|четыре|несколько|[2-9]|[1-9][0-9]+)\s+"
     r"(?:дом(?:а|ов)|коттедж(?:а|ей))|(?:типов(?:ой|ого)\s+)?проект\s+"
-    r"(?:дома|коттеджа)|строительство\b|(?:земельный\s+)?участок\s+без\s+дома)\b",
-    re.IGNORECASE,
+    r"(?:дома|коттеджа)|строительство|(?:земельный\s+)?участок\s+без\s+дома)"
 )
 _BLOCK_KINDS = r"блок|секци[яю]|таунхаус"
-_HOUSE_PART = re.compile(
-    _OFFER + r"(?:только\s+)?(?:(?:[0-9]+/[0-9]+\s+)?(?:дол[яю]|половин[ау]|часть)\s+"
-    rf"(?:в\s+)?(?:дом[ае]|коттедж[ае])|(?:жилой\s+)?(?:{_BLOCK_KINDS}))\b",
+_HOUSE_SUBJECT = r"(?:дом|коттедж)"
+_WHOLE_QUALIFIER = r"(?:весь|целый)"
+_PART_SUBJECT = (
+    rf"(?:(?:{_WHOLE_QUALIFIER}\s+)?{_HOUSE_SUBJECT}\s*,\s*точнее\s+)?"
+    r"(?:только\s+)?(?:(?:[0-9]+/[0-9]+\s+)?(?:дол[яю]|половин[ау]|часть)\s+"
+    rf"(?:в\s+)?(?:дом[ае]|коттедж[ае])|(?:жилой\s+)?(?P<block>{_BLOCK_KINDS}))"
+)
+_HOUSE_OFFER = re.compile(
+    _OFFER
+    + rf"(?:(?P<unsupported>{_UNSUPPORTED_HOUSE_SUBJECT})|(?P<part>{_PART_SUBJECT})"
+    + rf"|(?:(?P<whole>{_WHOLE_QUALIFIER})\s+)?"
+    + _HOUSE_SUBJECT
+    + r")\b",
     re.IGNORECASE,
 )
 _BLOCK_LABEL = rf"(?P<kind>{_BLOCK_KINDS})\s+(?:№\s*)?(?P<number>[0-9][0-9a-я/.-]*)\b"
 _ADDRESSABLE_BLOCK = re.compile(_BLOCK_LABEL, re.IGNORECASE)
 _ADDRESS_BLOCK_SCOPE = re.compile(
-    rf"\s*(?:дом\s+(?:№\s*)?[0-9][0-9a-я/.-]*\s+)?"
-    rf"(?=(?:{_BLOCK_KINDS})\b)",
+    rf"(?:\A\s*|\bдом\s+(?:№\s*)?[0-9][0-9a-я/.-]*\s+)(?=(?:{_BLOCK_KINDS})\b)",
     re.IGNORECASE,
 )
-_OFFERED_BLOCK = re.compile(
-    _OFFER + r"(?:только\s+)?(?:жилой\s+)?" + _BLOCK_LABEL, re.IGNORECASE
-)
-_OFFERED_HOUSE = re.compile(
-    _OFFER + r"(?:(?P<whole>весь|целый)\s+)?(?:дом|коттедж)\b", re.IGNORECASE
-)
-
-
 _NEXT_HOUSE = re.compile(
-    _LIST_LINK + r"(?:(?:второй|ещ[её] один)\s+)?(?:дом|коттедж)\b", re.IGNORECASE
+    _LIST_LINK + rf"(?:(?:второй|ещ[её] один)\s+)?{_HOUSE_SUBJECT}\b", re.IGNORECASE
 )
-_LAND_IN_OFFER = re.compile(
-    r"[\s,]+на\s+участке\s+(?P<land>[0-9]+(?:[.,][0-9]+)?)\s*"
-    r"(?P<unit>сот(?:ок|ки|ка)?|м[²2]|кв\.\s*м)(?=[\s,.;!?]|$)",
+_PLOT_MEASUREMENT = (
+    r"(?P<land>[0-9]+(?:[.,][0-9]+)?)\s*"
+    r"(?P<unit>сот(?:ок|ки|ка)?|м[²2]|кв\.\s*м)(?=[\s,.;!?]|$)"
+)
+_LAND_IN_OFFER = re.compile(r"[\s,]+на\s+участке\s+" + _PLOT_MEASUREMENT, re.IGNORECASE)
+_LINKED_PLOT_AREA = re.compile(
+    _NEXT_CLAIM
+    + r"площадь\s+предлагаемого\s+участка\b"
+    + _CLAIM_VALUE
+    + _PLOT_MEASUREMENT,
     re.IGNORECASE,
 )
 
 
-def _numbered_rooms(text: str, start: int) -> tuple[set[str], int]:
+def _linked_claims(
+    text: str, start: int, pattern: re.Pattern[str]
+) -> Iterator[re.Match[str]]:
+    while (claim := pattern.match(text, start)) and not _OTHER_UNIT.match(
+        text, claim.end()
+    ):
+        yield claim
+        start = claim.end()
+
+
+def _numbered_rooms(
+    text: str, start: int
+) -> tuple[set[str], re.Match[str] | None, int]:
     numbers: set[str] = set()
-    if first := _ROOM_NUMBER.match(text, start):
-        numbers.add(first[1])
-        start = first.end()
-    while numbers and (link := _NEXT_NUMBERED_ROOM.match(text, start)):
-        member = _ROOM_NUMBER.match(text, link.end())
-        if (
-            not member
-            or _OTHER_UNIT.match(text, member.end())
-            or _SEPARATE_OFFER.match(text, member.end())
+    first_area = None
+    member = _ROOM_NUMBER.match(text, start)
+    while member:
+        end = member.end()
+        area = None if _SET_AREA.match(text, end) else _OWN_AREA.match(text, end)
+        if area:
+            end = area.end()
+        if numbers and (
+            _OTHER_UNIT.match(text, end) or _SEPARATE_OFFER.match(text, end)
         ):
             break
+        if not numbers:
+            first_area = area
         numbers.add(member[1])
-        start = member.end()
-    return numbers, start
+        start = end
+        link = _NEXT_NUMBERED_ROOM.match(text, end)
+        member = _ROOM_NUMBER.match(text, link.end()) if link else None
+    return numbers, first_area, start
 
 
 def check_room(
@@ -251,11 +287,15 @@ def check_room(
         raw_count = (offer["count"] or "").casefold()
         singular = offer["unit"].casefold() in ("комната", "комнату")
         bundle = not singular or raw_count not in ("", "1", "одна", "одну")
-        room_numbers, end = _numbered_rooms(text, offer.end())
+        room_numbers, first_area, end = _numbered_rooms(text, offer.end())
         bundle = bundle or len(room_numbers) > 1
         if bundle and (lot := _JOINT_LOT.match(text, end)):
             end = lot.end()
-        measurement = (_SET_AREA if bundle else _OWN_AREA).match(text, end)
+        measurement = (
+            _SET_AREA.match(text, end)
+            if bundle
+            else first_area or _OWN_AREA.match(text, end)
+        )
         if _OTHER_UNIT.match(text, end) or (
             measurement and _OTHER_UNIT.match(text, measurement.end())
         ):
@@ -275,6 +315,11 @@ def check_room(
             counts.add(len(room_numbers))
         if measurement and (measured := area_m2(measurement["area"])):
             (set_areas if bundle else single_areas).add(measured)
+        if bundle:
+            after_offer = measurement.end() if measurement else end
+            for claim in _linked_claims(text, after_offer, _LINKED_SET_AREA):
+                if measured := area_m2(claim["area"]):
+                    set_areas.add(measured)
 
     if len(counts) > 1 or (multiple and 1 in counts):
         raise RejectedCard("conflicting_room_count")
@@ -300,13 +345,9 @@ def _house_measurements(
     text: str, start: int
 ) -> tuple[re.Match[str] | None, re.Match[str] | None, int]:
     area = _OWN_AREA.match(text, start)
-    if area and _OTHER_UNIT.match(text, area.end()):
-        area = None
     if area:
         start = area.end()
     plot = _LAND_IN_OFFER.match(text, start)
-    if plot and _OTHER_UNIT.match(text, plot.end()):
-        plot = None
     return area, plot, plot.end() if plot else start
 
 
@@ -320,54 +361,60 @@ def _check_house(
     text = description or ""
     blocks = set()
     for part in ", ".join(names).split(","):
-        if scope := _ADDRESS_BLOCK_SCOPE.match(part):
+        if scope := _ADDRESS_BLOCK_SCOPE.search(part):
             block = _ADDRESSABLE_BLOCK.fullmatch(part, scope.end())
             if block is None:
                 raise RejectedCard("unconfirmed_house_unit")
             blocks.add(_block(block))
     if len(blocks) > 1:
         raise RejectedCard("conflicting_house_unit")
-    if _HOUSE_SET_OR_PROJECT.search(text) or (_HOUSE_PART.search(text) and not blocks):
-        raise RejectedCard("unconfirmed_house_unit")
-
     areas = {area}
     plots = {plot}
 
-    def record(measured: re.Match[str] | None, lot: re.Match[str] | None) -> None:
+    def record(
+        measured: re.Match[str] | None, lot: re.Match[str] | None, end: int
+    ) -> None:
         if measured:
             areas.add(area_m2(measured["area"]))
-        if lot:
-            plots.add(
-                _plot_area(lot["land"], sotka=lot["unit"].casefold().startswith("сот"))
-            )
+        for claim in (lot, *_linked_claims(text, end, _LINKED_PLOT_AREA)):
+            if claim:
+                plots.add(
+                    _plot_area(
+                        claim["land"], sotka=claim["unit"].casefold().startswith("сот")
+                    )
+                )
 
-    if blocks:
-        for offer in _HOUSE_PART.finditer(text):
-            if _OTHER_UNIT.match(text, offer.end()):
-                continue
-            block = _OFFERED_BLOCK.match(text, offer.start())
-            if block and _block(block) not in blocks:
-                raise RejectedCard("conflicting_house_unit")
-            measured, lot, _ = _house_measurements(
-                text, block.end() if block else offer.end()
-            )
-            record(measured, lot)
-    else:
+    if not blocks:
         areas.add(area_m2(building.get("totalArea")))
 
-    for offer in _OFFERED_HOUSE.finditer(text):
-        if _OTHER_UNIT.match(text, offer.end()):
+    for offer in _HOUSE_OFFER.finditer(text):
+        block_start = offer.start("block")
+        block = (
+            _ADDRESSABLE_BLOCK.match(text, block_start) if block_start >= 0 else None
+        )
+        measured, lot, end = _house_measurements(
+            text, block.end() if block else offer.end()
+        )
+        if _OTHER_UNIT.match(text, end):
+            continue
+        if offer["unsupported"]:
+            raise RejectedCard("unconfirmed_house_unit")
+        if offer["part"]:
+            if not blocks:
+                raise RejectedCard("unconfirmed_house_unit")
+            if block and _block(block) not in blocks:
+                raise RejectedCard("conflicting_house_unit")
+            record(measured, lot, end)
             continue
         if blocks and offer["whole"]:
             raise RejectedCard("conflicting_house_unit")
-        # When a block is offered, enclosing house measurements are another scope.
-        measured, lot, end = _house_measurements(text, offer.end())
         if second := _NEXT_HOUSE.match(text, end):
-            _, _, end = _house_measurements(text, second.end())
-            if _JOINT_LOT.match(text, end):
+            _, _, second_end = _house_measurements(text, second.end())
+            if _JOINT_LOT.match(text, second_end):
                 raise RejectedCard("unconfirmed_house_unit")
+        # When a block is offered, enclosing house measurements are another scope.
         if not blocks:
-            record(measured, lot)
+            record(measured, lot, end)
 
     if len(areas - {None}) > 1:
         raise RejectedCard("conflicting_house_area")
