@@ -245,14 +245,11 @@ def _unique[T](choices: set[T]) -> T | None:
 
 
 def _known_settlement(
-    evidence: Iterable[tuple[str, str | None] | None],
+    evidence: Iterable[tuple[str, str | None]],
 ) -> tuple[str, str | None] | None:
     names: set[str] = set()
     kinds: set[str] = set()
-    for known in evidence:
-        if known is None:
-            return None
-        name, kind = known
+    for name, kind in evidence:
         names.add(name)
         if kind is not None:
             kinds.add(kind)
@@ -270,11 +267,12 @@ def _room_address(
     complete_details: bool,
 ) -> Address | PartialAddress:
     streets: dict[int, str] = {}
-    localities: list[tuple[int, str, str, tuple[str, str | None] | None]] = []
+    localities: list[tuple[int, tuple[str, str | None]]] = []
     districts: dict[int, str] = {}
     numbers: list[tuple[int, str, str]] = []
     late_numbers: set[str] = set()
     ambiguous_number = False
+    unreadable_locality = False
     strict_building = True
     labels: list[str] = []
     roles: list[str] = []
@@ -329,26 +327,30 @@ def _room_address(
         if street is not None:
             streets[i] = street
         if role in ("settlement", "name"):
-            localities.append((i, label, role, _settlement_name(label, role)))
+            named = _settlement_name(label, role)
+            if named is None:
+                unreadable_locality = True
+            else:
+                localities.append((i, named))
         if role == "district" and (district := _district_name(label)) is not None:
             districts[i] = district
 
-    # A sole name in the street position can be compared even if the full
-    # chain is invalid. Without a typed place, require the simple address order.
-    if not streets and numbers and len(localities) >= 2:
-        index, label, _, last = localities[-1]
-        place = _known_settlement(known for _, _, _, known in localities[:-1])
+    # Unreadable fragments do not prove a competing locality, but break the
+    # sequence required to infer an unmarked street by position.
+    if not unreadable_locality and not streets and numbers and len(localities) >= 2:
+        index, (name, kind) = localities[-1]
+        place = _known_settlement(known for _, known in localities[:-1])
         if (
-            last == (label, None)
+            kind is None
             and place is not None
-            and label != place[0]
+            and name != place[0]
             and numbers[0][0] - index in (0, 1)
             and (
                 place[1] is not None
                 or all(role in ("name", "district") for role in roles)
             )
         ):
-            streets[index] = _canonical_street(label, room=True)
+            streets[index] = _canonical_street(name, room=True)
             localities.pop()
 
     number = None
@@ -383,12 +385,11 @@ def _room_address(
     # An untyped settlement needs a resolved street later in the chain.
     street_index = min(streets) if street is not None else None
     localities = [
-        entry
-        for entry in localities
-        if entry[2] == "settlement"
-        or (street_index is not None and entry[0] < street_index)
+        (index, known)
+        for index, known in localities
+        if known[1] is not None or (street_index is not None and index < street_index)
     ]
-    known_place = _known_settlement(known for _, _, _, known in localities)
+    known_place = _known_settlement(known for _, known in localities)
     if known_place is not None:
         settlement, kind = known_place
         first_place, last_place = localities[0][0], localities[-1][0]

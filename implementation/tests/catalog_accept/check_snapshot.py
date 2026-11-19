@@ -561,6 +561,96 @@ class SnapshotTests(TestCase):
         )
         self.assertEqual(prices_after_repeat, [Decimal("8000000"), Decimal("7500000")])
 
+    def test_room_repeat_keeps_resolved_locality_with_unreadable_component(
+        self,
+    ) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        places = (
+            ("г. Новокуйбышевск", "г. Новокуйбышевск, ?", "г. Самара, ?"),
+            ("г. Самара, ?", "г. Самара, ?", "г. Новокуйбышевск"),
+            (
+                "Красноярский район, село Красный Яр",
+                "?, Красноярский район, село Красный Яр",
+                "?, Приволжский район, село Красный Яр",
+            ),
+            (
+                "г. Самара, Советский район",
+                "г. Самара, Советский район, ?",
+                "г. Самара, Кировский район, ?",
+            ),
+        )
+        with as_app():
+            for index, (saved, compatible, moved) in enumerate(places, 1):
+                with self.subTest(saved=saved, moved=moved):
+                    # Arrange
+                    unit = f"улица Советская, дом {700 + index}, квартира 25, комната 2"
+                    source: ActiveSnapshot = {
+                        **card(f"room-locality-{index}"),
+                        "property_type_id": ROOM_TYPE_ID,
+                        "address": f"{saved}, {unit}",
+                    }
+                    original = self.accept(source)
+                    assert original.ad_id is not None
+                    ad = Ad.objects.filter(pk=original.ad_id).values_list(
+                        "property_id", "property__address", "observed_at", "photos"
+                    )
+                    prices = (
+                        PriceHistory.objects.filter(ad_id=original.ad_id)
+                        .order_by("observed_at")
+                        .values_list("price_rub", flat=True)
+                    )
+                    changes: ActiveSnapshot = {
+                        **later(source, 1),
+                        "address": f"{moved}, {unit}",
+                        "price": price("7000000"),
+                        "photos": {"status": "known", "urls": []},
+                    }
+                    repeat = {
+                        **later(source, 2),
+                        "address": f"{compatible}, {unit}",
+                        "price": price("7500000"),
+                    }
+
+                    # Act
+                    rejected_change = self.accept(changes)
+                    after_conflict = ad.get(), list(prices.iterator())
+                    updated = self.accept(repeat)
+                    independent = self.accept(
+                        {
+                            **repeat,
+                            "source_code": "domclick",
+                            "external_id": f"room-locality-secondary-{index}",
+                        }
+                    )
+
+                    # Assert
+                    self.assertEqual(rejected_change.outcome, "conflict")
+                    self.assertEqual(
+                        after_conflict,
+                        (
+                            (original.property_id, source["address"], START, [PHOTO]),
+                            [Decimal("8000000")],
+                        ),
+                    )
+                    self.assertEqual(updated.outcome, "updated")
+                    self.assertEqual(updated.ad_id, original.ad_id)
+                    self.assertEqual(
+                        ad.get(),
+                        (
+                            original.property_id,
+                            source["address"],
+                            repeat["observed_at"],
+                            [PHOTO],
+                        ),
+                    )
+                    self.assertEqual(
+                        list(prices.iterator()),
+                        [Decimal("8000000"), Decimal("7500000")],
+                    )
+                    self.assertEqual(independent.outcome, "created")
+                    self.assertNotEqual(independent.property_id, original.property_id)
+
     def test_apartment_keeps_existing_street_and_house_syntax(self) -> None:
         from app.catalog.models import Ad, PriceHistory
 
