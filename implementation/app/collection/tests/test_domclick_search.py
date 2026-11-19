@@ -58,7 +58,12 @@ def _native_route() -> SearchRoute:
 
 
 def _native_document(
-    body: str, *, count: int, region: int = 4987, status: str = "loaded"
+    body: str,
+    *,
+    count: int,
+    region: int = 4987,
+    status: str = "loaded",
+    layout_kind: str = "new_flat",
 ) -> str:
     state = {
         "status": status,
@@ -69,7 +74,7 @@ def _native_document(
                 "aids": [region],
                 "deal_type": "sale",
                 "category": "living",
-                "offer_type": ["flat", "new_flat"],
+                "offer_type": ["flat", layout_kind],
             }
         },
     }
@@ -110,6 +115,7 @@ class DomclickSearchTests(TestCase):
             '<a aria-label="Следующая" href="?page=2">Следующая</a>'
             "</div></div>",
             count=2,
+            layout_kind="layout",
         )
 
         # Act
@@ -126,6 +132,7 @@ class DomclickSearchTests(TestCase):
         )
         self.assertEqual(result.group_urls, (_GROUP,))
         self.assertEqual(result.next_url, route.start + "?page=2")
+        self.assertEqual(result.filters["offer_type"], ["flat", "new_flat"])
         self.assertEqual(result.incomplete, ())
 
     def test_native_empty_requires_the_ready_marker_and_effective_region(self) -> None:

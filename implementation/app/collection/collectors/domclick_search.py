@@ -46,6 +46,10 @@ _NATIVE_POSITIONS = {"page", "offset"}
 _DAILY_PAGINATOR = '[aria-label="Следующая"]'
 _DAILY_NEXT = 'a[aria-label="Следующая"]'
 _NATIVE_NEXT = '[data-e2e-id="paginate-next-btn"], a[aria-label="Следующая"]'
+# DOMCLICK-KIND-ALIAS: the published offer_type filter calls new-build layouts
+# "layout", while card keys keep the older "new_flat" segment.
+_NATIVE_KIND_ALIASES = {"new_flat": "layout"}
+
 _CARD_PREFIX = "/card/"
 _GROUP_TYPE = "sale__new_flat__"
 _UUID = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", re.IGNORECASE)
@@ -239,10 +243,14 @@ def _native_filters(state: dict[str, object], route: SearchRoute) -> dict[str, o
     applied = as_object(as_object(state.get("filters")).get("applied"))
     kinds = applied.get("offer_type")
     expected_deal = "sale" if route.deal == "sale" else "rent"
+    accepted = {
+        frozenset(route.kinds),
+        frozenset(_NATIVE_KIND_ALIASES.get(kind, kind) for kind in route.kinds),
+    }
     if (
         not isinstance(kinds, list)
         or not all(isinstance(kind, str) for kind in kinds)
-        or set(kinds) != set(route.kinds)
+        or frozenset(kinds) not in accepted
         or applied.get("aids") != [route.source_region]
         or applied.get("deal_type") != expected_deal
         or applied.get("category") != "living"
@@ -257,7 +265,7 @@ def _native_filters(state: dict[str, object], route: SearchRoute) -> dict[str, o
         "aids": applied["aids"],
         "deal_type": expected_deal,
         "category": "living",
-        "offer_type": sorted(kinds),
+        "offer_type": sorted(route.kinds),
     }
 
 
