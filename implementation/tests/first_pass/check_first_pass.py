@@ -23,7 +23,12 @@ from playwright.sync_api import Page, Route
 
 from app.catalog.locks import run_session
 from app.collection.browser import browser_page
-from app.collection.tests.cian_fixture import projection, projection_html, script
+from app.collection.tests.cian_fixture import (
+    native_case,
+    projection,
+    projection_html,
+    script,
+)
 
 
 def expect_refusal(url: str, reason: str) -> None:
@@ -244,6 +249,127 @@ def verify_invalid_card(
     )
 
 
+def verify_room_area_owner() -> None:
+    from app.catalog.models import Ad, PriceHistory, Property
+
+    # Arrange: use the native room projection with controlled seller facts and price.
+    url, offer, product = native_case("sale_room")
+    external_id = cast(int, offer["id"])
+    photo = "https://example.invalid/room.jpg"
+    product["image"] = [photo]
+    offer["photos"] = [{"id": 1}]
+    offer["description"] = "Продаётся комната № 2 площадью 9 м²."
+
+    def collect_room(card_url: str, label: str) -> dict[str, object]:
+        @contextmanager
+        def room_page() -> Iterator[Page]:
+            with browser_page() as page:
+                page.route(
+                    "**/*",
+                    lambda route: route.fulfill(
+                        status=200,
+                        content_type="text/html",
+                        body=projection_html(offer, product, label),
+                    ),
+                )
+                yield page
+
+        output = StringIO()
+        with patch("app.collection.one_card.browser_page", room_page):
+            call_command("collect", card_url, stdout=output)
+        return cast(dict[str, object], json.loads(output.getvalue()))
+
+    # Act
+    first = collect_room(url, "1 400 000 ₽")
+
+    # Assert: original publication is stored with the known area, photo and price.
+    publications = Ad.objects.filter(source_id="cian", external_id=str(external_id))
+    saved = publications.get()
+    properties = Property.objects.filter(pk=saved.property_id)
+    prices = PriceHistory.objects.filter(ad=saved).order_by("observed_at")
+    assert first["outcome"] == "created"
+    assert properties.get().area_m2 == Decimal("9.00")
+    assert saved.photos == [photo]
+    before = [list(rows.values()) for rows in (publications, properties, prices)]
+    counts_before = (
+        Property.objects.count(),
+        Ad.objects.count(),
+        PriceHistory.objects.count(),
+    )
+
+    # Arrange: the proposed new price and gallery must not be written on conflict.
+    cast(dict[str, object], offer["bargainTerms"])["price"] = 1_500_000
+    cast(dict[str, object], product["offers"])["price"] = 1_500_000
+    product["image"] = ["https://example.invalid/new-room.jpg"]
+    offer["description"] = (
+        "Продаётся комната № 2 площадью 9 м². "
+        "В соседней квартире: продаётся комната № 2 площадью 11 м². "
+        "Продаётся комната № 2. Площадь предлагаемой комнаты № 2 — 12 м²."
+    )
+
+    # Act
+    try:
+        collect_room(url, "1 500 000 ₽")
+    except CommandError as error:
+        # Assert
+        assert str(error) == "conflicting_room_area"
+    else:
+        raise AssertionError("the contradictory area reached the catalog")
+    assert [
+        list(rows.values()) for rows in (publications, properties, prices)
+    ] == before
+    assert (
+        Property.objects.count(),
+        Ad.objects.count(),
+        PriceHistory.objects.count(),
+    ) == counts_before
+
+    # Arrange: only the neighbor has an area. The same key keeps its known size.
+    offer.update(
+        roomArea=None,
+        description=(
+            "Продаётся комната № 2. В соседней квартире:\n"
+            "Продаётся комната № 2 площадью 11 м². "
+            "Площадь предлагаемой комнаты № 2 — 11 м²."
+        ),
+    )
+
+    # Act
+    repeat = collect_room(url, "1 500 000 ₽")
+
+    # Assert
+    assert repeat["outcome"] == "updated"
+    assert repeat["ad_id"] == first["ad_id"] == saved.pk
+    assert repeat["property_id"] == first["property_id"] == saved.property_id
+    assert properties.get().area_m2 == Decimal("9.00")
+    assert (Property.objects.count(), Ad.objects.count()) == counts_before[:2]
+    assert list(prices.values_list("price_rub", flat=True)) == [
+        Decimal("1400000.00"),
+        Decimal("1500000.00"),
+    ]
+
+    # Arrange: new controlled key without a previously known room size.
+    fresh_id = external_id + 1
+    fresh_url = url.replace(str(external_id), str(fresh_id))
+    offer.update(id=fresh_id, cianId=fresh_id)
+    product["sku"] = fresh_id
+    cast(dict[str, object], product["offers"])["url"] = fresh_url
+
+    # Act
+    fresh = collect_room(fresh_url, "1 500 000 ₽")
+
+    # Assert
+    assert fresh["outcome"] == "created"
+    assert fresh["property_id"] != saved.property_id
+    assert (
+        Ad.objects.get(source_id="cian", external_id=str(fresh_id)).property.area_m2
+        is None
+    )
+    print(
+        "Cian: own area conflict, retained and unknown room sizes verified in PostgreSQL"
+    )
+
+
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.config.settings")
     django.setup()
@@ -259,3 +385,5 @@ if __name__ == "__main__":
                 print("collect: another session acquired the key after SIGTERM")
         case args:
             verify(stop_on_signal=args == ["stop"])
+            if not args:
+                verify_room_area_owner()

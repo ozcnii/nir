@@ -12,7 +12,7 @@ from app.catalog.contracts import ActiveSnapshot
 from app.collection.collectors.cian import parse_card
 from app.collection.collectors.cian_fields import RejectedCard
 from app.collection.one_card import CollectionStopped, _read_card
-from app.collection.tests.cian_fixture import FIXTURE, projection, script
+from app.collection.tests.cian_fixture import FIXTURE, native_case, projection, script
 
 OBSERVED_AT = datetime(2026, 11, 18, 12, tzinfo=UTC)
 
@@ -772,6 +772,9 @@ class CianCardTests(TestCase):
         for foreign_offer in (
             "Продаётся комната № 2 в соседней квартире.",
             "В соседней квартире продаётся комната № 2.",
+            "В соседней квартире: продаётся комната № 2.",
+            "В соседней квартире:\nПродаётся комната № 2.",
+            "В соседней квартире:\n",
         ):
             foreign = f"{foreign_offer} {detached_area}"
             for subject, count, room_area, expected in (
@@ -803,6 +806,113 @@ class CianCardTests(TestCase):
                         self.assertEqual(
                             (result["rooms"], result["area_m2"]), (count, expected)
                         )
+
+    def test_neighbor_in_the_same_sentence_cannot_claim_our_room_number(self) -> None:
+        # Arrange: room 2 is available here, with a separately scoped room 2.
+        url, offer, product = projection()
+        offer.update(
+            category="roomSale",
+            roomsForSaleCount=1,
+            roomArea="9",
+            description=(
+                "Продаётся комната № 2 площадью 9 м² и комната № 2 "
+                "площадью 11 м² в соседней квартире. "
+                "Площадь предлагаемой комнаты № 2 — 11 м²."
+            ),
+        )
+
+        # Act
+        result = parsed(url, offer, product)
+
+        # Assert
+        self.assertEqual((result["rooms"], result["area_m2"]), (1, Decimal("9.00")))
+
+    def test_competing_offer_and_neighbor_mention_have_different_scope(self) -> None:
+        for neighborhood, expected in (
+            ("В соседней квартире ремонт.", Decimal("22.50")),
+            ("В соседней квартире тоже продаются комнаты.", None),
+        ):
+            with self.subTest(neighborhood=neighborhood):
+                # Arrange: only a genuine competing offer prevents a named reference.
+                url, offer, product = projection()
+                offer.update(
+                    category="roomSale",
+                    roomsForSaleCount=None,
+                    description=(
+                        f"Продаются комнаты одним лотом. {neighborhood} "
+                        "Показ в субботу. Общая площадь предлагаемых комнат — 22,5 м²."
+                    ),
+                )
+
+                # Act
+                result = parsed(url, offer, product)
+
+                # Assert
+                self.assertEqual((result["rooms"], result["area_m2"]), (None, expected))
+
+    def test_qualified_total_belongs_to_its_own_offer(self) -> None:
+        for count, subject in ((None, "комнаты"), (2, "две комнаты")):
+            for area, expected in (
+                ("", None),
+                (" общей площадью 22,5 м²", Decimal("22.50")),
+            ):
+                own = f"Продаются {subject}{area} одним лотом."
+                for foreign in (
+                    "В соседней квартире: продаются две комнаты "
+                    "общей площадью 23 м² одним лотом.",
+                    "В соседней квартире:\nПродаются комнаты одним лотом. "
+                    "Общая площадь предлагаемых комнат — 23 м².",
+                ):
+                    for parts in ((own, foreign), (foreign, own)):
+                        with self.subTest(description=parts, count=count):
+                            # Arrange: a separately qualified lot can also have a total.
+                            url, offer, product = projection()
+                            offer.update(
+                                category="roomSale",
+                                roomsForSaleCount=count,
+                                description=" ".join(parts),
+                            )
+
+                            # Act
+                            result = parsed(url, offer, product)
+
+                            # Assert
+                            self.assertEqual(
+                                (result["rooms"], result["area_m2"]), (count, expected)
+                            )
+
+    def test_own_offer_restores_the_scope_of_its_room_measurement(self) -> None:
+        for area in ("9", "11"):
+            with self.subTest(area=area):
+                # Arrange: number 2 is reused, and the last offer identifies our room.
+                url, offer, product = projection()
+                offer.update(
+                    category="roomSale",
+                    roomsForSaleCount=1,
+                    roomArea="9",
+                    description=(
+                        "Продаётся комната № 2 площадью 9 м². "
+                        "В соседней квартире: продаётся комната № 2 площадью 12 м². "
+                        "Площадь предлагаемой комнаты № 2 — 12 м². "
+                        "Продаётся комната № 2. "
+                        f"Площадь предлагаемой комнаты № 2 — {area} м²."
+                    ),
+                )
+
+                if area == "9":
+                    # Act
+                    result = parsed(url, offer, product)
+
+                    # Assert
+                    self.assertEqual(result["area_m2"], Decimal("9.00"))
+                else:
+                    # Act
+                    with self.assertRaisesRegex(
+                        RejectedCard, "^conflicting_room_area$"
+                    ):
+                        parsed(url, offer, product)
+
+                    # Assert: both measurements of the restored own room participate.
 
     def test_explicit_own_total_survives_neutral_text_without_a_count(self) -> None:
         total = "Общая площадь предлагаемых комнат — 22,5 м²."
@@ -1049,14 +1159,3 @@ def extend_native_address(offer: dict[str, object], *components: str) -> None:
     geo = cast(dict[str, object], offer["geo"])
     address = cast(list[dict[str, object]], geo["address"])
     address.extend({"type": "house", "fullName": name} for name in components)
-
-
-def native_case(name: str) -> tuple[str, dict[str, object], dict[str, object]]:
-    path = FIXTURE.with_name("cian-native-directions.json")
-    cases = cast(list[dict[str, object]], json.loads(path.read_text())["cases"])
-    case = next(item for item in cases if item["case"] == name)
-    return (
-        cast(str, case["url"]),
-        cast(dict[str, object], case["offer"]),
-        cast(dict[str, object], case["product"]),
-    )

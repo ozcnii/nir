@@ -143,7 +143,16 @@ def seller_description(value: object) -> str | None:
 
 # Direct offers establish the subject. Detached areas need a confirmed offer.
 # Layout mentions, kitchen measurements and neighboring units have other scope.
-_OFFER = r"(?:\A|(?<=[.!?;:,\n]))\s*(?:прода[её]тся|продаются|сда[её]тся|сдаются|продаю|сдаю)\s+"
+_OFFER_START = r"(?:\A|(?<=[.!?;:,\n]))\s*"
+_OFFER_VERB = r"(?:прода[её]тся|продаются|сда[её]тся|сдаются|продаю|сдаю)\s+"
+_OFFER = _OFFER_START + _OFFER_VERB
+_OTHER_LOCATION = r"(?:в|из)\s+(?:соседн|друг)\w+"
+_OTHER_UNIT = re.compile(r"[\s,]+" + _OTHER_LOCATION, re.IGNORECASE)
+_ROOM_QUALIFIER = (
+    rf"(?:(?P<foreign>{_OTHER_LOCATION}\s+(?:квартир|дом)\w*\b)"
+    r"(?:\s*[:—–-]\s*|\s+)(?:тоже\s+)?)?"
+)
+_ROOM_OFFER = _OFFER_START + _ROOM_QUALIFIER + _OFFER_VERB
 _AREA = (
     r"(?P<area>[0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.\s*м)"
     r"(?=[\s,.;!?]|$)"
@@ -151,7 +160,7 @@ _AREA = (
 _ROOM_COUNTS = {"одна": 1, "одну": 1, "две": 2, "три": 3, "четыре": 4}
 _REFERENCED_COUNTS = {"двух": 2, "трех": 3, "трёх": 3, "четырех": 4, "четырёх": 4}
 _OFFERED_ROOMS = re.compile(
-    _OFFER
+    _ROOM_OFFER
     + rf"(?:(?P<count>[1-9][0-9]{{0,4}}|{'|'.join(_ROOM_COUNTS)}|несколько)\s+)?"
     + r"(?P<unit>комнат[ауы]?)\b",
     re.IGNORECASE,
@@ -169,6 +178,7 @@ _CLAIM_VALUE = r"\s*(?:[—–:-]\s*)?"
 _ROOM_CLAIM_START = r"(?:\A|(?<=[.!?;\n]))\s*"
 _RELATED_ROOM_AREA = re.compile(
     _ROOM_CLAIM_START
+    + _ROOM_QUALIFIER
     + r"(?:(?:общая|суммарная)\s+площадь\s+"
     + rf"(?:(?:этих|(?P<direct>предлагаемых))(?:\s+(?P<count>{'|'.join(_REFERENCED_COUNTS)}"
     + r"|[1-9][0-9]*))?|(?P<both>обеих))\s+комнат\b"
@@ -177,21 +187,16 @@ _RELATED_ROOM_AREA = re.compile(
     + _AREA,
     re.IGNORECASE,
 )
-_OTHER_LOCATION = r"(?:в|из)\s+(?:соседн|друг)\w+"
-_OTHER_UNIT = re.compile(r"[\s,]+" + _OTHER_LOCATION, re.IGNORECASE)
-_FOREIGN_ROOM_SCOPE = re.compile(
-    _ROOM_CLAIM_START + _OTHER_LOCATION + r"\s+(?:квартир|дом)\w*\b", re.IGNORECASE
-)
 _SEPARATE_OFFER = re.compile(
     r"[\s,]+(?:отдельно|по\s+отдельности|не\s+одним\s+лотом)\b",
     re.IGNORECASE,
 )
 _ROOM_SHARE = re.compile(
-    _OFFER + r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+(?:в\s+)?квартир[еы]\b",
+    _ROOM_OFFER + r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+(?:в\s+)?квартир[еы]\b",
     re.IGNORECASE,
 )
 _SPECIFIC_ROOM_SHARE = re.compile(
-    _OFFER + r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+комнаты\s+№?\s*[1-9][0-9]*\b",
+    _ROOM_OFFER + r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+комнаты\s+№?\s*[1-9][0-9]*\b",
     re.IGNORECASE,
 )
 _ALLOCATION = re.compile(
@@ -271,7 +276,9 @@ def _linked_claims(
         start = claim.end()
 
 
-def _numbered_rooms(text: str, start: int) -> tuple[dict[str, list[str]], int] | None:
+def _numbered_rooms(
+    text: str, start: int
+) -> tuple[dict[str, list[str]], int, int | None] | None:
     members: dict[str, list[str]] = {}
     member = _ROOM_NUMBER.match(text, start)
     while member:
@@ -285,7 +292,7 @@ def _numbered_rooms(text: str, start: int) -> tuple[dict[str, list[str]], int] |
             if _SEPARATE_OFFER.match(text, measured_end):
                 return None
             if _OTHER_UNIT.match(text, measured_end):
-                break
+                return members, start, member.start()
         measures = members.setdefault(member[1], [])
         # An explicitly common area after the last member belongs to the offer.
         if area and (total is None or next_member is not None):
@@ -293,7 +300,7 @@ def _numbered_rooms(text: str, start: int) -> tuple[dict[str, list[str]], int] |
             end = measured_end
         start = end
         member = next_member
-    return members, start
+    return members, start, None
 
 
 def _room_count(value: str) -> int | None:
@@ -302,85 +309,60 @@ def _room_count(value: str) -> int | None:
     return _ROOM_COUNTS.get(value)
 
 
-def _adjacent_bundle_totals(
+def _adjacent_room_claims(
     text: str,
-    offers: list[tuple[int, int, frozenset[str]]],
+    offers: list[tuple[int, int, bool]],
     claims: list[re.Match[str]],
 ) -> Iterator[int]:
-    first_group = offers[0][2]
-    facts: list[tuple[int, int, re.Match[str] | None]] = [
-        (start, end, None) for start, end, _ in offers
-    ]
-    facts.extend(
-        (claim.start(), claim.end(), claim)
-        for claim in claims
-        if claim["member"] is None or claim["member"] in first_group
-    )
+    facts = [*offers, *((claim.start(), claim.end(), None) for claim in claims)]
     pending: list[int] = []
-    has_offer = False
+    own_offer: bool | None = None
+    linked = False
     previous_end = 0
-    for start, end, claim in sorted(facts, key=lambda fact: fact[0]):
-        # Unparsed content may introduce another subject for "these rooms".
+    for start, end, owner in sorted(facts, key=lambda fact: fact[0]):
         if text[previous_end:start].strip(" \t\r\n.!?;"):
-            has_offer = False
+            linked = False
             pending.clear()
-        if claim is None:
-            has_offer = True
-            yield from pending
+        if owner is not None:
+            if owner:
+                yield from pending
+            own_offer = linked = owner
             pending.clear()
-        elif claim["member"] is None:
-            if has_offer:
-                yield start
-            else:
-                pending.append(start)
+        elif linked:
+            yield start
+        elif own_offer is not False:
+            pending.append(start)
         previous_end = end
-
-
-def _has_competing_room_scope(
-    claim: re.Match[str], scopes: dict[int, frozenset[str] | None]
-) -> bool:
-    position = claim.start()
-    anchor = max(
-        (
-            start
-            for start, members in scopes.items()
-            if members is None and start < position
-        ),
-        default=None,
-    )
-    number = claim["member"]
-    return any(
-        members is not None
-        and (not members or number is None or number in members)
-        and (anchor is None or anchor < start < position)
-        for start, members in scopes.items()
-    )
 
 
 def _collect_related_room_areas(
     text: str,
     count: int | None,
-    bundles: list[tuple[int, int, frozenset[str]]],
+    bundles: list[frozenset[str]],
     member_areas: dict[frozenset[str], dict[str, set[Decimal]]],
     set_areas: set[Decimal],
-    scopes: dict[int, frozenset[str] | None],
+    offers: list[tuple[int, int, bool]],
 ) -> None:
     # A detached total needs one established lot, even if its count is unknown.
-    first_group = bundles[0][2] if bundles else frozenset()
+    first_group = bundles[0] if bundles else frozenset()
     has_one_bundle = len(bundles) == 1 or (
-        len(first_group) > 1 and all(group == first_group for _, _, group in bundles)
+        len(first_group) > 1 and all(group == first_group for group in bundles)
     )
-    claims = [
-        claim
-        for claim in _RELATED_ROOM_AREA.finditer(text)
-        if not _OTHER_UNIT.match(text, claim.end())
-        and not _has_competing_room_scope(claim, scopes)
-    ]
-    linked_totals = (
-        set(_adjacent_bundle_totals(text, bundles, claims)) if has_one_bundle else set()
-    )
+    claims: list[re.Match[str]] = []
+    for claim in _RELATED_ROOM_AREA.finditer(text):
+        if claim["foreign"] or _OTHER_UNIT.match(text, claim.end()):
+            offers.append((claim.start(), claim.end(), False))
+        elif claim["member"] is None or any(
+            claim["member"] in areas for areas in member_areas.values()
+        ):
+            claims.append(claim)
+    linked = set(_adjacent_room_claims(text, offers, claims))
+    has_competitor = any(not own for _, _, own in offers)
     for claim in claims:
         number = claim["member"]
+        names_offer = number is not None or claim["direct"] is not None
+        if claim.start() not in linked and (has_competitor or not names_offer):
+            continue
         if number is not None:
             candidates = [
                 areas[number] for areas in member_areas.values() if number in areas
@@ -395,10 +377,7 @@ def _collect_related_room_areas(
                 if claim["both"]
                 else _REFERENCED_COUNTS.get(count_label) or _room_count(count_label)
             )
-            has_owner = claim.start() in linked_totals or (
-                has_one_bundle and claim["direct"] is not None
-            )
-            if not has_owner or (
+            if not has_one_bundle or (
                 referenced is not None and count is not None and referenced != count
             ):
                 continue
@@ -412,9 +391,11 @@ def check_room(
 ) -> tuple[int | None, Decimal | None]:
     text = description or ""
     counts = {rooms} if rooms is not None else set()
-    if _SPECIFIC_ROOM_SHARE.search(text):
+    if any(not share["foreign"] for share in _SPECIFIC_ROOM_SHARE.finditer(text)):
         counts.add(1)
     for share in _ROOM_SHARE.finditer(text):
+        if share["foreign"] or _OTHER_UNIT.match(text, share.end()):
+            continue
         if not _ALLOCATION.match(text, share.end()):
             raise RejectedCard("unconfirmed_room_unit")
         counts.add(1)
@@ -422,21 +403,21 @@ def check_room(
     single_areas: set[Decimal] = set()
     set_areas: set[Decimal] = set()
     member_areas_by_group: dict[frozenset[str], dict[str, set[Decimal]]] = {}
-    bundles: list[tuple[int, int, frozenset[str]]] = []
-    # None marks our offer. Other offers carry their numbers, if known.
-    scopes: dict[int, frozenset[str] | None] = {
-        scope.start(): frozenset() for scope in _FOREIGN_ROOM_SCOPE.finditer(text)
-    }
+    bundles: list[frozenset[str]] = []
+    offers: list[tuple[int, int, bool]] = []
     multiple = False
     for offer in _OFFERED_ROOMS.finditer(text):
+        if offer["foreign"]:
+            offers.append((offer.start(), offer.end(), False))
+            continue
         raw_count = (offer["count"] or "").casefold()
         singular = offer["unit"].casefold() in ("комната", "комнату")
         bundle = not singular or raw_count not in ("", "1", "одна", "одну")
         numbered = _numbered_rooms(text, offer.end())
         if numbered is None:
-            scopes[offer.start()] = frozenset()
+            offers.append((offer.start(), offer.end(), False))
             continue
-        members, end = numbered
+        members, end, other_room = numbered
         member_count = len(members)
         bundle = bundle or member_count > 1
         if bundle and (lot := _JOINT_LOT.match(text, end)):
@@ -453,9 +434,11 @@ def check_room(
             or (bundle and _SEPARATE_OFFER.match(text, boundary))
             for boundary in (end, measured_end, offer_end)
         ):
-            scopes[offer.start()] = frozenset(members)
+            offers.append((offer.start(), offer_end, False))
             continue
-        scopes[offer.start()] = None
+        offers.append((offer.start(), offer_end, True))
+        if other_room is not None:
+            offers.append((other_room, other_room, False))
 
         count = _room_count(raw_count)
         if count is not None:
@@ -468,7 +451,7 @@ def check_room(
             counts.add(member_count)
         group = frozenset(members)
         if bundle:
-            bundles.append((offer.start(), offer_end, group))
+            bundles.append(group)
         # Identical numbered sets identify the same members across offer claims.
         member_areas = member_areas_by_group.setdefault(group, {}) if members else {}
         for number, claims in members.items():
@@ -488,7 +471,7 @@ def check_room(
         bundles,
         member_areas_by_group,
         set_areas,
-        scopes,
+        offers,
     )
     is_bundle = multiple or (offered_count is not None and offered_count > 1)
     for member_areas in member_areas_by_group.values():

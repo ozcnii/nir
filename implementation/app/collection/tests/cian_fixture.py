@@ -29,8 +29,23 @@ def script(offer: dict[str, object], price_label: object = "7 246 735 ₽") ->
     )
 
 
-def projection_html(offer: dict[str, object], product: dict[str, object]) -> str:
+def projection_html(
+    offer: dict[str, object],
+    product: dict[str, object],
+    price_label: object = "7 246 735 ₽",
+) -> str:
     return (
-        f"<script>{script(offer)}</script>"
+        f"<script>{script(offer, price_label)}</script>"
         f'<script type="application/ld+json">{json.dumps(product)}</script>'
+    )
+
+
+def native_case(name: str) -> tuple[str, dict[str, object], dict[str, object]]:
+    path = FIXTURE.with_name("cian-native-directions.json")
+    cases = cast(list[dict[str, object]], json.loads(path.read_text())["cases"])
+    case = next(item for item in cases if item["case"] == name)
+    return (
+        cast(str, case["url"]),
+        cast(dict[str, object], case["offer"]),
+        cast(dict[str, object], case["product"]),
     )
