@@ -59,6 +59,7 @@ class HouseMatchingTests(TestCase):
             snapshot("no-id", f"{HOUSE}, блок"),
             snapshot("no-inline-id", f"{HOUSE} блок"),
             snapshot("no-building", "Самара, СНТ Луч, улица Садовая блок 2"),
+            snapshot("territory-no-id", "Самара, СНТ Луч дом 7 блок"),
         )
         valid_block = snapshot("block", f"{HOUSE} блок 2")
 
@@ -152,17 +153,39 @@ class HouseMatchingTests(TestCase):
         )
 
     def test_inconsistent_locality_cannot_determine_the_same_house(self) -> None:
+        addresses = (
+            "город Самара, город Тольятти, улица Садовая, дом 7",
+            "Самара, Тольятти, СНТ Луч, улица Садовая, дом 7",
+            HOUSE.replace("Самарская область", "Саратовская обл."),
+        )
+        for index, address in enumerate(addresses):
+            with self.subTest(address=address):
+                # Arrange
+                key = f"inconsistent-{index}"
+                first = accept_snapshot(snapshot(key, address))
+
+                # Act
+                second = accept_snapshot(snapshot(key, address, source="domclick"))
+
+                # Assert
+                self.assertEqual(first.outcome, "created")
+                self.assertEqual(second.outcome, "created")
+                self.assertNotEqual(first.property_id, second.property_id)
+
+    def test_territory_and_inline_block_retain_separate_address_roles(self) -> None:
         # Arrange
-        address = "город Самара, город Тольятти, улица Садовая, дом 7"
-        first = accept_snapshot(snapshot("first", address))
+        inline = "Самарская обл., Самара, территория СНТ Луч дом 7 блок 2"
+        first = accept_snapshot(snapshot("inline", inline))
+        separate = "Самара, СНТ Луч, дом 7, блок 2"
 
         # Act
-        second = accept_snapshot(snapshot("second", address, source="domclick"))
+        same = accept_snapshot(snapshot("separate", separate, source="domclick"))
 
         # Assert
         self.assertEqual(first.outcome, "created")
-        self.assertEqual(second.outcome, "created")
-        self.assertNotEqual(first.property_id, second.property_id)
+        self.assertEqual(same.property_id, first.property_id)
+        assert first.property_id is not None
+        self.assertEqual(Property.objects.get(pk=first.property_id).address, inline)
 
     def test_inline_plot_and_multiple_house_numbers_do_not_attach(self) -> None:
         street = "Самара, СНТ Луч, улица Садовая"
@@ -277,6 +300,31 @@ class HouseMatchingTests(TestCase):
         self.assertEqual(saved.address, complete["address"])
         self.assertEqual(saved.area_m2, Decimal(80))
         self.assertEqual(saved.land_area_m2, Decimal(600))
+
+    def test_repeat_with_structure_omits_only_the_house_number(self) -> None:
+        # Arrange
+        first_address = f"{HOUSE}, строение 2"
+        first = accept_snapshot(snapshot("structure", first_address))
+        partial = HOUSE.removesuffix(", дом 7")
+        retained = f"{partial}, строение 2"
+        changed = f"{partial}, строение 3"
+        newer = TIME + timedelta(minutes=1)
+
+        # Act
+        same = accept_snapshot(snapshot("structure", retained, time=newer))
+        conflict = accept_snapshot(
+            snapshot("structure", changed, time=newer + timedelta(minutes=1))
+        )
+
+        # Assert
+        self.assertEqual(same.outcome, "unchanged")
+        self.assertEqual(same.property_id, first.property_id)
+        self.assertEqual(conflict.outcome, "conflict")
+        assert first.ad_id is not None
+        stored = Ad.objects.get(pk=first.ad_id)
+        self.assertEqual(stored.observed_at, newer)
+        self.assertEqual(stored.property.address, first_address)
+        self.assertEqual(PriceHistory.objects.filter(ad=stored).count(), 1)
 
     def test_repeated_block_keeps_omitted_scope_and_whole_cannot_become_block(
         self,

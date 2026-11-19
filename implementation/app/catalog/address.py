@@ -9,7 +9,6 @@ class HouseAddress:
     settlements: dict[str, str]
     areas: dict[str, str]
     street: str | None
-    number: str | None
     qualifiers: dict[str, str]
     complete: bool
     block_marked: bool

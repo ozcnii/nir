@@ -85,6 +85,7 @@ _HOUSE_TERRITORIES = {
 _ENCLOSING_DISTRICT = "enclosing district"
 _LOCAL_DISTRICT = "local district"
 _DISTRICT_SCOPES = {_ENCLOSING_DISTRICT, _LOCAL_DISTRICT}
+_BUILDING_TAGS = {"дом", "строение", "таунхаус"}
 
 
 def _plain(value: str) -> str:
@@ -260,15 +261,6 @@ def _house_territory(part: str) -> tuple[str, str] | None:
 
 
 def _house_component(part: str) -> tuple[str, list[tuple[str, str]]]:
-    territory = _house_territory(part)
-    if territory is not None:
-        return " ".join(territory), []
-    role = _address_role(part)
-    if role == "district":
-        district = _district_name(part)
-        return f"район {district}" if district else part, []
-    if role == "settlement":
-        return part, []
     markers = list(_HOUSE_MARKER.finditer(part))
     if not markers:
         return part, []
@@ -278,6 +270,36 @@ def _house_component(part: str) -> tuple[str, list[tuple[str, str]]]:
         identifier = part[marker.end() : end].strip().removeprefix(".").lstrip()
         labels.append((_HOUSE_MARKERS[marker[1]], identifier.removeprefix("№").strip()))
     return part[: markers[0].start()].strip(), labels
+
+
+def _house_subject(part: str, region: str) -> str | None:
+    if part == region and _address_role(part) == "territory":
+        return part
+    if not (
+        part.startswith("республика ")
+        or part.endswith(
+            (" обл", " обл.", " область", " край", " республика", " автономный округ")
+        )
+    ):
+        return None
+    if _named_street(part) is not None or _house_area_component(part) is not None:
+        return None
+    if part.endswith((" обл", " обл.")):
+        return part.rsplit(" ", 1)[0] + " область"
+    return part
+
+
+def _house_area_component(part: str) -> str | None:
+    territory = _house_territory(part)
+    if territory is not None:
+        return " ".join(territory)
+    role = _address_role(part)
+    if role == "district":
+        name = _district_name(part)
+        return f"район {name}" if name else None
+    if role == "settlement":
+        return part
+    return None
 
 
 def _named_street(part: str) -> str | None:
@@ -315,12 +337,17 @@ def _house_geography(
                 areas.setdefault(scope, set()).add(name)
         elif role == "name" and not after_street:
             untyped.append(part)
-    if not typed and street is not None and len(untyped) == 1:
+    consistent = len(untyped) <= 1 and (
+        not typed
+        or all(any(name in names for names in typed.values()) for name in untyped)
+    )
+    if not typed and len(untyped) == 1:
         typed[""] = {untyped[0]}
     return (
         {kind: next(iter(names)) for kind, names in typed.items() if len(names) == 1},
         {kind: next(iter(names)) for kind, names in areas.items() if len(names) == 1},
-        all(len(names) <= 1 for names in (*typed.values(), *areas.values())),
+        consistent
+        and all(len(names) <= 1 for names in (*typed.values(), *areas.values())),
     )
 
 
@@ -333,65 +360,46 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
     parts = [part for part in parts if part]
     if parts[:1] == ["россия"]:
         parts.pop(0)
-    if parts:
-        first = parts[0]
-        if first.endswith(" обл."):
-            first = first.removesuffix(" обл.") + " область"
-        if first == _plain(region) and _address_role(first) == "territory":
-            parts.pop(0)
+    expected_subject = _plain(region)
     location: list[str] = []
-    numbers: list[str | None] = []
-    identifiers: dict[str, set[str]] = {}
+    identifiers: dict[str, list[str]] = {}
     for raw_part in parts:
         part, labels = _house_component(raw_part)
-        if part:
-            building = _building_component(part)
-            if building is None:
-                if numbers or identifiers:
+        subject = _house_subject(part, expected_subject) if part else None
+        if subject is not None:
+            if expected_subject and subject != expected_subject:
+                valid = False
+        elif part:
+            area = _house_area_component(part)
+            building = None if area else _building_component(part)
+            prefix, number, _ = building or ("", "", False)
+            inline_street = _named_street(prefix) if prefix else None
+            follows_street = bool(location and _named_street(location[-1]))
+            if number and (inline_street or (not prefix and follows_street)):
+                if identifiers:
                     valid = False
-                street = _named_street(part)
-                if labels and street is None:
-                    valid = False
-                location.append(street or part)
+                labels.insert(0, ("дом", number))
+                if inline_street:
+                    location.append(inline_street)
             else:
-                prefix, published_number, _ = building
-                street = _named_street(prefix)
-                follows_street = bool(location and _named_street(location[-1]))
-                if street is not None or (
-                    not prefix and follows_street and not identifiers
+                street = _named_street(part)
+                if (
+                    identifiers
+                    or (labels and not (area or street))
+                    or (number and not prefix)
                 ):
-                    if identifiers:
-                        valid = False
-                    numbers.append(published_number)
-                    if street is not None:
-                        location.append(street)
-                elif prefix:
-                    if labels or numbers or identifiers:
-                        valid = False
-                    location.append(_named_street(part) or part)
-                else:
                     valid = False
+                if not number or prefix:
+                    location.append(area or street or part)
 
         for label, identifier in labels:
-            if label == "дом":
-                numbers.append(
-                    identifier if _HOUSE_NUMBER.fullmatch(identifier) else None
-                )
-                continue
-            ids = identifiers.setdefault(label, set())
-            known = _valid_house_identifier(label, identifier)
-            if ids or not known:
-                valid = False
-            if known:
-                ids.add(identifier)
+            identifiers.setdefault(label, []).append(identifier)
 
     qualifiers = {
-        tag: next(iter(ids)) for tag, ids in identifiers.items() if len(ids) == 1
+        tag: ids[0]
+        for tag, ids in identifiers.items()
+        if len(ids) == 1 and _valid_house_identifier(tag, ids[0])
     }
-    if numbers:
-        number = numbers[0] if len(numbers) == 1 else None
-    else:
-        number = qualifiers.get("строение") or qualifiers.get("таунхаус")
     streets = [part for part in location if _named_street(part) is not None]
     street = streets[0] if len(streets) == 1 else None
     settlements, areas, consistent = _house_geography(location, street)
@@ -406,9 +414,10 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
     complete = (
         valid
         and consistent
+        and len(qualifiers) == len(identifiers)
         and len(streets) <= 1
         and len(blocks) <= 1
-        and number is not None
+        and bool(_BUILDING_TAGS & qualifiers.keys())
         and (has_street or (territory or rural))
     )
     return HouseAddress(
@@ -416,7 +425,6 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
         settlements=settlements,
         areas=areas,
         street=street,
-        number=number,
         qualifiers=qualifiers,
         complete=complete,
         block_marked=bool(blocks),

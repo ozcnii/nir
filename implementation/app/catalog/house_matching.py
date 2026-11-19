@@ -22,7 +22,7 @@ def _same_building(left: HouseAddress, right: HouseAddress) -> bool:
     return (
         left.complete
         and right.complete
-        and (left.location, left.number) == (right.location, right.number)
+        and left.location == right.location
         and _building_parts(left) == _building_parts(right)
         and not _conflicting_ids(left.qualifiers, right.qualifiers)
     )
@@ -82,7 +82,6 @@ def _enriched_address(
         new.complete
         and old != new
         and _contains_location(new.location, old.location)
-        and (old.number is None or old.number == new.number)
         and old.qualifiers.items() <= new.qualifiers.items()
     ):
         return incoming["address"]
@@ -111,11 +110,9 @@ def repeated_house_patch(
 
 
 def _location_conflicts(old: HouseAddress, new: HouseAddress) -> bool:
-    if any(
-        left is not None and right is not None and left != right
-        for left, right in ((old.number, new.number), (old.street, new.street))
-    ) or (
-        _conflicting_ids(old.settlements, new.settlements)
+    if (
+        (old.street is not None and new.street is not None and old.street != new.street)
+        or _conflicting_ids(old.settlements, new.settlements)
         or _conflicting_ids(old.areas, new.areas)
     ):
         return True
