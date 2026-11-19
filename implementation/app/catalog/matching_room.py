@@ -4,7 +4,7 @@ from collections.abc import Iterable
 
 from app.catalog.address import (
     Address,
-    AddressNumbers,
+    PartialAddress,
     address_patch,
     details_conflict,
     location_conflicts,
@@ -98,13 +98,9 @@ def choose_room(
 
 
 def _conflicting_numbers(
-    previous: Address | AddressNumbers, incoming: Address | AddressNumbers
+    previous: Address | PartialAddress, incoming: Address | PartialAddress
 ) -> bool:
-    if (
-        previous.number is not None
-        and incoming.number is not None
-        and previous.number != incoming.number
-    ) or details_conflict(previous, incoming, ignore=ROOM_DETAILS):
+    if details_conflict(previous, incoming, ignore=ROOM_DETAILS):
         return True
     old_unit, new_unit = _unit(previous.details), _unit(incoming.details)
     if old_unit is None or new_unit is None:
@@ -125,10 +121,9 @@ def repeated_room_patch(
     address = incoming["address"] if saved["address"] is None else None
     old = read_room_address(saved["address"], region)
     new = read_room_address(incoming["address"], region)
-    if old is not None and new is not None and _conflicting_numbers(old, new):
-        return None
-    if isinstance(old, Address) and isinstance(new, Address):
-        if location_conflicts(old, new):
+    if old is not None and new is not None:
+        if location_conflicts(old, new) or _conflicting_numbers(old, new):
             return None
-        address = _room_address_patch(old, new)
+        if isinstance(old, Address) and isinstance(new, Address):
+            address = _room_address_patch(old, new)
     return property_patch(saved, incoming, address)

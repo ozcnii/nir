@@ -63,7 +63,7 @@ class MatchingTests(TestCase):
         )
         self.assertIsNone(misplaced_street)
 
-    def test_room_repeat_compares_only_known_numbers_in_incomplete_addresses(
+    def test_room_repeat_compares_only_known_fields_in_incomplete_addresses(
         self,
     ) -> None:
         # Arrange
@@ -92,7 +92,25 @@ class MatchingTests(TestCase):
             (f"{territory}, дом 7, квартира 25", False),
             (f"{territory}, дом 7, комната 3", False),
             (f"{territory}, дом 7, квартира 25, комната дома 3", False),
-            (f"{territory}, 9, квартира 25", False),
+            (f"{territory}, 9, квартира 25", True),
+            (f"{territory} 9, квартира 25", True),
+            (f"{territory}, дом № 9, квартира 25", True),
+            (f"{territory} д. №9, квартира 25", True),
+            (f"{territory} д. №7, квартира 25", False),
+            (f"{territory}, дом № 7, квартира 25", False),
+            (f"{territory}, дом № 7, д. №9, квартира 25", False),
+            (f"{territory}, дом № 7 или № 9, квартира 25", False),
+            ("Самара, улица Солнечная, микрорайон Солнечный, 9, квартира 25", False),
+            ("Самара, ул. Солнечная 7, микрорайон Солнечный, квартира 25", False),
+            ("Самара, ул. Солнечная 9, микрорайон Солнечный, квартира 25", True),
+            ("Самара, ул. Солнечная, дом № 9, микрорайон Солнечный, кв. 25", True),
+            ("г. Самара, микрорайон Солнечный, Солнечная ул., 7, кв. 25", False),
+            ("г. Новокуйбышевск, микрорайон Солнечный, ул. Солнечная, 7", True),
+            ("Новокуйбышевск, микрорайон Солнечный, ул. Солнечная, 7", True),
+            ("г. Самара, г. Чапаевск, микрорайон Солнечный, ул. Солнечная, 7", False),
+            ("Самара, микрорайон Солнечный, ул. Полевая, 7", True),
+            ("Самара, микрорайон Солнечный, ул. Полевая", True),
+            ("Самара, микрорайон Солнечный, ул. Солнечная, ул. Полевая, 9", False),
             (f"{territory}, участок 9, квартира 25", False),
             (f"{territory}, дом 7, дом 9, квартира 25", False),
             (f"{territory}, дом 7, квартира 25, комната 3, квартира 26", False),

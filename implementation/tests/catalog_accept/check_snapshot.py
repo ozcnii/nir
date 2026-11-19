@@ -278,7 +278,7 @@ class SnapshotTests(TestCase):
             **later(full, 5),
             "address": (
                 "Самара, микрорайон Солнечный, улица Ставропольская, "
-                "дом 131, корпус 2, квартира 25"
+                "131, корпус 2, квартира 25"
             ),
             "price": conflict["price"],
             "photos": conflict["photos"],

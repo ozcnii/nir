@@ -5,7 +5,10 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class AddressNumbers:
+class PartialAddress:
+    settlement: str | None
+    settlement_kind: str | None
+    street: str | None
     number: str | None
     details: dict[str, tuple[str, str]]
 
@@ -31,17 +34,31 @@ class Address:
         return item[0] if item is not None else None
 
     @property
+    def settlement(self) -> str:
+        return self.locality[-1]
+
+    @property
     def location(self) -> tuple[tuple[str, ...], str, str]:
         return (self.locality, self.street, self.number)
 
 
-def location_conflicts(left: Address, right: Address) -> bool:
-    return left.location != right.location or any(
-        first is not None and second is not None and first != second
-        for first, second in (
-            (left.district, right.district),
-            (left.settlement_kind, right.settlement_kind),
+def location_conflicts(
+    left: Address | PartialAddress, right: Address | PartialAddress
+) -> bool:
+    fields: tuple[tuple[str | None, str | None], ...]
+    if isinstance(left, Address) and isinstance(right, Address):
+        if left.location != right.location:
+            return True
+        fields = ((left.district, right.district),)
+    else:
+        fields = (
+            (left.settlement, right.settlement),
+            (left.street, right.street),
+            (left.number, right.number),
         )
+    return any(
+        first is not None and second is not None and first != second
+        for first, second in (*fields, (left.settlement_kind, right.settlement_kind))
     )
 
 
@@ -52,8 +69,8 @@ def same_house(left: Address, right: Address) -> bool:
 
 
 def details_conflict(
-    previous: Address | AddressNumbers,
-    incoming: Address | AddressNumbers,
+    previous: Address | PartialAddress,
+    incoming: Address | PartialAddress,
     *,
     ignore: Collection[str] = (),
 ) -> bool:
