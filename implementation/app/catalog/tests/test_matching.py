@@ -88,6 +88,7 @@ class MatchingTests(TestCase):
             parse_address(f"{address}, {tail}", region, room=True)
             for address in incomplete
         ]
+        repeated_number = parse_address(f"{valid[0]}, {tail}, дом 7", region, room=True)
 
         # Assert
         self.assertEqual(
@@ -99,6 +100,7 @@ class MatchingTests(TestCase):
             [("улица 8 марта", "7")] * len(valid),
         )
         self.assertEqual(results, [None] * len(incomplete))
+        self.assertIsNone(repeated_number)
 
     def test_room_repeat_compares_only_known_fields_in_incomplete_addresses(
         self,
@@ -172,6 +174,9 @@ class MatchingTests(TestCase):
             ("Самара, улица Солнечная дом №7;д. №9, квартира 26", False),
             (f"{territory}, дом 9, квартира 25, комната 2, дом 7", False),
             (f"{territory}, дом 9, квартира 25, дом 7, комната 2", False),
+            (f"{territory}, дом 9, квартира 25, комната 2, дом 9", True),
+            (f"{territory}, 9, квартира 25, комната 2, дом 9", True),
+            (f"{territory}, дом 7, квартира 25, комната 2, дом 7", False),
             (f"{territory}, дом 9, квартира 25, участок 7", True),
         )
 
@@ -195,6 +200,9 @@ class MatchingTests(TestCase):
         locality = "село Красный Яр, Советский район, улица Советская, дом 7"
         saved_address = f"Красноярский район, {locality}, квартира 25, комната 2"
         untyped_street = saved_address.replace("Советский район, улица ", "")
+        two_districts_untyped_street = saved_address.replace(
+            "улица Советская", "Советская"
+        )
         previous: PropertyFacts = {
             "address": saved_address,
             "latitude": None,
@@ -206,17 +214,29 @@ class MatchingTests(TestCase):
             "land_area_m2": None,
         }
         cases = (
-            (saved_address, "Красноярский", "Приволжский", True),
-            (saved_address, "Советский", "Кировский", True),
-            (saved_address, "Красноярский район, ", "", False),
-            (saved_address, "Советский район, ", "", False),
-            (saved_address, "Красноярский район", "район Красноярский", False),
-            (untyped_street, "Красноярский", "Приволжский", True),
-            (untyped_street, "Красноярский", "Красноярский", False),
+            (saved_address, saved_address.replace("Красноярский", "Приволжский"), True),
+            (saved_address, saved_address.replace("Советский", "Кировский"), True),
+            (saved_address, saved_address.replace("Красноярский район, ", ""), False),
+            (saved_address, saved_address.replace("Советский район, ", ""), False),
+            (
+                saved_address,
+                saved_address.replace("Красноярский район", "район Красноярский"),
+                False,
+            ),
+            (
+                untyped_street,
+                untyped_street.replace("Красноярский", "Приволжский"),
+                True,
+            ),
+            (
+                untyped_street,
+                two_districts_untyped_street.replace("Красноярский", "Приволжский"),
+                True,
+            ),
+            (untyped_street, two_districts_untyped_street, False),
         )
 
-        for old, expected_text, replacement, conflict in cases:
-            address = old.replace(expected_text, replacement)
+        for old, address, conflict in cases:
             with self.subTest(address=address):
                 # Arrange
                 incomplete_address = address.replace("комната 2", "комната ?")

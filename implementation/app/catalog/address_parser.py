@@ -227,6 +227,7 @@ def _room_address(
     localities: list[tuple[int, str, str]] = []
     districts: dict[int, str] = {}
     numbers: list[tuple[int, str, str]] = []
+    late_numbers: set[str] = set()
     ambiguous_number = False
     labels: list[str] = []
     roles: list[str] = []
@@ -234,10 +235,13 @@ def _room_address(
         role = _address_role(label, room=True)
         building = _room_building(label)
         if i >= detail_offset:
-            # A house appearing after unit qualifiers competes with the address
-            # core, but cannot establish a new chain with those qualifiers.
+            # A late house number can confirm the core for a repeat, but it
+            # cannot make that chain eligible for matching across sources.
             if building is not None and building[2] and role != "parcel":
-                ambiguous_number = True
+                if building[1] is None:
+                    ambiguous_number = True
+                else:
+                    late_numbers.add(building[1])
             continue
         street = _typed_street(label, role)
         if building is not None:
@@ -283,14 +287,18 @@ def _room_address(
 
     number = None
     street_index = next(iter(streets)) if len(streets) == 1 else None
-    if ambiguous_number or len(numbers) > 1:
+    if (
+        ambiguous_number
+        or len(numbers) > 1
+        or late_numbers.difference(found for _, found, _ in numbers)
+    ):
         details = {}
     elif numbers:
         index, found, scope = numbers[0]
         if index == detail_offset - 1:
             full = _complete_address(parts, first, labels, roles, found, details)
             if full is not None:
-                if complete_details:
+                if complete_details and not late_numbers:
                     return full
                 return PartialAddress(
                     settlement=full.settlement,
@@ -301,10 +309,17 @@ def _room_address(
                     number=full.number,
                     details=full.details,
                 )
-        if scope == "explicit" or (scope == "street" and street_index is not None):
+        if (
+            scope == "explicit"
+            or (scope == "street" and street_index is not None)
+            or found in late_numbers
+        ):
             number = found
 
     settlement = kind = enclosing_district = city_district = None
+    explicit_localities = [entry for entry in localities if entry[2] == "settlement"]
+    if len(explicit_localities) == 1 and explicit_localities[0] == localities[0]:
+        localities = explicit_localities
     if len(localities) == 1:
         i, label, role = localities[0]
         # An untyped name is evidence only in the locality position before a typed street.

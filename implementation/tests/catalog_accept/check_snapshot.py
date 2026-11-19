@@ -364,14 +364,18 @@ class SnapshotTests(TestCase):
         }
         changed_district: ActiveSnapshot = {
             **later(source, 1),
-            "address": address.replace("Красноярский", "Приволжский").replace(
-                "комната 2", "комната ?"
-            ),
+            "address": address.replace("Красноярский", "Приволжский")
+            .replace("улица Советская", "Советский район, Советская")
+            .replace("комната 2", "комната ?"),
             "price": price("6000000"),
             "photos": {"status": "known", "urls": []},
         }
+        changed_house: ActiveSnapshot = {
+            **later(changed_district, 2),
+            "address": f"{address.replace('дом 7', 'дом 9')}, дом 9",
+        }
         ambiguous_building: ActiveSnapshot = {
-            **later(source, 2),
+            **later(source, 3),
             "address": f"{address.replace('дом 7', 'дом 9')}, дом 7",
             "price": price("7000000"),
         }
@@ -382,7 +386,8 @@ class SnapshotTests(TestCase):
             history = PriceHistory.objects.filter(ad_id=first.ad_id).order_by("id")
 
             # Act
-            conflict = self.accept(changed_district)
+            district_conflict = self.accept(changed_district)
+            house_conflict = self.accept(changed_house)
             after_conflict = ad.values_list(
                 "property_id", "property__address", "observed_at", "photos"
             ).get()
@@ -393,7 +398,10 @@ class SnapshotTests(TestCase):
             prices = list(history.values_list("price_rub", flat=True))
 
         # Assert
-        self.assertEqual(conflict.outcome, "conflict")
+        self.assertEqual(
+            (district_conflict.outcome, house_conflict.outcome),
+            ("conflict", "conflict"),
+        )
         self.assertEqual(after_conflict, (first.property_id, address, START, [PHOTO]))
         self.assertEqual(compatible.outcome, "updated")
         self.assertEqual(
