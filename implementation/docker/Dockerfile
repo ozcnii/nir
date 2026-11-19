@@ -19,15 +19,11 @@ RUN apt-get update \
     && chmod -R a+rX /ms-playwright \
     && rm -rf /root/.cache/uv /var/lib/apt/lists/* \
     && groupadd --gid 10001 app \
-    && useradd --uid 10001 --gid 10001 --create-home --home-dir /home/app app \
-    && install -d -m 0700 -o app -g app /var/lib/app
+    && useradd --uid 10001 --gid 10001 --create-home --home-dir /home/app app
 
-COPY manage.py ./
-COPY config/ config/
-COPY catalog/ catalog/
-COPY collection/ collection/
+COPY app/ app/
 
 ENV HOME=/home/app
 USER 10001:10001
 
-CMD ["python", "-m", "config.launcher"]
+CMD ["sh", "-ec", "python -m app.manage migrate --check && exec python -m app.manage runserver 0.0.0.0:8000 --noreload --insecure"]
