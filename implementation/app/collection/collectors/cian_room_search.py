@@ -13,6 +13,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from app.collection.browser import (
     BrowserTransportError,
+    CollectionError,
     browser_post_status,
     check_stop,
     read_page,
@@ -26,6 +27,7 @@ _MAP_URL = "https://api.cian.ru/dailyrent/web/v1/map/"
 _OFFERS_URL = "https://api.cian.ru/dailyrent/web/v1/search/"
 _MAP_FIELDS = {"zoom", "bbox", "jsonQuery", "queryString", "subdomain"}
 _ROOM_BATCH_SIZE = 28  # The Cian listing reducer uses the map offersCount for Next.
+_MAX_PAGES_WITHOUT_NEW_IDS = 5
 
 
 @dataclass(frozen=True)
@@ -251,7 +253,7 @@ def walk(
 ) -> Iterator[SearchPage]:
     body: dict[str, object] | None = None
 
-    def read_batch(page_number: int, deadline: float) -> tuple[SearchPage, bool]:
+    def read_batch(page_number: int, deadline: float) -> tuple[SearchPage, RoomBatch]:
         nonlocal body
         if page_number == 1:
             body, map_response = _initial_map(page, route, deadline, stopped)
@@ -268,7 +270,7 @@ def walk(
         _check_document(page, route)
         batch = _map_batch(route, map_response, page_number)
         if not batch.ids:
-            return SearchPage(page_number, batch.query, {}, None, ()), False
+            return SearchPage(page_number, batch.query, {}, None, ()), batch
         search = _post(
             page,
             _OFFERS_URL,
@@ -292,15 +294,17 @@ def walk(
             None,
             ("unresolved_listing_offers",) if incomplete else (),
         )
-        return result, batch.has_more
+        return result, batch
 
     number = 1
+    seen_ids: set[int] = set()
+    pages_without_new_ids = 0
 
-    def capture(_: datetime, deadline: float) -> tuple[SearchPage, bool]:
+    def capture(_: datetime, deadline: float) -> tuple[SearchPage, RoomBatch]:
         return read_batch(number, deadline)
 
     while True:
-        result, has_more = read_page(
+        result, batch = read_page(
             page,
             None,
             stopped,
@@ -309,6 +313,13 @@ def walk(
         )
         if number == 1 or result.urls or result.incomplete:
             yield result
-        if not has_more:
+        if not batch.has_more:
             return
+        if seen_ids.issuperset(batch.ids):
+            pages_without_new_ids += 1
+            if pages_without_new_ids == _MAX_PAGES_WITHOUT_NEW_IDS:
+                raise CollectionError("pagination_no_progress")
+        else:
+            seen_ids.update(batch.ids)
+            pages_without_new_ids = 0
         number += 1

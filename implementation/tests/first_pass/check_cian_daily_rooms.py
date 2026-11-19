@@ -52,6 +52,11 @@ def verify_cian_daily_rooms() -> None:
         url: projection_html(offer, product, "от 6 990 ₽/сут."),
         partner_url: f'<script id="__NUXT_DATA__" type="application/json">{partner_data[0]}</script>',
     }
+    native_batch = (_NATIVE, *_FILLER)
+    missing_batch = (_MISSING, *_FILLER)
+    partner_batch = (_PARTNER, *_FILLER)
+    completed_pages = [native_batch] * 5 + [partner_batch] * 5 + [(_PARTNER,)]
+    stalled_pages = [missing_batch, partner_batch] * 3 + [missing_batch]
     offers = {
         key: {
             "id": key,
@@ -118,18 +123,17 @@ def verify_cian_daily_rooms() -> None:
             if number == 2 and mode == "network":
                 request.abort("connectionreset")
                 return
-            selection = (
-                {1: [_NATIVE, *_FILLER], 2: [_NATIVE, *_FILLER], 3: [_PARTNER]}
-                if mode == "complete"
-                else {1: [_MISSING, *_FILLER], 2: [_PARTNER]}
-            )
+            selection = {
+                "complete": completed_pages,
+                "stalled": stalled_pages,
+            }.get(mode, [missing_batch, (_PARTNER,)])
             scope = dict(_SCOPE)
             if number == 2 and mode == "drift":
                 scope.pop("region")
                 scope.pop("room")
             if number == 2 and mode == "cycle":
                 scope["page"] = {"type": "term", "value": 1}
-            ids = selection[number]
+            ids = selection[number - 1] if number <= len(selection) else ()
             request.fulfill(
                 status=200,
                 headers=cors,
@@ -203,13 +207,9 @@ def verify_cian_daily_rooms() -> None:
 
     # Assert
     assert navigations == 2
-    assert pages == [1, 2, 3] and searches == [
-        (_NATIVE, *_FILLER),
-        (_NATIVE, *_FILLER),
-        (_PARTNER,),
-    ]
+    assert pages == list(range(1, 12)) and searches == completed_pages
     assert cards == [url, *_FILLER_URLS, partner_url], cards
-    assert result["listing_complete"] is True and result["pages"] == 3, result
+    assert result["listing_complete"] is True and result["pages"] == 11, result
     assert result["results"] == {"created": 1}, result
     assert result["skipped_cards"] == {
         **dict.fromkeys(map(str, _FILLER), "http_404"),
@@ -231,6 +231,28 @@ def verify_cian_daily_rooms() -> None:
         (Decimal("6990.00"), "from")
     ]
 
+    # Arrange: full A/B pages with no new IDs from page 3 onward.
+    mode = "stalled"
+    pages.clear()
+    searches.clear()
+    cards.clear()
+
+    # Act
+    result = collect()
+
+    # Assert
+    assert pages == list(range(1, 8)) and searches == stalled_pages
+    assert cards == [_MISSING_URL, *_FILLER_URLS, partner_url], cards
+    assert result["listing_complete"] is False and result["pages"] == 7, result
+    assert result["outcome"] == "partial", result
+    assert result["issues"] == {
+        "http_404": 28,
+        "ambiguous_partner_unit": 1,
+        "pagination_no_progress": 1,
+    }, result
+    saved.refresh_from_db()
+    assert saved.is_active and saved.observed_at == observed and prices.count() == 1
+
     for scenario, reason in (
         ("drift", "listing_scope_changed"),
         ("cycle", "pagination_cycle"),
@@ -248,7 +270,7 @@ def verify_cian_daily_rooms() -> None:
 
         # Assert
         assert pages == ([1, 2, 2] if scenario == "network" else [1, 2])
-        assert searches == [(_MISSING, *_FILLER)]
+        assert searches == [missing_batch]
         assert cards == [_MISSING_URL, *_FILLER_URLS], cards
         assert result["listing_complete"] is False
         assert result["issues"] == {"http_404": 28, reason: 1}, result
@@ -256,5 +278,5 @@ def verify_cian_daily_rooms() -> None:
         assert saved.is_active and saved.observed_at == observed and prices.count() == 1
 
     print(
-        "Cian daily rooms: direct pages, ordinary room and scope guards verified in PostgreSQL"
+        "Cian daily rooms: direct pages, progress stop and ordinary room verified in PostgreSQL"
     )
