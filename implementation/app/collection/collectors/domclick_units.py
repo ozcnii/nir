@@ -35,8 +35,8 @@ _ROOM_COUNT = rf"(?:[0-9]{{1,5}}|{'|'.join(_COUNTS)}|несколько)"
 _ROOM_ID = r"№\s*([1-9][0-9]{0,4})(?!\d)"
 _ROOM_MEMBER = rf"{_ROOM_ID}(?:{_ROOM_MEASURE_PREFIX}{_AMOUNT}\s*{_SQUARE_METRE_UNIT})?"
 _ROOM_OFFER = re.compile(
-    _OFFER + rf"(?:(?:единый\s+)?лот\s+из\s+)?(?:(?P<count>{_ROOM_COUNT})\s+)?"
-    rf"комнат[ауые]?\b(?:\s*[:,]?\s*(?P<members>{_ROOM_MEMBER}"
+    _OFFER + rf"(?P<lot>(?:единый\s+)?лот\s+из\s+)?(?:(?P<count>{_ROOM_COUNT})\s+)?"
+    rf"(?P<unit>комнат[ауые]?)\b(?:\s*[:,]?\s*(?P<members>{_ROOM_MEMBER}"
     rf"(?:\s*(?:,\s*(?:и\s+)?|\s+и\s+)(?:комнат[ауые]\s+)?{_ROOM_MEMBER})*))?",
     re.IGNORECASE,
 )
@@ -230,7 +230,7 @@ def check_room(
 ) -> tuple[int | None, Decimal | None]:
     text = description or ""
     counts = set() if rooms is None else {rooms}
-    multiple = False
+    offered_set = False
     offer_ends: list[int] = []
     detached: set[int] = set()
     member_sets: set[frozenset[str]] = set()
@@ -244,18 +244,24 @@ def check_room(
             end = max(end, unit_area.end())
         if (total := _ROOM_SET_AREA.match(text, end)) is not None:
             end = total.end()
+        if (lot := _JOINT_LOT.match(text, end)) is not None:
+            end = lot.end()
         if _NON_OFFERED_UNIT.match(text, end):
             detached.add(match.start())
             continue
         count = match["count"]
         members = match["members"]
         if count is None and members is None:
-            continue
+            unit = match["unit"].casefold()
+            if unit != "комнаты" and not (match["lot"] and unit == "комнат"):
+                continue
+            # A directly offered set supplies area scope without an exact count.
+            offered_set = True
         offer_ends.append(match.end())
         if count is not None:
             token = count.casefold()
             if token == "несколько":
-                multiple = True
+                offered_set = True
             else:
                 count_value = _COUNTS.get(token)
                 if count_value is None:
@@ -299,7 +305,7 @@ def check_room(
     if (
         len(counts) > 1
         or len(member_sets) > 1
-        or (multiple and counts == {1})
+        or (offered_set and counts == {1})
         or 0 in counts
     ):
         raise RejectedCard("conflicting_room_count")
@@ -311,7 +317,7 @@ def check_room(
     if any(len(sizes) > 1 for sizes in member_areas.values()):
         raise RejectedCard("conflicting_room_area")
     detected = next(iter(counts), None)
-    if multiple or (detected is not None and detected > 1):
+    if offered_set or (detected is not None and detected > 1):
         totals = set()
         for claim in _ROOM_SET_AREA_CLAUSE.finditer(text):
             referent = claim["pair"] or claim["count"]

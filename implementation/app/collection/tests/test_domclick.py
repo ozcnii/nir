@@ -276,6 +276,76 @@ class DomclickTests(TestCase):
                 # Assert
                 self.assertEqual(str(unresolved.exception), "unconfirmed_room_unit")
 
+    def test_native_room_set_total_is_independent_of_the_room_count(self) -> None:
+        # Arrange: the projection has a member area but no count for the offer.
+        data = {**native_proposal(), "roomsOffered": None}
+        info = cast(dict[str, object], data["objectInfo"])
+        offer = "Продаются комнаты общей площадью 22,5 м² одним лотом."
+        linked = "Общая площадь этих комнат — 22,50 м²."
+        total = Decimal("22.50")
+        for description, expected in (
+            (offer, (None, total)),
+            (f"{offer} {linked}", (None, total)),
+            (f"{linked} Продам комнаты.", (None, total)),
+            (f"{offer} Продам две комнаты.", (2, total)),
+            ("Продаётся единый лот из комнат общей площадью 22,5 м².", (None, total)),
+            (
+                f"{offer} Общая площадь этих комнат 23 м² в соседней квартире.",
+                (None, total),
+            ),
+            ("Продаются комнаты одним лотом.", (None, None)),
+            (linked, (None, Decimal("9.20"))),
+            (
+                "Продаются комнаты общей площадью 23 м² по отдельности.",
+                (None, Decimal("9.20")),
+            ),
+            (
+                "Продаются комнаты общей площадью 23 м² одним лотом по соседству.",
+                (None, Decimal("9.20")),
+            ),
+        ):
+            with self.subTest(description=description):
+                # Arrange
+                info["description"] = description
+
+                # Act
+                snapshot = read_native(ROOM, data)
+
+                # Assert
+                assert snapshot["state"] == "active"
+                self.assertEqual((snapshot["rooms"], snapshot["area_m2"]), expected)
+
+    def test_native_room_set_rejects_conflicting_totals_before_count_is_known(
+        self,
+    ) -> None:
+        # Arrange: both totals describe the one directly offered set.
+        data = {**native_proposal(), "roomsOffered": None}
+        info = cast(dict[str, object], data["objectInfo"])
+        info["roomArea"] = None
+        offer = "Продаются комнаты общей площадью 22,5 м² одним лотом."
+        linked = "Общая площадь этих комнат — 23 м²."
+        counted = "Продам две комнаты общей площадью 23 м²."
+        for description in (
+            f"{offer} {linked}",
+            f"{linked} {offer}",
+            f"{offer} {counted}",
+            f"{counted} {offer}",
+        ):
+            with self.subTest(description=description):
+                # Arrange
+                info["description"] = description
+
+                # Act / Assert
+                with self.assertRaisesRegex(RejectedCard, "^conflicting_room_area$"):
+                    read_native(ROOM, data)
+
+        # Arrange: an explicit set cannot be projected as a single room.
+        info["description"] = offer
+
+        # Act / Assert
+        with self.assertRaisesRegex(RejectedCard, "^conflicting_room_count$"):
+            read_native(ROOM, {**data, "roomsOffered": 1})
+
     def test_room_member_identity_and_scope_precede_set_count(self) -> None:
         # Arrange: the structured projection identifies one offered room.
         data = native_proposal()

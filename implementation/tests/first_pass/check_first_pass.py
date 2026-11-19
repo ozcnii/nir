@@ -201,6 +201,14 @@ def verify_domclick() -> None:
                 "Площадь предлагаемой комнаты № 2 — 10 м²."
             ),
         }
+        inconsistent_set_total = {
+            **room_set,
+            "roomArea": None,
+            "description": (
+                "Продаются комнаты общей площадью 22,5 м² одним лотом. "
+                "Общая площадь этих комнат — 23 м²."
+            ),
+        }
         for next_projection, reason in (
             (
                 {**projection, "id": 2071752357, "priceInfo": {"price": 1}},
@@ -215,6 +223,15 @@ def verify_domclick() -> None:
                     **projection,
                     "objectInfo": inconsistent_member,
                     "priceInfo": {"price": 43},
+                },
+                "conflicting_room_area",
+            ),
+            (
+                {
+                    **projection,
+                    "roomsOffered": None,
+                    "objectInfo": inconsistent_set_total,
+                    "priceInfo": {"price": 44},
                 },
                 "conflicting_room_area",
             ),
