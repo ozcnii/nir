@@ -309,6 +309,31 @@ def verify_avito() -> None:
     assert saved_bundle.property.area_m2 == Decimal("22.50")
     assert Ad.objects.count() == counts[0] + 1
     assert Property.objects.count() == counts[1] + 1
+
+    # Arrange: the same offer now has two incompatible total areas.
+    bundle_fields = (saved_bundle.property_id, saved_bundle.observed_at)
+    item["description"] = (
+        "Продаются комнаты № 2 и № 3 одним лотом, общей площадью 22,5 м². "
+        "Общая площадь этих комнат — 23 м²."
+    )
+
+    # Act
+    try:
+        collect()
+    except CommandError as error:
+        assert str(error) == "conflicting_room_area"
+    else:
+        raise AssertionError("Conflicting bundle totals must not update publication")
+
+    # Assert: the previously accepted bundle and history retain their data.
+    saved_bundle.refresh_from_db()
+    assert (saved_bundle.property_id, saved_bundle.observed_at) == bundle_fields
+    assert saved_bundle.property.area_m2 == Decimal("22.50")
+    assert (
+        Ad.objects.count(),
+        Property.objects.count(),
+        PriceHistory.objects.count(),
+    ) == tuple(count + 1 for count in counts)
     print(
         "Avito: terminal collection, room bundle, repeat, wrong ID and explicit close verified in PostgreSQL"
     )
