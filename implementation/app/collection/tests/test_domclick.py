@@ -180,30 +180,53 @@ class DomclickTests(TestCase):
         # Arrange: explicitly offered room IDs and exact set area.
         data = native_proposal()
         info = cast(dict[str, object], data["objectInfo"])
-        info["description"] = "Продам комнаты № 2 и № 3 общая площадь 22,50 м²."
+        for description in (
+            "Продам комнаты № 2 и № 3 общая площадь 22,50 м².",
+            "Продаются комната № 2 и комната № 3 одним лотом, общей площадью 22,50 м².",
+            "Продам комнаты № 2, комната № 3 одним лотом. "
+            "Общая площадь предлагаемых комнат 22,50 м².",
+        ):
+            with self.subTest(description=description):
+                # Arrange
+                info["description"] = description
+
+                # Act
+                with self.assertRaises(RejectedCard) as rejected:
+                    read_native(ROOM, data)
+                accepted = read_native(ROOM, {**data, "roomsOffered": None})
+
+                # Assert
+                self.assertEqual(str(rejected.exception), "conflicting_room_count")
+                assert accepted["state"] == "active"
+                self.assertEqual(accepted["rooms"], 2)
+                self.assertEqual(accepted["area_m2"], Decimal("22.50"))
+
+        # Arrange: both published totals describe the same proposed set.
+        info["description"] = (
+            "Продам две комнаты общей площадью 22,50 м². "
+            "Общая площадь предлагаемых комнат 23 м²."
+        )
 
         # Act
-        with self.assertRaises(RejectedCard) as rejected:
-            read_native(ROOM, data)
-        accepted = read_native(ROOM, {**data, "roomsOffered": None})
+        with self.assertRaises(RejectedCard) as conflicting:
+            read_native(ROOM, {**data, "roomsOffered": 2})
 
         # Assert
-        self.assertEqual(str(rejected.exception), "conflicting_room_count")
-        assert accepted["state"] == "active"
-        self.assertEqual(accepted["rooms"], 2)
-        self.assertEqual(accepted["area_m2"], Decimal("22.50"))
+        self.assertEqual(str(conflicting.exception), "conflicting_room_area")
 
-        # Arrange: a positive allocation followed by a contradictory denial.
         address = cast(dict[str, object], data["address"])
         address["displayName"] = "Самара, Солнечная улица, 7, кв 25, комната 2"
-        info["description"] = "Доля соответствует комнате № 2, но комната не выделена."
+        for denial in (", но комната не выделена.", ". Комната не выделена."):
+            with self.subTest(denial=denial):
+                # Arrange: a positive allocation followed by a contradictory denial.
+                info["description"] = "Доля соответствует комнате № 2" + denial
 
-        # Act
-        with self.assertRaises(RejectedCard) as unresolved:
-            read_native(ROOM, data)
+                # Act
+                with self.assertRaises(RejectedCard) as unresolved:
+                    read_native(ROOM, data)
 
-        # Assert
-        self.assertEqual(str(unresolved.exception), "unconfirmed_room_unit")
+                # Assert
+                self.assertEqual(str(unresolved.exception), "unconfirmed_room_unit")
 
     def test_native_house_rejects_incompatible_direct_offer_claims(self) -> None:
         # Arrange: contrast directly offered properties with incidental mentions.
@@ -224,6 +247,16 @@ class DomclickTests(TestCase):
             ),
             ("Продаю дом № 8.", "conflicting_house_unit"),
             ("Площадь участка 7 соток.", "conflicting_land_area"),
+            (
+                "Продаётся дом общей площадью 100 м² на участке 5 соток.",
+                "conflicting_land_area",
+            ),
+            ("Продаётся дом 100 м² на участке 6,24 сотки.", None),
+            (
+                "Продаётся дом 100 м²; соседний дом на участке 5 соток.",
+                None,
+            ),
+            ("Предлагается земля. Продам только блок.", "unconfirmed_house_block"),
             ("Срочно. Продам только земельный участок.", "unsupported_house_unit"),
             ("Продам типовой проект дома.", "unsupported_house_unit"),
             ("Для семьи. Продаётся половина дома.", "unconfirmed_house_block"),
@@ -252,6 +285,23 @@ class DomclickTests(TestCase):
 
                     # Assert
                     self.assertEqual(str(rejected.exception), problem)
+
+        address = cast(dict[str, object], data["address"])
+        for displayed in (
+            "Самара, Солнечная улица, 7, блок",
+            "Самара, Солнечная улица, дом 7, блок 2, дом 8, блок 3",
+        ):
+            with self.subTest(displayed=displayed):
+                # Arrange: unaddressed or competing block markers.
+                address["displayName"] = displayed
+                data["objectInfo"] = {"area": 100}
+
+                # Act
+                with self.assertRaises(RejectedCard) as unresolved:
+                    read_native(HOUSE, data)
+
+                # Assert
+                self.assertEqual(str(unresolved.exception), "unconfirmed_house_block")
 
     def test_home_converts_land_exactly_and_keeps_partial_address(self) -> None:
         # Arrange
@@ -690,7 +740,7 @@ class DomclickTests(TestCase):
         state = ssr(
             {
                 "serp": {
-                    "ids": [expected_uuid],
+                    "ids": [expected_uuid.upper()],
                     "fetchStatus": "success",
                     "outdatedSearch": False,
                     "invalidParams": False,
@@ -740,7 +790,7 @@ class DomclickTests(TestCase):
         with (
             sync_playwright() as playwright,
             playwright.chromium.launch(channel="chromium", headless=True) as browser,
-            browser.new_context() as context,
+            browser.new_context(service_workers="block") as context,
         ):
             context.route("**/*", serve)
             listing = context.new_page()
@@ -764,9 +814,13 @@ class DomclickTests(TestCase):
                 dom = layout(candidate)
                 listing.goto(LISTING)
                 uncertain.append(read_daily_listing_quote(listing, DAILY))
+            for published in ("not-a-uuid", "00000000-0000-0000-0000-000000000000"):
+                dom = layout(result_section).replace(expected_uuid.upper(), published)
+                listing.goto(LISTING)
+                uncertain.append(read_daily_listing_quote(listing, DAILY))
 
         # Assert
-        self.assertEqual(uncertain, [None, None, None, None])
+        self.assertEqual(uncertain, [None] * 6)
         assert snapshot["state"] == "active"
         self.assertEqual(snapshot["external_id"], card_key(DAILY))
         self.assertEqual(snapshot["area_m2"], Decimal("36.00"))

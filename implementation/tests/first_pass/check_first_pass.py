@@ -185,15 +185,32 @@ def verify_domclick() -> None:
             PriceHistory.objects.filter(ad=saved).values_list("price_rub", "price_kind")
         ) == [(Decimal("1400000.00"), "listed")]
 
-        # Act
-        current = {**projection, "id": 2071752357, "priceInfo": {"price": 1}}
-        try:
-            call_command("collect", ROOM, stdout=StringIO())
-        except CommandError as error:
-            # Assert
-            assert str(error) == "unavailable"
-        else:
-            raise AssertionError("collect accepted a foreign Domclick ID")
+        # Arrange: foreign identity and an otherwise valid same-key room
+        # whose explicitly offered room set contradicts its structured count.
+        room_set = {
+            **cast(dict[str, object], projection["objectInfo"]),
+            "description": "Продаются комната № 2 и комната № 3 одним лотом.",
+        }
+        for next_projection, reason in (
+            (
+                {**projection, "id": 2071752357, "priceInfo": {"price": 1}},
+                "unavailable",
+            ),
+            (
+                {**projection, "objectInfo": room_set, "priceInfo": {"price": 42}},
+                "conflicting_room_count",
+            ),
+        ):
+            current = next_projection
+
+            # Act
+            try:
+                call_command("collect", ROOM, stdout=StringIO())
+            except CommandError as error:
+                # Assert
+                assert str(error) == reason
+            else:
+                raise AssertionError(f"collect should reject Domclick {reason}")
 
     # Assert
     current_ad = ads.get()
@@ -201,7 +218,9 @@ def verify_domclick() -> None:
     assert current_ad.observed_at == saved.observed_at
     assert PriceHistory.objects.filter(ad=saved).count() == 1
     assert Property.objects.count() == initial_count + 1
-    print("Domclick: terminal collection, repeat and foreign-ID no-write verified")
+    print(
+        "Domclick: terminal collection, repeat and rejected snapshot no-write verified"
+    )
 
 
 if __name__ == "__main__":

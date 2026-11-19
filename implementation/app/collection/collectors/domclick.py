@@ -101,6 +101,14 @@ def _number_matches(value: object, identity: CardIdentity) -> bool:
     return type(value) is int and str(value) == identity.published_id
 
 
+def _daily_id_matches(value: object, identity: CardIdentity) -> bool:
+    return (
+        isinstance(value, str)
+        and re.fullmatch(UUID, value) is not None
+        and value.lower() == identity.published_id
+    )
+
+
 def read_daily_listing_quote(page: Page, card_url: str) -> DailyListingQuote | None:
     """Read the matching public snippet and its exact search context together."""
     identity = _identity(card_url)
@@ -199,9 +207,8 @@ def read_daily_listing_quote(page: Page, card_url: str) -> DailyListingQuote | N
         if len(destinations) != 1:
             return None
         destination, link = next(iter(destinations.items()))
-        if (
-            destination.family != "daily"
-            or destination.published_id != published_ids[index]
+        if destination.family != "daily" or not _daily_id_matches(
+            published_ids[index], destination
         ):
             return None
         if destination != identity:
@@ -290,9 +297,7 @@ def _parse_daily(
     card_id = search.get("id")
     data = as_object(inventory.get("data"))
     if (
-        not isinstance(card_id, str)
-        or re.fullmatch(UUID, card_id) is None
-        or card_id.lower() != identity.published_id
+        not _daily_id_matches(card_id, identity)
         or inventory.get("fetchStatus") != "success"
         or data.get("status") != "published"
     ):
