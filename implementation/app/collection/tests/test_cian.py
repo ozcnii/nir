@@ -327,3 +327,36 @@ class CianCardTests(TestCase):
         # Assert
         self.assertEqual(result["state"], "removed")
         self.assertEqual(result["external_id"], "330631159")
+
+    def test_explicit_foreign_id_prevents_an_idless_removal(self) -> None:
+        # Arrange: the page also contains an offer belonging to another key.
+        url, offer, _ = projection()
+        requested = url.replace("330631159", "330631158")
+        config = [script({"status": "deleted"}), script(offer)]
+
+        # Act
+        result = parse_card(requested, OBSERVED_AT, config, [], loaded_url=requested)
+
+        # Assert
+        self.assertEqual(result["state"], "unavailable")
+        self.assertEqual(result["external_id"], "330631158")
+
+    def test_supported_native_regional_redirect_keeps_the_key(self) -> None:
+        # Arrange: regional host, tracking query and terminal slash each change.
+        url, offer, product = projection()
+        canonical = url.replace("samara.cian.ru", "www.cian.ru").rstrip("/")
+
+        # Act
+        result = parse_card(
+            f"{url}?source=search#result",
+            OBSERVED_AT,
+            [script(offer)],
+            [json.dumps(product)],
+            loaded_url=canonical,
+        )
+
+        # Assert
+        self.assertEqual(result["state"], "active")
+        self.assertEqual(result["external_id"], "330631159")
+        assert result["state"] == "active"
+        self.assertEqual(result["url"], canonical)

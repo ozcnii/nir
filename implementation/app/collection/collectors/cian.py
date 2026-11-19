@@ -118,6 +118,7 @@ CianSnapshot = ActiveSnapshot | _RemovedCard | _UnavailableCard
 def _state(scripts: Iterable[str], key: str) -> dict[str, object]:
     states = []
     removed_markers = []
+    foreign_id = False
     for script in scripts:
         if not (marker := _CONFIG.search(script)):
             continue
@@ -138,9 +139,11 @@ def _state(scripts: Iterable[str], key: str) -> dict[str, object]:
                         states.append(data)
                     elif identifier is None and offer.get("status") == "deleted":
                         removed_markers.append(data)
+                    elif identifier is not None or offer.get("cianId") is not None:
+                        foreign_id = True
     if states:
         return states[0] if len(states) == 1 else {}
-    return removed_markers[0] if len(removed_markers) == 1 else {}
+    return removed_markers[0] if not foreign_id and len(removed_markers) == 1 else {}
 
 
 def _documents(scripts: Iterable[str]) -> list[dict[str, object]]:
