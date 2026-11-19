@@ -592,6 +592,8 @@ class AvitoCardTests(TestCase):
 
     def test_only_offered_bundle_and_its_total_are_used(self) -> None:
         cases = (
+            ("Продаётся комната 12,5 м², № 2.", 1, "12.50"),
+            ("Продаётся комната, № 2.", 1, "12.50"),
             ("Удобный район. Продаются две комнаты одним лотом.", 2, None),
             (
                 "Продаются комната 12,5 м², комната 10 м², общей площадью 22,5 м².",
@@ -648,6 +650,18 @@ class AvitoCardTests(TestCase):
                 "площадью 10 м² одним лотом. Общая площадь обеих комнат 22,5 м².",
                 2,
                 "22.50",
+            ),
+            (
+                "Продам комнату № 2 площадью 9 м² и комнату № 3 площадью 10 м² "
+                "одним лотом. Площадь предлагаемой комнаты № 2 9 м².",
+                2,
+                None,
+            ),
+            (
+                "Продам комнату № 2 площадью 9 м² и комнату № 3 площадью 10 м² "
+                "одним лотом. Площадь соседской комнаты № 4 11 м².",
+                2,
+                None,
             ),
             (
                 "Кухня площадью 7 м². Комната соседей 15 м². "
@@ -727,6 +741,20 @@ class AvitoCardTests(TestCase):
                 "house",
                 None,
                 "Предлагается дом 59,2 м² и второй дом 40 м² одним лотом.",
+                "unconfirmed_house_unit",
+            ),
+            (
+                "house",
+                None,
+                "Продаётся дом площадью 59,2 м² и самостоятельный блок № 2 "
+                "площадью 40 м² одним лотом.",
+                "unconfirmed_house_unit",
+            ),
+            (
+                "house",
+                None,
+                "Продаётся дом площадью 59,2 м² и самостоятельный блок № 2 "
+                "площадью 40 м² в соседнем доме одним лотом.",
                 "unconfirmed_house_unit",
             ),
             (
@@ -832,7 +860,11 @@ class AvitoCardTests(TestCase):
         # Assert
         self.assertEqual(str(rejected.exception), "unconfirmed_house_unit")
 
-    def test_room_bundle_rejects_conflicting_quoted_totals(self) -> None:
+    def test_room_bundle_rejects_conflicting_owned_measurements(self) -> None:
+        offer = (
+            "Продам комнату № 2 площадью 9 м² и комнату № 3 площадью 10 м² одним лотом."
+        )
+        revised = offer.replace("9 м²", "11 м²")
         cases = (
             "Продаются две комнаты общей площадью 22,5 м². "
             "Общая площадь предлагаемых комнат 23 м².",
@@ -846,6 +878,10 @@ class AvitoCardTests(TestCase):
             "и комната № 2 площадью 11 м² одним лотом.",
             "Продаются две комнаты общей площадью 22,5 м² и общей площадью 23 м².",
             "Продаются комната № 2 и комната № 2 одним лотом, общей площадью 22,5 м².",
+            f"{offer} Площадь предлагаемой комнаты № 2 11 м².",
+            f"Площадь предлагаемой комнаты № 2 11 м². {offer}",
+            f"{offer} {revised}",
+            f"{revised} {offer}",
         )
         for description in cases:
             with self.subTest(description=description):
