@@ -430,22 +430,25 @@ class HouseMatchingTests(TestCase):
         self,
     ) -> None:
         # Arrange
-        address = f"{HOUSE}, блок 2"
+        address = HOUSE.replace("Самара,", "Самара, Советский район,")
+        address += ", корпус А, блок 2"
         first = accept_snapshot(snapshot("repeated-block", address))
         duplicate_house = address.replace("дом 7", "дом 7, дом 7")
-        newer = TIME + timedelta(minutes=1)
-        repeat = snapshot(
-            "repeated-block", duplicate_house, time=newer, price=Decimal(250)
+        reduced = duplicate_house.replace("Советский район, ", "").replace(
+            "корпус А, ", ""
         )
+        newer = TIME + timedelta(minutes=1)
+        repeat = snapshot("repeated-block", reduced, time=newer, price=Decimal(250))
         incomplete = (
             address.replace("дом 7", "дом 7, дом 8"),
+            address.replace("дом 7", "строение 7, строение 7"),
             address.replace("блок 2", "блок"),
             address.replace("блок 2", "блок 2, блок 3"),
         )
 
         # Act
         compatible = accept_snapshot(repeat)
-        separate = accept_snapshot(snapshot("new-block", duplicate_house))
+        separate = accept_snapshot(snapshot("new-block", reduced))
         rejected = [
             accept_snapshot(
                 snapshot("repeated-block", item, time=newer + timedelta(minutes=1))

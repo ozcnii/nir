@@ -3,7 +3,11 @@
 from collections.abc import Iterable
 
 from app.catalog.address import HouseAddress
-from app.catalog.address_parser import HOUSE_BLOCK_TAGS, parse_house_address
+from app.catalog.address_parser import (
+    HOUSE_BLOCK_TAGS,
+    HOUSE_BUILDING_TAGS,
+    parse_house_address,
+)
 from app.catalog.contracts import PropertyFacts
 from app.catalog.matching import Candidate, Match, property_patch
 
@@ -18,17 +22,12 @@ def _building_parts(address: HouseAddress) -> dict[str, str]:
     }
 
 
-def _same_building_identity(left: HouseAddress, right: HouseAddress) -> bool:
-    return left.location == right.location and _building_parts(left) == _building_parts(
-        right
-    )
-
-
 def _same_building(left: HouseAddress, right: HouseAddress) -> bool:
     return (
         left.complete
         and right.complete
-        and _same_building_identity(left, right)
+        and left.location == right.location
+        and _building_parts(left) == _building_parts(right)
         and not _conflicting_ids(left.qualifiers, right.qualifiers)
     )
 
@@ -36,14 +35,18 @@ def _same_building(left: HouseAddress, right: HouseAddress) -> bool:
 def has_confirmed_block(
     incoming: HouseAddress | None, previous: HouseAddress | None = None
 ) -> bool:
-    """Keep a known block on repeat when the same address repeats a marker."""
+    """A redundant chain can confirm a known block without replacing its address."""
     if incoming is None or not incoming.block_marked or incoming.complete:
         return True
+    if incoming.chain != "redundant" or previous is None or not previous.complete:
+        return False
+    shared_roles = {
+        role for role, _ in previous.qualifiers.items() & incoming.qualifiers.items()
+    }
     return (
-        incoming.chain == "redundant"
-        and previous is not None
-        and previous.complete
-        and _same_building_identity(previous, incoming)
+        bool(shared_roles & HOUSE_BLOCK_TAGS)
+        and bool(shared_roles & HOUSE_BUILDING_TAGS)
+        and _compatible_location_order(previous, incoming)
     )
 
 
@@ -91,6 +94,12 @@ def choose_house(
 def _contains_location(complete: tuple[str, ...], known: tuple[str, ...]) -> bool:
     components = iter(complete)
     return all(part in components for part in known)
+
+
+def _compatible_location_order(left: HouseAddress, right: HouseAddress) -> bool:
+    return _contains_location(left.location, right.location) or _contains_location(
+        right.location, left.location
+    )
 
 
 def _enriched_address(
@@ -141,9 +150,4 @@ def _location_conflicts(old: HouseAddress, new: HouseAddress) -> bool:
         new_kind, new_name = next(iter(new.settlements.items()))
         if old_name != new_name or (old_kind and new_kind and old_kind != new_kind):
             return True
-    return (
-        old.complete
-        and new.complete
-        and not _contains_location(old.location, new.location)
-        and not _contains_location(new.location, old.location)
-    )
+    return old.complete and new.complete and not _compatible_location_order(old, new)
