@@ -192,19 +192,22 @@ _SEPARATE_OFFER = re.compile(
     re.IGNORECASE,
 )
 _SHARE_FRACTION = r"[0-9]+/[0-9]+"
+_SHARE_OFFER_START = rf"{_OFFER_VERB}(?:{_SHARE_FRACTION}\s+)?"
 _UNALLOCATED_SHARE = r"не\s*выделенн(?:ая|ую)"
-_UNALLOCATED_FRACTION = rf"\s+{_SHARE_FRACTION}\s*\({_UNALLOCATED_SHARE}\)"
+_MARKED_FRACTION = rf"дол[яю]\s+{_SHARE_FRACTION}\s*\({_UNALLOCATED_SHARE}\)"
 _ROOM_SHARE = re.compile(
     _OFFER_START
     + _ROOM_QUALIFIER
-    + rf"(?:{_OFFER_VERB}(?:{_SHARE_FRACTION}\s+)?"
-    + rf"(?:{_UNALLOCATED_SHARE}\s+)?дол[яю]\b(?:{_UNALLOCATED_FRACTION})?"
-    + r"(?:\s+(?:(?P<room>комнаты\s+№?\s*[1-9][0-9]*\b)|(?:в\s+)?квартир[еы]\b))?"
-    + rf"|доля{_UNALLOCATED_FRACTION})",
+    + rf"(?:(?:{_SHARE_OFFER_START}(?:{_UNALLOCATED_SHARE}\s+)?дол[яю]\b"
+    + rf"|(?:{_OFFER_VERB})?{_MARKED_FRACTION})"
+    + r"\s+(?:(?P<room>комнаты\s+№?\s*[1-9][0-9]*\b)|(?:в\s+)?квартир[еы]\b)"
+    + rf"|(?:{_SHARE_OFFER_START}{_UNALLOCATED_SHARE}\s+дол[яю]\b"
+    + rf"|(?:{_OFFER_VERB})?{_MARKED_FRACTION})(?=[ \t]*(?:[,.!?;\r\n]|$)))",
     re.IGNORECASE,
 )
 _ALLOCATION = re.compile(
-    r"\s*,\s*(?:выделена|предлагается)\s+(?:конкретная\s+)?комната\s+№\s*[1-9][0-9]*\b",
+    r"\s*,\s*(?:выделена|предлагается|за\s+долей\s+закреплена)\s+"
+    r"(?:конкретная\s+)?комната\s+№\s*[1-9][0-9]*\b",
     re.IGNORECASE,
 )
 
