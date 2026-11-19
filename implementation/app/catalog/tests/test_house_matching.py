@@ -474,3 +474,50 @@ class HouseMatchingTests(TestCase):
             set(PriceHistory.objects.filter(ad=ad).values_list("price_rub", flat=True)),
             {Decimal(100), Decimal(250)},
         )
+
+    def test_repeat_compares_established_location_roles_independently(self) -> None:
+        for key, original_city, repeated_city in (
+            ("bare-city", "Самара", "г. Самара"),
+            ("typed-city", "г. Самара", "Самара"),
+        ):
+            with self.subTest(original_city=original_city):
+                # Arrange
+                street = "СНТ Луч, ул. Садовая"
+                address = f"{original_city}, Советский район, {street}, дом 7, блок 2"
+                first = accept_snapshot(snapshot(key, address))
+                same = address.replace(original_city, repeated_city, 1)
+                partial = f"Приволжский район, {repeated_city}, {street}"
+                redundant = f"{partial}, дом 7, дом 7, блок 2"
+                changed = same.replace("Советский район", "Ленинский район")
+                newer = TIME + timedelta(minutes=2)
+
+                # Act
+                same_locality = accept_snapshot(
+                    snapshot(
+                        key, same, time=newer - timedelta(minutes=1), price=Decimal(200)
+                    )
+                )
+                compatible = accept_snapshot(
+                    snapshot(key, redundant, time=newer, price=Decimal(250))
+                )
+                conflict = accept_snapshot(
+                    snapshot(key, changed, time=newer + timedelta(minutes=1))
+                )
+                cross_source = accept_snapshot(snapshot(key, same, source="domclick"))
+
+                # Assert
+                self.assertEqual(same_locality.outcome, "updated")
+                self.assertEqual(compatible.outcome, "updated")
+                self.assertEqual(compatible.property_id, first.property_id)
+                self.assertEqual(conflict.outcome, "conflict")
+                self.assertNotEqual(cross_source.property_id, first.property_id)
+                assert first.ad_id is not None
+                ad = Ad.objects.get(pk=first.ad_id)
+                self.assertEqual(ad.observed_at, newer)
+                self.assertEqual(ad.property.address, address)
+                prices = PriceHistory.objects.filter(ad=ad).values_list(
+                    "price_rub", flat=True
+                )
+                self.assertEqual(
+                    set(prices), {Decimal(100), Decimal(200), Decimal(250)}
+                )

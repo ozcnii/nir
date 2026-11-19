@@ -35,7 +35,7 @@ def _same_building(left: HouseAddress, right: HouseAddress) -> bool:
 def has_confirmed_block(
     incoming: HouseAddress | None, previous: HouseAddress | None = None
 ) -> bool:
-    """A redundant chain can confirm a known block without replacing its address."""
+    """Confirm the block after checking address conflicts on a repeat."""
     if incoming is None or not incoming.block_marked or incoming.complete:
         return True
     if incoming.chain != "redundant" or previous is None or not previous.complete:
@@ -43,10 +43,8 @@ def has_confirmed_block(
     shared_roles = {
         role for role, _ in previous.qualifiers.items() & incoming.qualifiers.items()
     }
-    return (
-        bool(shared_roles & HOUSE_BLOCK_TAGS)
-        and bool(shared_roles & HOUSE_BUILDING_TAGS)
-        and _compatible_location_order(previous, incoming)
+    return bool(shared_roles & HOUSE_BLOCK_TAGS) and bool(
+        shared_roles & HOUSE_BUILDING_TAGS
     )
 
 
@@ -96,12 +94,6 @@ def _contains_location(complete: tuple[str, ...], known: tuple[str, ...]) -> boo
     return all(part in components for part in known)
 
 
-def _compatible_location_order(left: HouseAddress, right: HouseAddress) -> bool:
-    return _contains_location(left.location, right.location) or _contains_location(
-        right.location, left.location
-    )
-
-
 def _enriched_address(
     old: HouseAddress, new: HouseAddress, incoming: PropertyFacts
 ) -> str | None:
@@ -139,6 +131,7 @@ def repeated_house_patch(
 
 
 def _location_conflicts(old: HouseAddress, new: HouseAddress) -> bool:
+    """Only disagreement on established location facts contradicts a repeat."""
     if (
         (old.street is not None and new.street is not None and old.street != new.street)
         or _conflicting_ids(old.settlements, new.settlements)
@@ -150,4 +143,4 @@ def _location_conflicts(old: HouseAddress, new: HouseAddress) -> bool:
         new_kind, new_name = next(iter(new.settlements.items()))
         if old_name != new_name or (old_kind and new_kind and old_kind != new_kind):
             return True
-    return old.complete and new.complete and not _compatible_location_order(old, new)
+    return False
