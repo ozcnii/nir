@@ -127,6 +127,8 @@ def check_catalog(page: Page, live_server_url: str) -> None:
     assert response is not None and response.status == 200
     expect(page).to_have_url(url)
     expect(page.get_by_role("combobox", name="Сделка")).to_have_value("sale")
+    expect(page.locator('#id_deal_type option[value="sale"]')).to_have_text("Продажа")
+    expect(cards.first).to_contain_text("Вторичка")
     expect(cards).to_have_count(20)
     expect(cards.first).to_contain_text("Тестовая улица, 01")
     expect(cards.first).to_contain_text("Студия")
@@ -178,9 +180,12 @@ def check_catalog(page: Page, live_server_url: str) -> None:
     ).to_be_visible()
     expect(cards).to_have_count(0)
 
-    # Act: a deal switch keeps compatible filters but clears the price.
+    # Act: a deal switch retains the region even when its original key was padded.
+    page.goto(f"{url}?price_max=1000&region_id=%20000{SAMARA_REGION_ID}%20")
+    expect(page.get_by_role("combobox", name="Регион")).to_have_value(
+        str(SAMARA_REGION_ID)
+    )
     page.get_by_role("combobox", name="Категория").select_option("room")
-    page.get_by_role("combobox", name="Регион").select_option(str(SAMARA_REGION_ID))
     page.locator("#id_floor_min").fill("-1")
     page.get_by_role("combobox", name="Сделка").select_option("day_rent")
     page.wait_for_url(f"{url}?deal_type=day_rent&*")
@@ -192,13 +197,15 @@ def check_catalog(page: Page, live_server_url: str) -> None:
     ]
     assert params["floor_min"] == ["-1"] and "price_max" not in params
     expect(cards).to_have_count(1)
-    expect(cards.first).to_contain_text("от 3000 руб./сут.")
+    expect(cards.first).to_contain_text("от 3 000 руб./сут.")
     expect(cards.first).to_contain_text("Предлагаемых комнат: 1")
     expect(page.get_by_text("Фото не указано")).to_be_visible()
 
     # Act: inspect a missing monthly price, then try an impossible page.
+    page.get_by_role("combobox", name="Категория").select_option("all")
     page.get_by_role("combobox", name="Сделка").select_option("month_rent")
-    expect(cards.first.get_by_text("Цена не получена")).to_be_visible()
+    expect(cards.first).to_contain_text("900 руб./мес.")
+    expect(cards.last.get_by_text("Цена не получена")).to_be_visible()
     response = page.goto(f"{url}?deal_type=day_rent&category=house&page=2")
 
     # Assert: a missing page is a 400 and keeps the normalized search on retry.

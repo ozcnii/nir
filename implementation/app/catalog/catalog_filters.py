@@ -9,6 +9,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.http import QueryDict
 
+from app.catalog.catalog_labels import DEAL_LABELS
 from app.catalog.models import DealType, Region
 
 RANGE_LABELS = (
@@ -98,6 +99,9 @@ class RegionFilter(forms.Field):
     def __init__(self) -> None:
         super().__init__(label="Регион", required=False, widget=forms.Select)
 
+    def prepare_value(self, value: object) -> object:
+        return value.strip().lstrip("0") if isinstance(value, str) else value
+
     def to_python(self, value: str | None) -> int | None:
         if not value or not value.strip():
             return None
@@ -110,7 +114,7 @@ class RegionFilter(forms.Field):
 class CatalogFilters(forms.Form):
     deal_type = forms.ChoiceField(
         label="Сделка",
-        choices=DealType.choices,
+        choices=DEAL_LABELS.items(),
         error_messages={
             "required": "Выберите вид сделки.",
             "invalid_choice": "Выберите вид сделки из списка.",

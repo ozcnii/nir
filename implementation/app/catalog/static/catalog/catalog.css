@@ -113,6 +113,10 @@ button:hover, .object-link:hover { background: #153e34; }
 .offer small { display: block; color: var(--muted); }
 .pagination { margin-top: 1.35rem; }
 
+@media (min-width: 38.01rem) {
+  .range-fields legend { min-height: 3em; }
+}
+
 @media (max-width: 57rem) {
   .range-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

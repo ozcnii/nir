@@ -10,16 +10,7 @@
     </figure>
     <div class="result-content">
       <h3>
-        {% if property.property_type_id == apartment_type_id and property.rooms is not None %}
-          {% if property.rooms == 0 %}
-            Студия
-          {% else %}
-            {{ property.rooms }}-комнатная квартира
-          {% endif %}
-        {% else %}
-          {{ property.property_type.name }}
-        {% endif %}
-        {% if property.area_m2 is not None %}, {{ property.area_m2|floatformat:"-2" }} м²{% endif %}
+        {{ card.title }}{% if property.area_m2 is not None %}, {{ property.area_m2|floatformat:"-2" }} м²{% endif %}
       </h3>
       <p class="address">
         {% if property.address %}{{ property.address }} ·{% endif %}
@@ -54,11 +45,11 @@
           <li class="offer">
             <div>
               <strong>{{ item.source }}</strong>
-              {% if item.ad.market_segment %}<span> · {{ item.ad.get_market_segment_display }}</span>{% endif %}
+              {% if item.segment %}<span> · {{ item.segment }}</span>{% endif %}
               {% if item.price %}
                 <span class="price">
                   {% if item.price.price_kind == "from" %}от{% endif %}
-                  {{ item.price.price_rub|floatformat:"-2" }} {{ item.unit }}
+                  {{ item.price.price_rub|floatformat:"-2g" }} {{ item.unit }}
                 </span>
                 <small>
                   Последняя известная цена. Зафиксирована

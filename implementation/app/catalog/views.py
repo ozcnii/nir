@@ -11,20 +11,14 @@ from django.urls import reverse
 from django.views.decorators.http import require_safe
 
 from app.catalog.catalog_filters import RANGE_LABELS, CatalogFilters
+from app.catalog.catalog_labels import MARKET_LABELS, PRICE_UNITS, property_title
 from app.catalog.catalog_queries import catalog_page, catalog_results
 from app.catalog.models import DealType, Property, Region
 from app.catalog.reference_defaults import (
-    APARTMENT_TYPE_ID,
     HOUSE_TYPE_ID,
     ROOM_TYPE_ID,
     SOURCE_LABELS,
 )
-
-_PRICE_UNITS: dict[str, str] = {
-    DealType.SALE: "руб.",
-    DealType.MONTH_RENT: "руб./мес.",
-    DealType.DAY_RENT: "руб./сут.",
-}
 
 
 @require_safe
@@ -41,7 +35,7 @@ def catalog(request: HttpRequest) -> HttpResponse:
     category = form.cleaned_data.get("category", "all")
     ranges = [
         (
-            f"{label}, {_PRICE_UNITS[deal]}"
+            f"{label}, {PRICE_UNITS[deal]}"
             if quantity == "price"
             else "Предлагаемых комнат"
             if quantity == "rooms" and category == "room"
@@ -58,7 +52,6 @@ def catalog(request: HttpRequest) -> HttpResponse:
             form[name] for name in ("deal_type", "category", "region_id")
         ],
         "reset_url": f"{path}?deal_type={deal}",
-        "apartment_type_id": APARTMENT_TYPE_ID,
         "room_type_id": ROOM_TYPE_ID,
         "house_type_id": HOUSE_TYPE_ID,
     }
@@ -75,6 +68,7 @@ def catalog(request: HttpRequest) -> HttpResponse:
             cards = [
                 {
                     "property": result.property,
+                    "title": property_title(result.property),
                     "offers": [
                         {
                             "ad": offer.ad,
@@ -82,7 +76,8 @@ def catalog(request: HttpRequest) -> HttpResponse:
                             "source": SOURCE_LABELS.get(
                                 offer.ad.source_id, offer.ad.source_id
                             ),
-                            "unit": _PRICE_UNITS[offer.ad.deal_type],
+                            "unit": PRICE_UNITS[offer.ad.deal_type],
+                            "segment": MARKET_LABELS.get(offer.ad.market_segment or ""),
                         }
                         for offer in result.offers
                     ],
