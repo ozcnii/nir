@@ -19,13 +19,60 @@ _DOMCLICK = "https://samara.domclick.ru/pokupka/kvartiry/samarskaya-oblast"
 _ID = 2078968375
 _CARD_PATH = f"/card/sale__flat__{_ID}"
 _CARD = f"https://samara.domclick.ru{_CARD_PATH}"
+_LAYOUT_PARENT = 2072470664
+_LAYOUT_MEMBERS = (
+    2072470552,
+    2072470567,
+    2072470580,
+    2072470620,
+    2072470627,
+    2072470629,
+    2072470651,
+    2072470659,
+    2072470683,
+    2072470733,
+    2072470767,
+    2072470775,
+    2072470782,
+)
+
+
+def layout_card(identifier: int, number: int) -> tuple[str, str]:
+    data: dict[str, object] = {
+        "id": identifier,
+        "address": {
+            "guid": "controlled-layout-address",
+            "shortDisplayName": "Гвардейский переулок, 7а",
+            "locality": {"name": "Самара"},
+        },
+        "objectInfo": {"area": 54.3, "rooms": 2, "floorNumber": 2},
+        "building": {"floors": 17},
+        "flatInfo": {"flatNumber": str(number)},
+        "priceInfo": {"currentPrice": 8304840},
+    }
+    if identifier == _LAYOUT_PARENT:
+        data["flatsWithSameLayout"] = [{"flatId": key} for key in _LAYOUT_MEMBERS]
+    state = {
+        "shell": {"isDeletedFlat": False, "flatDetails": {"data": data}},
+        "regions": {
+            "guid": "controlled-layout-address",
+            "regionName": "Самарская область",
+        },
+    }
+    url = f"https://samara.domclick.ru/card/sale__new_flat__{identifier}?to_flats=true"
+    return url, f"<script>{ssr(state)}</script>"
 
 
 def verify_regional_sources() -> None:
     from app.catalog.models import Ad, PriceHistory
 
-    # Arrange: replay the saved native state and one main result, with a separate
-    # recommendation and a blocked first source.
+    # Arrange: the published layout keys with controlled card details, an
+    # ordinary listing, a separate recommendation and a blocked first source.
+    layout = dict(
+        layout_card(identifier, number)
+        for number, identifier in enumerate((_LAYOUT_PARENT, *_LAYOUT_MEMBERS), start=1)
+    )
+    parent_url = next(iter(layout))
     search = {
         "status": "loaded",
         "filters": {
@@ -37,8 +84,8 @@ def verify_regional_sources() -> None:
             },
         },
         "pagination": {"offset": 0, "limit": 20},
-        "snippetsCount": 1,
-        "offersCount": 1,
+        "snippetsCount": 2,
+        "offersCount": 15,
     }
     card = {
         "id": _ID,
@@ -57,12 +104,14 @@ def verify_regional_sources() -> None:
     listing = (
         f"<script>{ssr({'search': search})}</script>"
         f"<main><div><a href='{_CARD_PATH}'>Квартира</a></div>"
+        f"<div><a href='{parent_url}'>Планировка</a></div>"
         "<div>Сейчас это все объявления по вашему запросу</div></main>"
         "<aside><a href='/card/sale__flat__2078968376'>Рекомендуем</a></aside>"
     )
     documents = {
         _DOMCLICK: listing,
         _CARD: f"<script>{ssr({'productCard': card})}</script>",
+        **layout,
     }
     requests: list[str] = []
 
@@ -101,16 +150,27 @@ def verify_regional_sources() -> None:
                 stdout=stdout,
             )
 
-    # Assert: the next source runs after the refusal, with one ad and one price.
+    # Assert: the next source runs and opens the parent only once per run.
     first, second = (json.loads(output.getvalue())["sources"] for output in outputs)
     assert first["cian"]["issues"] == {"http_403": 1}
     assert first["cian"]["listing_complete"] is False
     assert first["domclick"]["listing_complete"] is True, (first, requests)
-    assert first["domclick"]["results"]["created"] == 1
-    assert second["domclick"]["results"]["unchanged"] >= 1
-    assert requests[:3] == [_CIAN, _DOMCLICK, _CARD]
+    assert first["domclick"]["results"]["created"] == 15
+    assert second["domclick"]["results"]["unchanged"] == 15
+    assert requests[:2] == [_CIAN, _DOMCLICK]
     assert requests.count(_CARD) == 2
     assert not any("2078968376" in url for url in requests)
+    assert all(requests.count(url) == 2 for url in layout)
+    assert (
+        Ad.objects.filter(
+            source_id="domclick",
+            external_id__in=[
+                f"/card/sale__new_flat__{key}"
+                for key in (_LAYOUT_PARENT, *_LAYOUT_MEMBERS)
+            ],
+        ).count()
+        == 14
+    )
     saved = Ad.objects.get(source_id="domclick", external_id=_CARD_PATH)
     assert saved.property.region_id == SAMARA_REGION_ID and saved.is_active
     assert list(

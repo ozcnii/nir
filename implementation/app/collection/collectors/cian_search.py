@@ -346,10 +346,11 @@ def read_group(
     group = route.group_key(group_url)
     observed = _projection(page, deadline)
     query = observed["query"]
+    if query is None:
+        raise RejectedCard("unknown_listing_format")
     if (
         group is None
         or route.group_key(page.url) != group
-        or query is None
         or query.get("_type") != "flatsale"
         or _value(query, "engine_version") != 2
         or _value(query, "region") not in (None, [route.source_region])

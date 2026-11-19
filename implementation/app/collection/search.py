@@ -5,6 +5,7 @@ from collections.abc import Callable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 
 from playwright.sync_api import Page
 
@@ -13,19 +14,26 @@ from app.catalog.contracts import Deal, Market, Snapshot, SnapshotResult
 from app.catalog.locks import run_session
 from app.catalog.publications import accept_snapshot
 from app.catalog.references import source_enabled
-from app.collection.browser import browser_page
-from app.collection.collectors import cian, cian_search, domclick, domclick_search
-from app.collection.domclick_normalization import DailyListingQuote
-from app.collection.listing_page import SearchPage
-from app.collection.one_card import (
+from app.collection.browser import (
     CollectionError,
+    browser_page,
     check_stop,
-    read_card,
     read_page,
     without_media,
 )
+from app.collection.collectors import cian, cian_search, domclick, domclick_search
+from app.collection.domclick_normalization import DailyListingQuote
+from app.collection.listing_page import SearchPage
+from app.collection.one_card import capture_card, read_card
 
-_SOURCE_BLOCKS = {"http_401", "http_403", "http_429", "http_439", "source_captcha"}
+_SOURCE_BLOCKS = {
+    "http_401",
+    "http_403",
+    "http_429",
+    "http_439",
+    "source_captcha",
+    "unknown_listing_format",
+}
 
 
 @dataclass(frozen=True)
@@ -193,7 +201,13 @@ def _collect_source(
         issues[reason] += 1
         skipped[key] = reason
 
-    def visit(key: str, url: str, quote: DailyListingQuote | None = None) -> None:
+    def visit(
+        key: str,
+        url: str,
+        quote: DailyListingQuote | None = None,
+        *,
+        captured: Snapshot | SnapshotResult | None = None,
+    ) -> None:
         check_stop(stopped)
         if key in seen_keys:
             return
@@ -202,13 +216,17 @@ def _collect_source(
             skip(key, "unknown_card_identity")
             return
         try:
-            snapshot = read_card(
-                card,
-                url,
-                source,
-                stopped,
-                deal if key in known else None,
-                quote=quote,
+            snapshot = (
+                captured
+                if captured is not None
+                else read_card(
+                    card,
+                    url,
+                    source,
+                    stopped,
+                    deal if key in known else None,
+                    quote=quote,
+                )
             )
         except CollectionError as error:
             reason = str(error)
@@ -255,35 +273,41 @@ def _collect_source(
                 if page.incomplete:
                     listing_complete = False
                     issues.update(page.incomplete)
-                for key, url in page.urls.items():
-                    visit(key, url, page.quotes.get(key))
                 for group_url in page.group_urls:
                     if group_url in seen_groups:
                         continue
                     seen_groups.add(group_url)
+                    parent = card_key(group_url)
+                    if parent in seen_keys or parent not in page.urls:
+                        parent = None
                     try:
-                        group = read_page(
+                        group, captured = _read_group(
+                            direction,
                             card,
                             group_url,
                             stopped,
-                            lambda _, deadline, read_group=direction.read_group, url=group_url: (
-                                read_group(card, deadline, url)
-                            ),
-                            accepts_redirect=lambda loaded, url=group_url: (
-                                loaded == url
-                            ),
+                            capture_parent=parent is not None,
+                            removed_deal=deal if parent in known else None,
                         )
                     except CollectionError as error:
                         if str(error) in _SOURCE_BLOCKS:
                             raise
                         listing_complete = False
-                        issues[str(error)] += 1
+                        if parent is None:
+                            issues[str(error)] += 1
+                        else:
+                            seen_keys.add(parent)
+                            skip(parent, str(error))
                         continue
                     if group.incomplete:
                         listing_complete = False
                         issues.update(group.incomplete)
+                    if parent is not None:
+                        visit(parent, group_url, captured=captured)
                     for key, url in group.urls.items():
                         visit(key, url, group.quotes.get(key))
+                for key, url in page.urls.items():
+                    visit(key, url, page.quotes.get(key))
 
         if listing_complete:
             for key, url in known.items():
@@ -303,6 +327,37 @@ def _collect_source(
     }
 
 
+def _read_group(
+    direction: Direction,
+    card: Page,
+    url: str,
+    stopped: Callable[[], bool],
+    *,
+    capture_parent: bool,
+    removed_deal: Deal | None,
+) -> tuple[SearchPage, Snapshot | SnapshotResult | None]:
+    def capture(
+        observed_at: datetime, deadline: float
+    ) -> tuple[SearchPage, Snapshot | SnapshotResult | None]:
+        group = direction.read_group(card, deadline, url)
+        parent = (
+            capture_card(
+                card, url, direction.source, observed_at, deadline, removed_deal
+            )
+            if capture_parent
+            else None
+        )
+        return group, parent
+
+    return read_page(
+        card,
+        url,
+        stopped,
+        capture,
+        accepts_redirect=lambda loaded: loaded == url,
+    )
+
+
 def _walk_route(
     direction: Direction, listing: Page, stopped: Callable[[], bool]
 ) -> Iterator[SearchPage]:
@@ -311,6 +366,12 @@ def _walk_route(
     next_url: str | None = direction.start
     next_control: str | None = None
     previous_page: int | None = None
+
+    def capture(_: datetime, deadline: float) -> SearchPage:
+        return direction.read(
+            listing, deadline, previous_page if next_control else None
+        )
+
     while next_url is not None or next_control is not None:
         check_stop(stopped)
         address = next_url if next_url is not None else listing.url
@@ -322,9 +383,7 @@ def _walk_route(
             listing,
             address,
             stopped,
-            lambda _, deadline, previous=previous_page if next_control else None: (
-                direction.read(listing, deadline, previous)
-            ),
+            capture,
             accepts_redirect=lambda loaded: (
                 loaded == direction.start or direction.permits_next(loaded)
             ),

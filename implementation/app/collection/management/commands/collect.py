@@ -17,11 +17,8 @@ from app.catalog.reference_defaults import (
     ROOM_TYPE_ID,
     SOURCE_CODES,
 )
-from app.collection.one_card import (
-    CollectionError,
-    CollectionStopped,
-    collect_card,
-)
+from app.collection.browser import CollectionError, CollectionStopped
+from app.collection.one_card import collect_card
 from app.collection.search import collect_search
 
 _PROPERTY_TYPES = {

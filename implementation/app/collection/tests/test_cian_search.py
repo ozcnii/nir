@@ -11,7 +11,8 @@ from app.catalog.reference_defaults import (
     HOUSE_TYPE_ID,
     SAMARA_REGION_ID,
 )
-from app.collection.browser import browser_page
+from app.collection.browser import CollectionError, browser_page
+from app.collection.browser import read_page as read_browser_page
 from app.collection.collectors.cian_search import read_group, read_page, route_for
 from app.collection.normalization import RejectedCard
 
@@ -75,9 +76,15 @@ class CianSearchTests(TestCase):
             page.goto(route.start)
             initial = read_page(page, route, time.monotonic() + 5)
             assert initial.next_control is not None
-            page.locator(initial.next_control).click()
-            following = read_page(
-                page, route, time.monotonic() + 5, previous_page=initial.number
+            following = read_browser_page(
+                page,
+                route.start,
+                lambda: False,
+                lambda _, deadline: read_page(
+                    page, route, deadline, previous_page=initial.number
+                ),
+                accepts_redirect=route.permits_next,
+                next_control=initial.next_control,
             )
             final_url = page.url
 
@@ -92,6 +99,33 @@ class CianSearchTests(TestCase):
         )
         self.assertIsNone(following.next_control)
         self.assertFalse(following.incomplete)
+
+    def test_click_preserves_http_refusal(self) -> None:
+        # Arrange
+        next_url = f"{HOST}/next"
+        visited: list[str] = []
+
+        def respond(request: Route) -> None:
+            url = request.request.url
+            visited.append(url)
+            body = f'<a href="{next_url}">Дальше</a>' if url == HOST + "/" else ""
+            request.fulfill(status=403 if url == next_url else 200, body=body)
+
+        with browser_page() as page:
+            page.route("**/*", respond)
+            page.goto(HOST)
+
+            # Act / Assert
+            with self.assertRaisesRegex(CollectionError, "^http_403$"):
+                read_browser_page(
+                    page,
+                    HOST,
+                    lambda: False,
+                    lambda *_: None,
+                    accepts_redirect=lambda url: url == next_url,
+                    next_control="a",
+                )
+        self.assertEqual(visited, [HOST + "/", next_url])
 
     def test_group_uses_real_primary_cards_and_ignores_technical_second_page(
         self,

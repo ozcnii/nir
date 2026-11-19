@@ -9,9 +9,10 @@ from unittest.mock import Mock, patch
 from playwright.sync_api import Page
 
 from app.catalog.contracts import ActiveSnapshot
+from app.collection.browser import CollectionStopped
 from app.collection.collectors.cian import parse_card
 from app.collection.normalization import RejectedCard
-from app.collection.one_card import CollectionStopped, read_card
+from app.collection.one_card import read_card
 from app.collection.tests.cian_fixture import FIXTURE, native_case, projection, script
 
 OBSERVED_AT = datetime(2026, 11, 18, 12, tzinfo=UTC)
