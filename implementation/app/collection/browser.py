@@ -30,6 +30,10 @@ class CollectionStopped(Exception):
     pass
 
 
+class BrowserTransportError(PlaywrightError):
+    pass
+
+
 class DocumentResponseError(RejectedCard):
     def __init__(self, response: Response) -> None:
         super().__init__(f"http_{response.status}")
@@ -67,7 +71,7 @@ def browser_page() -> Iterator[Page]:
 
 def read_page[Result](
     page: Page,
-    url: str,
+    url: str | None,
     stopped: Callable[[], bool],
     capture: Callable[[datetime, float], Result],
     *,
@@ -106,7 +110,7 @@ def read_page[Result](
 
 def _read_page[Result](
     page: Page,
-    url: str,
+    url: str | None,
     stopped: Callable[[], bool],
     capture: Callable[[datetime, float], Result],
     accepts_redirect: Callable[[str], bool],
@@ -174,7 +178,7 @@ def _read_page[Result](
             ):
                 raise CollectionError("unexpected_redirect") from error
             if retry or not (
-                isinstance(error, PlaywrightTimeout)
+                isinstance(error, (BrowserTransportError, PlaywrightTimeout))
                 or any(code in str(error) for code in TRANSPORT_ERRORS)
             ):
                 raise CollectionError("browser_read_failed") from error

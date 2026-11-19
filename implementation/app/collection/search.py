@@ -13,6 +13,7 @@ from app.catalog.collection_queries import active_publications, scope_exists
 from app.catalog.contracts import Deal, Market, Snapshot, SnapshotResult
 from app.catalog.locks import run_session
 from app.catalog.publications import accept_snapshot
+from app.catalog.reference_defaults import ROOM_TYPE_ID
 from app.catalog.references import source_enabled
 from app.collection.browser import (
     CollectionError,
@@ -21,7 +22,13 @@ from app.collection.browser import (
     read_page,
     without_media,
 )
-from app.collection.collectors import cian, cian_search, domclick, domclick_search
+from app.collection.collectors import (
+    cian,
+    cian_room_search,
+    cian_search,
+    domclick,
+    domclick_search,
+)
 from app.collection.domclick_normalization import DailyListingQuote
 from app.collection.listing_page import SearchPage
 from app.collection.normalization import RejectedCard
@@ -48,6 +55,7 @@ class Direction:
     advance: (
         Callable[[Page, int, str, float, Callable[[], bool]], SearchPage] | None
     ) = None
+    pages: Callable[[Page, Callable[[], bool]], Iterator[SearchPage]] | None = None
 
 
 def _directions(
@@ -71,6 +79,13 @@ def _directions(
                     lambda page, deadline, address: cian_search.read_group(
                         page, route, deadline, group_url=address
                     ),
+                    pages=(
+                        lambda page, stopped: cian_room_search.walk(
+                            page, route, stopped
+                        )
+                    )
+                    if deal == "day_rent" and property_type_id == ROOM_TYPE_ID
+                    else None,
                 ),
             )
     if source == "domclick":
@@ -375,6 +390,10 @@ def _read_group(
 def _walk_route(
     direction: Direction, listing: Page, stopped: Callable[[], bool]
 ) -> Iterator[SearchPage]:
+    if direction.pages is not None:
+        yield from direction.pages(listing, stopped)
+        return
+
     seen_urls: set[str] = set()
     filters: dict[str, object] | None = None
     next_url: str | None = direction.start
