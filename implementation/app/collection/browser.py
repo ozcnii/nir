@@ -30,6 +30,13 @@ class CollectionStopped(Exception):
     pass
 
 
+class DocumentResponseError(RejectedCard):
+    def __init__(self, response: Response) -> None:
+        super().__init__(f"http_{response.status}")
+        self.url = response.url
+        self.status = response.status
+
+
 def check_stop(stopped: Callable[[], bool]) -> None:
     if stopped():
         raise CollectionStopped
@@ -133,16 +140,11 @@ def _read_page[Result](
                 clicked = True
                 control.click(timeout=max(1, (deadline - time.monotonic()) * 1000))
                 if responses and not responses[-1].ok:
-                    response = responses[-1]
-                    if not retry and 500 <= response.status < 600:
-                        direct_url = response.url
-                        responses.clear()
-                        continue
-                    raise CollectionError(f"http_{response.status}")
+                    raise DocumentResponseError(responses[-1])
             check_stop(stopped)
             result = (
                 advance(deadline)
-                if advance is not None
+                if advance is not None and direct_url is None
                 else capture(observed_at, deadline)
             )
             check_stop(stopped)
@@ -151,6 +153,15 @@ def _read_page[Result](
             return result
         except RejectedCard as error:
             check_stop(stopped)
+            if isinstance(error, DocumentResponseError):
+                if (
+                    not retry
+                    and 500 <= error.status < 600
+                    and accepts_redirect(error.url)
+                ):
+                    direct_url = error.url
+                    continue
+                raise CollectionError(str(error)) from error
             if not retry and str(error).startswith("http_5"):
                 continue
             raise CollectionError(str(error)) from error

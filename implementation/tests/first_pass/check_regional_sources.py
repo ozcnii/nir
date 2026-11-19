@@ -11,9 +11,16 @@ from urllib.parse import urlsplit
 from django.core.management import call_command
 from playwright.sync_api import Page, Route
 
-from app.catalog.reference_defaults import SAMARA_REGION_ID
+from app.catalog.reference_defaults import APARTMENT_TYPE_ID, SAMARA_REGION_ID
 from app.collection.browser import browser_page
-from app.collection.tests.domclick_fixture import ssr
+from app.collection.collectors.domclick_search import routes_for
+from app.collection.tests.domclick_fixture import (
+    DAILY,
+    daily_listing_parts,
+    daily_projection,
+    daily_ssr,
+    ssr,
+)
 
 _CIAN = "https://samara.cian.ru/kupit-kvartiru-samarskaya-oblast/"
 _DOMCLICK = "https://samara.domclick.ru/pokupka/kvartiry/samarskaya-oblast"
@@ -184,3 +191,128 @@ def verify_regional_sources() -> None:
     ) == [
         Decimal("6990000.00"),
     ]
+
+
+def verify_daily_document_retry() -> None:
+    from app.catalog.models import Ad, PriceHistory
+
+    # Arrange: keep the published shapes and use a controlled page-2 payload.
+    (search_route,) = routes_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
+    next_url = "https://24.domclick.ru/search?page=2"
+    card_key = "/card/7c4bd5f1-b068-4a90-8138-90af86676682"
+    second_card_url = f"https://24.domclick.ru{card_key}"
+    first_uid = urlsplit(DAILY).path.rsplit("/", 1)[1]
+    second_uid = card_key.rsplit("/", 1)[1]
+    _, primary = daily_listing_parts()
+
+    def listing(number: int, uid: str, region: object, control: str) -> str:
+        state = {
+            "fetchStatus": "success",
+            "outdatedSearch": False,
+            "invalidParams": False,
+            "searchData": {"page": number, "locationId": region, "adt": 1},
+            "total": 37,
+            "ids": [uid],
+            "entities": {uid: {"id": uid, "category": "flat", "source": "CAS"}},
+        }
+        return (
+            f"<script>{ssr({'serp': state})}</script>"
+            '<div data-e2e-id="search-form-datepicker"><input value=""></div>'
+            '<div data-e2e-id="search-form-guests-control"><input value="1 гость"></div>'
+            f'<div id="app"><div>{primary.replace(first_uid, uid)}</div></div>'
+            f"{control}"
+        )
+
+    first_page = listing(
+        1,
+        first_uid,
+        search_route.source_region,
+        f'<a aria-label="Следующая" href="{next_url}">Следующая</a>',
+    )
+    card_script = daily_ssr(daily_projection())
+    page_two_requests: list[str] = []
+    card_requests: list[str] = []
+    mode = "success"
+
+    def respond(request: Route) -> None:
+        url = request.request.url
+        status = 200
+        if url == search_route.start:
+            body = first_page
+        elif url == next_url:
+            page_two_requests.append(url)
+            if len(page_two_requests) == 1 or mode == "unavailable":
+                status, body = 503, "<main>Temporary error</main>"
+            else:
+                body = listing(
+                    2,
+                    second_uid,
+                    search_route.source_region if mode == "success" else None,
+                    '<button aria-label="Следующая" disabled>Следующая</button>',
+                )
+        elif url in (DAILY, second_card_url):
+            card_requests.append(url)
+            selected = second_uid if url == second_card_url else first_uid
+            body = f"<script>{card_script.replace(first_uid, selected)}</script>"
+        else:
+            status, body = 404, "Unavailable"
+        request.fulfill(
+            status=status, body=body, content_type="text/html; charset=utf-8"
+        )
+
+    @contextmanager
+    def routed_browser() -> Iterator[Page]:
+        with browser_page() as page:
+            page.context.route("**/*", respond)
+            yield page
+
+    def collect() -> dict[str, object]:
+        output = StringIO()
+        with patch("app.collection.search.browser_page", routed_browser):
+            call_command(
+                "collect",
+                "--source",
+                "domclick",
+                "--region",
+                str(SAMARA_REGION_ID),
+                "--property-type",
+                "apartment",
+                "--deal",
+                "day_rent",
+                stdout=output,
+            )
+        summary: dict[str, object] = json.loads(output.getvalue())
+        return summary
+
+    # Act
+    summary = collect()
+
+    # Assert
+    assert page_two_requests == [next_url, next_url] and summary["pages"] == 2, summary
+    assert card_requests.count(second_card_url) == 1
+    saved = Ad.objects.get(source_id="domclick", external_id=card_key)
+    assert saved.property.region_id == SAMARA_REGION_ID and saved.is_active
+    price = PriceHistory.objects.get(ad=saved)
+    assert price.price_rub == Decimal("3910.00")
+    observed_at = saved.observed_at
+
+    for failure, reason in (
+        ("unavailable", "http_503"),
+        ("lost_region", "listing_scope_changed"),
+    ):
+        # Arrange / Act
+        mode = failure
+        page_two_requests.clear()
+        card_requests.clear()
+        summary = collect()
+
+        # Assert
+        assert page_two_requests == [next_url, next_url]
+        assert summary["listing_complete"] is False and summary["issues"] == {
+            reason: 1
+        }, summary
+        assert second_card_url not in card_requests
+        saved.refresh_from_db()
+        assert saved.is_active and saved.observed_at == observed_at
+        assert PriceHistory.objects.get(ad=saved).pk == price.pk
+    print("Domclick 24: document 503 retry, persistence and lost scope verified")

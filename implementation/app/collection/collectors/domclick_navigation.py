@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 from playwright.sync_api import Locator, Page, Request, Response
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from app.collection.browser import check_stop
+from app.collection.browser import DocumentResponseError, check_stop
 from app.collection.normalization import RejectedCard, as_object
 
 _DAILY_HOST = "24.domclick.ru"
@@ -91,4 +91,6 @@ def read_clicked_page(
     response = pending.value.response()
     if response is None:
         raise RejectedCard("listing_not_ready")
+    if pending.value.is_navigation_request() and not response.ok:
+        raise DocumentResponseError(response)
     return _read_response(response, region, category)
