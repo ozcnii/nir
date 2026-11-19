@@ -9,7 +9,7 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, Response, Route, sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from app.collection.normalization import RejectedCard
+from app.collection.normalization import RejectedCard, as_object
 
 CARD_TIMEOUT_MS = 30_000
 TRANSPORT_ERRORS = (
@@ -67,6 +67,44 @@ def browser_page() -> Iterator[Page]:
         browser.new_context(accept_downloads=False) as context,
     ):
         yield context.new_page()
+
+
+@contextmanager
+def browser_post_status(page: Page, url: str) -> Iterator[Callable[[], int | None]]:
+    """Observe HTTP errors that Chromium hides from cross-origin fetch."""
+    session = page.context.new_cdp_session(page)
+    requests: set[str] = set()
+    failure: int | None = None
+
+    def request_started(event: dict[str, object]) -> None:
+        request = as_object(event.get("request"))
+        identifier = event.get("requestId")
+        if (
+            isinstance(identifier, str)
+            and request.get("url") == url
+            and request.get("method") in ("POST", "OPTIONS")
+        ):
+            requests.add(identifier)
+
+    def response_received(event: dict[str, object]) -> None:
+        nonlocal failure
+        identifier, status = event.get("requestId"), event.get("statusCode")
+        if (
+            isinstance(identifier, str)
+            and identifier in requests
+            and type(status) is int
+        ):
+            if 400 <= status < 600:
+                failure = status
+
+    try:
+        session.on("Network.requestWillBeSent", request_started)
+        session.on("Network.responseReceivedExtraInfo", response_received)
+        session.send("Network.enable")
+        yield lambda: failure
+    finally:
+        if not page.is_closed():
+            session.detach()
 
 
 def read_page[Result](

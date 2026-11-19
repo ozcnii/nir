@@ -1,5 +1,6 @@
 """Page through Cian's verified regional daily room search without UI clicks."""
 
+import json
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -10,7 +11,12 @@ from urllib.parse import urljoin
 from playwright.sync_api import Page, Request
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from app.collection.browser import BrowserTransportError, check_stop, read_page
+from app.collection.browser import (
+    BrowserTransportError,
+    browser_post_status,
+    check_stop,
+    read_page,
+)
 from app.collection.collectors.cian_partner import partner_key
 from app.collection.collectors.cian_search import SearchRoute
 from app.collection.listing_page import SearchPage
@@ -51,22 +57,27 @@ def _initial_map(
     def is_map(request: Request) -> bool:
         return request.url == _MAP_URL and request.method == "POST"
 
-    try:
-        with page.expect_request_finished(
-            is_map, timeout=_remaining(deadline)
-        ) as pending:
-            document = page.goto(
-                route.start, wait_until="domcontentloaded", timeout=_remaining(deadline)
-            )
-            check_stop(stopped)
-            if document is None:
-                raise RejectedCard("no_http_response")
-            if not document.ok:
-                raise RejectedCard(f"http_{document.status}")
+    with browser_post_status(page, _MAP_URL) as failed_status:
+        try:
+            with page.expect_request_finished(
+                is_map, timeout=_remaining(deadline)
+            ) as pending:
+                document = page.goto(
+                    route.start,
+                    wait_until="domcontentloaded",
+                    timeout=_remaining(deadline),
+                )
+                check_stop(stopped)
+                if document is None:
+                    raise RejectedCard("no_http_response")
+                if not document.ok:
+                    raise RejectedCard(f"http_{document.status}")
+                _check_document(page, route)
+        except PlaywrightTimeout as error:
             _check_document(page, route)
-    except PlaywrightTimeout:
-        _check_document(page, route)
-        raise
+            if (status := failed_status()) is not None:
+                raise RejectedCard(f"http_{status}") from error
+            raise
     request = pending.value
     response = request.response()
     check_stop(stopped)
@@ -75,24 +86,26 @@ def _initial_map(
         raise RejectedCard("no_http_response")
     if not response.ok:
         raise RejectedCard(f"http_{response.status}")
-    body = as_object(request.post_data_json)
+    try:
+        body = as_object(json.loads(request.post_data or ""))
+        data = as_object(response.json())
+    except ValueError as error:
+        raise RejectedCard("unknown_listing_format") from error
     query = as_object(body.get("jsonQuery"))
     if body.keys() != _MAP_FIELDS or not route.matches_query(query):
         raise RejectedCard("listing_scope_changed")
     if as_object(query.get("page")).get("value") != 1:
         raise RejectedCard("listing_scope_changed")
-    try:
-        return body, as_object(response.json())
-    except ValueError as error:
-        raise RejectedCard("unknown_listing_format") from error
+    return body, data
 
 
 def _post(
     page: Page, url: str, body: dict[str, object], deadline: float
 ) -> dict[str, object]:
-    output = as_object(
-        page.evaluate(
-            """async ({url, body, timeout}) => {
+    with browser_post_status(page, url) as failed_status:
+        output = as_object(
+            page.evaluate(
+                """async ({url, body, timeout}) => {
                 try {
                     const response = await fetch(url, {
                         method: "POST", headers: {"Content-Type": "application/json"},
@@ -113,13 +126,20 @@ def _post(
                     return {error: "network"};
                 }
             }""",
-            {"url": url, "body": body, "timeout": max(1, int(_remaining(deadline)))},
+                {
+                    "url": url,
+                    "body": body,
+                    "timeout": max(1, int(_remaining(deadline))),
+                },
+            )
         )
-    )
+        status_from_network = failed_status()
     error = output.get("error")
     if error == "timeout":
         raise PlaywrightTimeout("Cian room search attempt timed out")
     if error == "network":
+        if status_from_network is not None:
+            raise RejectedCard(f"http_{status_from_network}")
         raise BrowserTransportError("Cian room search browser request failed")
     if error == "redirect":
         raise RejectedCard("unexpected_redirect")
