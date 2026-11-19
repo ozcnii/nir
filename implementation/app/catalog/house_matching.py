@@ -119,8 +119,11 @@ def repeated_house_patch(
     old: HouseAddress | None,
     new: HouseAddress | None,
 ) -> dict[str, object] | None:
-    if new is not None and new.subject_conflict:
-        return None
+    if new is not None:
+        if new.subject_conflict:
+            return None
+        if new.complete and new.block_marked and (old is None or not old.block_marked):
+            return None
     updated_address = incoming["address"] if previous["address"] is None else None
     if old is not None and new is not None:
         old_block = HOUSE_BLOCK_TAGS.intersection(old.qualifiers)

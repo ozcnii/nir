@@ -410,8 +410,13 @@ class HouseMatchingTests(TestCase):
         # Arrange
         block_address = f"{HOUSE}, блок 2"
         block = accept_snapshot(snapshot("block", block_address))
-        whole = accept_snapshot(snapshot("whole", HOUSE))
         assert block.ad_id is not None
+        whole_addresses = (HOUSE, "Самара, улица Садовая", None)
+        whole_houses = [
+            (f"whole-{index}", address) for index, address in enumerate(whole_addresses)
+        ]
+        for key, address in whole_houses:
+            accept_snapshot(snapshot(key, address))
         newer = TIME + timedelta(minutes=1)
         without_block = "?, СНТ Луч, Садовая ул. дом 7"
         explicit_whole = snapshot("block", HOUSE, time=newer, price=Decimal(200))
@@ -430,7 +435,12 @@ class HouseMatchingTests(TestCase):
 
         # Act
         omitted = [accept_snapshot(item) for item in incomplete]
-        changed = accept_snapshot(snapshot("whole", block_address, time=newer))
+        changed = [
+            accept_snapshot(
+                snapshot(key, block_address, time=newer, price=Decimal(200))
+            )
+            for key, _ in whole_houses
+        ]
 
         # Assert
         self.assertEqual(
@@ -440,7 +450,9 @@ class HouseMatchingTests(TestCase):
             [item.reason for item in omitted],
             ["unconfirmed_house_block"] * len(incomplete),
         )
-        self.assertEqual(changed.outcome, "conflict")
+        self.assertEqual(
+            [item.outcome for item in changed], ["conflict"] * len(whole_houses)
+        )
         self.assertEqual(Ad.objects.get(pk=block.ad_id).observed_at, TIME)
         self.assertEqual(Ad.objects.get(pk=block.ad_id).property.address, block_address)
         self.assertEqual(
@@ -451,8 +463,11 @@ class HouseMatchingTests(TestCase):
             ),
             [Decimal(100)],
         )
-        assert whole.property_id is not None
-        self.assertEqual(Property.objects.get(pk=whole.property_id).address, HOUSE)
+        for key, address in whole_houses:
+            ad = Ad.objects.get(source_id="cian", external_id=key)
+            self.assertEqual(ad.property.address, address)
+            self.assertEqual(ad.observed_at, TIME)
+            self.assertEqual(PriceHistory.objects.get(ad=ad).price_rub, Decimal(100))
 
         # Arrange
         same_block = snapshot("block", block_address, time=newer, price=Decimal(250))
