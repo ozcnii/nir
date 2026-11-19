@@ -1,3 +1,4 @@
+import json
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -13,6 +14,7 @@ from app.catalog.reference_defaults import (
 )
 from app.collection.collectors.domclick_search import (
     SearchRoute,
+    advance,
     read_group,
     read_page,
     route_for,
@@ -26,12 +28,16 @@ _GROUP = f"{_NATIVE}/card/sale__new_flat__2072470664?to_flats=true"
 
 
 @contextmanager
-def _page(url: str, document: str) -> Iterator[Page]:
+def _page(
+    url: str, document: str, *, reply: tuple[str, int, dict[str, object]] | None = None
+) -> Iterator[Page]:
     def serve(route: Route) -> None:
         if route.request.url == url:
             route.fulfill(
                 status=200, content_type="text/html; charset=utf-8", body=document
             )
+        elif reply is not None and route.request.url == reply[0]:
+            route.fulfill(status=reply[1], json=reply[2])
         else:
             route.abort()
 
@@ -191,11 +197,16 @@ class DomclickSearchTests(TestCase):
         assert route is not None
         identifier = DAILY.rsplit("/", 1)[1]
         controls, primary = daily_listing_parts()
+        hidden_id = "eb807dc5-d00e-4731-9197-94e997c275f0"
+        ids = [identifier.upper(), hidden_id]
+        entities = {
+            key: {"id": key, "category": "flat", "source": "CAS"} for key in ids
+        }
         controls = controls.replace(
             '"searchData": {"adt": 1}',
             f'"searchData": {{"adt": 1, "page": 1, "locationId": "{route.source_region}"}}'
-            f', "total": 37, "entities": {{"{identifier.upper()}": {{"category": "flat"}}}}',
-        )
+            f', "total": 37, "entities": {json.dumps(entities)}',
+        ).replace(f'"ids": ["{identifier.upper()}"]', f'"ids": {json.dumps(ids)}')
         html = (
             f'{controls}<div id="app"><div>{primary}</div></div>'
             '<a aria-label="Следующая" href="/search?page=2">Следующая</a>'
@@ -207,7 +218,16 @@ class DomclickSearchTests(TestCase):
 
         # Assert
         key = f"/card/{identifier}"
-        self.assertEqual(result.urls, {key: DAILY})
+        hidden_key = f"/card/{hidden_id}"
+        self.assertEqual(
+            result.urls,
+            {
+                key: DAILY,
+                hidden_key: "https://24.domclick.ru" + hidden_key,
+            },
+        )
+        self.assertEqual(result.incomplete, ())
+        self.assertNotIn(hidden_key, result.quotes)
         self.assertEqual(result.next_control, 'a[aria-label="Следующая"]')
         self.assertIsNone(result.next_url)
         self.assertEqual(result.quotes[key].amount, "3 910 ₽")
@@ -215,3 +235,73 @@ class DomclickSearchTests(TestCase):
             Decimal(result.quotes[key].amount.split(" ₽")[0].replace(" ", "")),
             Decimal(3910),
         )
+
+    def test_daily_click_observes_ready_response_while_inline_page_is_stale(
+        self,
+    ) -> None:
+        # Arrange: passive reply for offset 36, keeping the first inline state.
+        route = route_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
+        assert route is not None
+        identifier = DAILY.rsplit("/", 1)[1]
+        reply_url = (
+            "https://24.domclick.ru/api/offers/ad/v1?"
+            f"locationGuid={route.source_region}&adults=1&limit=36&offset=36"
+        )
+        controls, primary = daily_listing_parts()
+        disabled = '<button aria-label="Следующая" disabled>Следующая</button>'
+        html = (
+            f'{controls}<div id="app"><div>{primary}</div></div>'
+            '<a class="pgnt-selected" href="/search">1</a>'
+            '<a id="next" aria-label="Следующая" href="/search?page=2">Следующая</a>'
+            '<script>document.querySelector("#next").addEventListener("click", async event => {'
+            f"event.preventDefault(); await (await fetch({json.dumps(reply_url)})).json();"
+            'history.pushState({}, "", "/search?page=2");'
+            'document.querySelector(".pgnt-selected").textContent = "2";'
+            f"event.target.outerHTML = {json.dumps(disabled)};"
+            "});</script>"
+        )
+        payload: dict[str, object] = {
+            "total": 37,
+            "offers": [{"id": identifier, "category": "flat", "source": "CAS"}],
+        }
+
+        # Act
+        with _page(route.start, html, reply=(reply_url, 200, payload)) as page:
+            result = advance(page, route, 1, "#next", time.monotonic() + 5)
+
+        # Assert
+        self.assertEqual(result.number, 2)
+        self.assertEqual(result.urls, {f"/card/{identifier}": DAILY})
+        self.assertEqual(result.quotes[f"/card/{identifier}"].amount, "3 910 ₽")
+
+    def test_daily_click_distinguishes_the_recorded_cycle_scope_loss_and_http_error(
+        self,
+    ) -> None:
+        # Arrange: public response shape and recorded fallback offset 792 -> 756.
+        route = route_for(SAMARA_REGION_ID, "day_rent", APARTMENT_TYPE_ID)
+        assert route is not None
+        for region, status, reason in (
+            (route.source_region, 200, "pagination_cycle"),
+            ("6369cbfc-1f06-4574-adba-82f4dc42c0f7", 200, "listing_scope_changed"),
+            (route.source_region, 403, "http_403"),
+        ):
+            with self.subTest(region=region, status=status):
+                reply_url = (
+                    "https://24.domclick.ru/api/offers/ad/v1?"
+                    f"locationGuid={region}&adults=1&limit=36&offset=792"
+                )
+                html = (
+                    '<a id="next" href="/search?page=23">Следующая</a>'
+                    f'<script>document.querySelector("#next").onclick = event => {{ event.preventDefault(); fetch({json.dumps(reply_url)}); }};</script>'
+                )
+
+                # Act / Assert
+                with (
+                    _page(
+                        route.start,
+                        html,
+                        reply=(reply_url, status, {"total": 789, "offers": []}),
+                    ) as page,
+                    self.assertRaisesRegex(RejectedCard, f"^{reason}$"),
+                ):
+                    advance(page, route, 22, "#next", time.monotonic() + 5)

@@ -109,7 +109,9 @@ def _daily_id_matches(value: object, identity: CardIdentity) -> bool:
     )
 
 
-def read_daily_listing_quote(page: Page, card_url: str) -> DailyListingQuote | None:
+def read_daily_listing_quote(
+    page: Page, card_url: str, *, response_ids: tuple[str, ...] | None = None
+) -> DailyListingQuote | None:
     """Read the matching public snippet and its exact search context together."""
     identity = _identity(card_url)
     if identity is None or identity.family != "daily":
@@ -169,25 +171,29 @@ def read_daily_listing_quote(page: Page, card_url: str) -> DailyListingQuote | N
         or not isinstance(scripts, list)
     ):
         return None
-    serp = as_object(ssr_state(cast(list[str], scripts)).get("serp"))
-    search = as_object(serp.get("searchData"))
-    ids = serp.get("ids")
-    if (
-        serp.get("fetchStatus") != "success"
-        or serp.get("outdatedSearch") is not False
-        or serp.get("invalidParams") is not False
-        or not isinstance(ids, list)
-        or len(snippets) > len(ids)
-        or search.get("adt") != 1
-        or search.get("dateStart") not in (None, "", UNDEFINED)
-        or search.get("dateEnd") not in (None, "", UNDEFINED)
-    ):
+    if response_ids is None:
+        serp = as_object(ssr_state(cast(list[str], scripts)).get("serp"))
+        search = as_object(serp.get("searchData"))
+        ids = serp.get("ids")
+        if (
+            serp.get("fetchStatus") != "success"
+            or serp.get("outdatedSearch") is not False
+            or serp.get("invalidParams") is not False
+            or not isinstance(ids, list)
+            or search.get("adt") != 1
+            or search.get("dateStart") not in (None, "", UNDEFINED)
+            or search.get("dateEnd") not in (None, "", UNDEFINED)
+        ):
+            return None
+        published_ids = tuple(cast(list[object], ids))
+    else:
+        published_ids = response_ids
+    if len(snippets) > len(published_ids):
         return None
 
-    # SerpPage renders a primary virtual row at data-index for each serp ID.
+    # SerpPage renders each primary virtual row at data-index.
     quote = None
     rendered_indices: set[int] = set()
-    published_ids = cast(list[object], ids)
     for raw in cast(list[object], snippets):
         snippet = as_object(raw)
         index, links = snippet.get("index"), snippet.get("links")
@@ -415,6 +421,8 @@ def read_card(
         deadline,
     )
     projected = cast(EmbeddedPage, data)
+    if projected["title"].strip() == "403 | Домклик":
+        raise RejectedCard("source_captcha")
     return parse_card(
         requested_url,
         observed_at,

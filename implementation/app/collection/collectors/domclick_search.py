@@ -4,7 +4,7 @@ import re
 import time
 from dataclasses import dataclass
 from typing import TypedDict, cast
-from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qs, urlencode, urljoin, urlsplit, urlunsplit
 
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
@@ -17,6 +17,11 @@ from app.catalog.reference_defaults import (
     ROOM_TYPE_ID,
 )
 from app.collection.collectors.domclick import card_key, read_daily_listing_quote
+from app.collection.collectors.domclick_navigation import (
+    DAILY_PAGE_SIZE,
+    read_clicked_page,
+    remaining_ms,
+)
 from app.collection.collectors.domclick_state import ssr_state
 from app.collection.listing_page import SearchPage
 from app.collection.normalization import RejectedCard, as_object
@@ -30,7 +35,6 @@ _SEO_STARTS = {
     ("month_rent", APARTMENT_TYPE_ID): "/arenda/kvartiry/samarskaya-oblast",
     ("sale", ROOM_TYPE_ID): "/pokupka/komnaty/samarskaya-oblast",
 }
-_SEGMENTS = {"resale": ("vtorichka", "flat"), "new_build": ("novostrojki", "new_flat")}
 # Regional GeoObject values, independently published by Domclick 24.
 _DAILY_REGIONS = {
     "Самарская область": "321b0daa-da95-4ce5-81b3-a7ab62d89d19",
@@ -38,6 +42,7 @@ _DAILY_REGIONS = {
 }
 _DAILY_TYPES = {APARTMENT_TYPE_ID: "flat", ROOM_TYPE_ID: "room", HOUSE_TYPE_ID: "house"}
 _NATIVE_POSITIONS = {"page", "offset"}
+_DAILY_PAGINATOR = '[aria-label="Следующая"]'
 _DAILY_NEXT = 'a[aria-label="Следующая"]'
 _NATIVE_NEXT = '[data-e2e-id="paginate-next-btn"], a[aria-label="Следующая"]'
 _CARD_PREFIX = "/card/"
@@ -143,13 +148,7 @@ def routes_for(
             ("room",) if property_type_id == ROOM_TYPE_ID else ("flat",)
         )
         if deal == "sale" and property_type_id == APARTMENT_TYPE_ID:
-            if segment is None:
-                kinds = ("flat", "new_flat")
-            elif (selection := _SEGMENTS.get(segment)) is not None:
-                slug, kind = selection
-                path, kinds = f"{path}/{slug}", (kind,)
-            else:
-                return ()
+            kinds = ("flat", "new_flat")
         return (
             SearchRoute(f"https://{_NATIVE_HOST}{path}", deal, kinds, _NATIVE_REGION),
         )
@@ -180,7 +179,7 @@ class _ListingDOM(TypedDict):
 # The native capture places primary snippets and the paginator under one DOM
 # wrapper. Take only preceding siblings of the paginator / terminal marker,
 # then match their distinct cards to the published primary snippet count.
-_LISTING_DOM = r"""({previous, daily, nextSelector}) => {
+_LISTING_DOM = r"""({previous, daily, nextSelector, expected}) => {
     if (document.readyState !== "complete") return false;
     const visible = node => node.getClientRects().length > 0;
     const scripts = Array.from(document.scripts, script => script.textContent)
@@ -214,6 +213,13 @@ _LISTING_DOM = r"""({previous, daily, nextSelector}) => {
     const root = document.querySelectorAll("#app > div > section.QrLw3 > div > div.N05bk");
     const dailyLinks = daily && root.length === 1 && !root[0].closest("section").hasAttribute("aria-label")
         ? links(root[0]) : [];
+    if (expected) {
+        const active = Array.from(document.querySelectorAll("a[class*='pgnt-selected']"))
+            .filter(visible);
+        const current = dailyLinks.some(url => expected.paths.includes(new URL(url).pathname.toLowerCase()));
+        if (active.length !== 1 || normalize(active[0].textContent) !== String(expected.number)
+            || !current) return false;
+    }
     const signature = JSON.stringify([location.href, scripts, nativeLinks, dailyLinks, controls.length, Boolean(empty), Boolean(last)]);
     if (signature === previous) return false;
     return {
@@ -342,68 +348,70 @@ def _next_link(projection: _BrowserProjection, route: SearchRoute) -> str | None
     return links[0] if links else None
 
 
-def _daily_page(
+def _daily_filters(route: SearchRoute) -> dict[str, object]:
+    return {
+        "locationId": route.source_region,
+        "adt": 1,
+        "categories": [route.category] if route.category else [],
+    }
+
+
+def _read_daily_page(
     page: Page,
     projection: _BrowserProjection,
-    state: dict[str, object],
     route: SearchRoute,
+    number: int,
+    total: int,
+    ids: tuple[str, ...],
+    entries: list[object],
+    *,
+    clicked: bool = False,
 ) -> SearchPage:
-    query = as_object(state.get("searchData"))
-    category = [route.category] if route.category else []
-    if (
-        query.get("locationId") != route.source_region
-        or type(query.get("adt")) is not int
-        or query["adt"] != 1
-        or query.get("categories", []) != category
-        or any(query.get(date) is not None for date in ("dateStart", "dateEnd"))
-        or state.get("outdatedSearch") is not False
-        or state.get("invalidParams") is not False
-    ):
-        raise RejectedCard("listing_scope_changed")
-    number, total, ids = query.get("page"), state.get("total"), state.get("ids")
-    if (
-        type(number) is not int
-        or number < 1
-        or type(total) is not int
-        or total < 0
-        or not isinstance(ids, list)
-    ):
-        raise RejectedCard("unknown_listing_format")
     next_url = _next_link(projection, route)
-    filters = {"locationId": query["locationId"], "adt": 1, "categories": category}
+    filters = _daily_filters(route)
     if not ids:
-        if total != 0 or number != 1 or not projection["explicitly_empty"] or next_url:
+        if total or number != 1 or not projection["explicitly_empty"] or next_url:
             raise RejectedCard("listing_not_ready")
         return SearchPage(number, filters, {}, None, ())
-    if len(ids) > total or any(
-        not isinstance(key, str) or not _UUID.fullmatch(key) for key in ids
-    ):
+    if len(ids) > total or len({key.lower() for key in ids}) != len(ids):
         raise RejectedCard("unknown_listing_format")
-    entities = as_object(state.get("entities"))
-    eligible = {
-        key.lower()
-        for key in ids
-        if as_object(entities.get(key)).get("category") in route.kinds
-    }
-    urls = {
-        key: url
-        for url in projection["daily_links"]
-        if route.permits_card(url)
-        and (key := card_key(url)) is not None
-        and key.removeprefix(_CARD_PREFIX) in eligible
-    }
+
+    incomplete: list[str] = []
+    urls: dict[str, str] = {}
+    for key, raw in zip(ids, entries, strict=True):
+        offer = as_object(raw)
+        identifier, category = offer.get("id"), offer.get("category")
+        if (
+            not isinstance(identifier, str)
+            or identifier.lower() != key.lower()
+            or category not in _DAILY_TYPES.values()
+        ):
+            incomplete.append("unresolved_listing_offers")
+            continue
+        if category not in route.kinds:
+            continue
+        if offer.get("source") != "CAS":
+            incomplete.append("unsupported_listing_offer")
+            continue
+        # SerpPage -> module 56285 -> CARD:/card/:id (one guest, no dates).
+        path = f"{_CARD_PREFIX}{identifier.lower()}"
+        urls[path] = f"https://{_DAILY_HOST}{path}"
+
+    visible = {card_key(url) for url in projection["daily_links"]}
     quotes = {
         key: quote
         for key, url in urls.items()
-        if (quote := read_daily_listing_quote(page, url)) is not None
+        if key in visible
+        and (
+            quote := read_daily_listing_quote(
+                page, url, response_ids=ids if clicked else None
+            )
+        )
+        is not None
     }
-    incomplete: list[str] = []
-    if len(urls) != len(eligible) or not set(ids) <= entities.keys():
-        incomplete.append("unresolved_listing_offers")
-    if (
-        not next_url
-        and not projection["next_disabled"]
-        and not (number == 1 and total == len(ids) and projection["last"])
+    if not next_url and not (
+        (number - 1) * DAILY_PAGE_SIZE + len(ids) == total
+        and (projection["next_disabled"] or projection["last"])
     ):
         incomplete.append("unverified_listing_end")
     return SearchPage(
@@ -411,9 +419,103 @@ def _daily_page(
         filters,
         urls,
         None,
-        tuple(incomplete),
+        tuple(dict.fromkeys(incomplete)),
         _DAILY_NEXT if next_url else None,
         quotes,
+    )
+
+
+def _daily_ids(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list) or any(
+        not isinstance(key, str) or _UUID.fullmatch(key) is None for key in value
+    ):
+        raise RejectedCard("unknown_listing_format")
+    return tuple(cast(list[str], value))
+
+
+def _daily_page(
+    page: Page,
+    projection: _BrowserProjection,
+    state: dict[str, object],
+    route: SearchRoute,
+) -> SearchPage:
+    query = as_object(state.get("searchData"))
+    filters = _daily_filters(route)
+    if (
+        query.get("locationId") != filters["locationId"]
+        or type(query.get("adt")) is not int
+        or query["adt"] != filters["adt"]
+        or query.get("categories", []) != filters["categories"]
+        or any(query.get(date) is not None for date in ("dateStart", "dateEnd"))
+        or state.get("outdatedSearch") is not False
+        or state.get("invalidParams") is not False
+    ):
+        raise RejectedCard("listing_scope_changed")
+    number, total = query.get("page"), state.get("total")
+    if type(number) is not int or number < 1 or type(total) is not int or total < 0:
+        raise RejectedCard("unknown_listing_format")
+    ids = _daily_ids(state.get("ids"))
+    entities = as_object(state.get("entities"))
+    return _read_daily_page(
+        page, projection, route, number, total, ids, [entities.get(key) for key in ids]
+    )
+
+
+def advance(
+    page: Page,
+    route: SearchRoute,
+    previous_number: int,
+    selector: str,
+    deadline: float,
+) -> SearchPage:
+    """Click the site's next control within a single attempt budget."""
+    control = page.locator(selector)
+    if route.deal != "day_rent":
+        control.click(timeout=remaining_ms(deadline))
+        return read_page(page, route, deadline, previous_number)
+
+    href = control.get_attribute("href", timeout=remaining_ms(deadline))
+    target = urljoin(page.url, href) if href else ""
+    if (
+        not route.permits_next(target)
+        or parse_qs(urlsplit(target).query).get("page") != [str(previous_number + 1)]
+        or not isinstance(route.source_region, str)
+    ):
+        raise RejectedCard("listing_scope_changed")
+    number, total, offers = read_clicked_page(
+        page, control, route.source_region, route.category, deadline
+    )
+    last_page = (total + DAILY_PAGE_SIZE - 1) // DAILY_PAGE_SIZE
+    if number <= previous_number or (
+        not offers and number > last_page and last_page <= previous_number
+    ):
+        # Published SerpPage fallback returns to ceil(total/limit).
+        raise RejectedCard("pagination_cycle")
+    if number != previous_number + 1 or not offers or number > last_page:
+        raise RejectedCard("listing_not_ready")
+    ids = _daily_ids([as_object(offer).get("id") for offer in offers])
+    if len(ids) != min(DAILY_PAGE_SIZE, total - (number - 1) * DAILY_PAGE_SIZE):
+        raise RejectedCard("listing_not_ready")
+    handle = page.wait_for_function(
+        _LISTING_DOM,
+        arg={
+            "daily": True,
+            "nextSelector": _DAILY_PAGINATOR,
+            "expected": {
+                "number": number,
+                "paths": [f"{_CARD_PREFIX}{key.lower()}" for key in ids],
+            },
+        },
+        timeout=remaining_ms(deadline),
+    )
+    try:
+        projection = cast(_BrowserProjection, handle.json_value())
+    finally:
+        handle.dispose()
+    if not route.permits_next(projection["url"]):
+        raise RejectedCard("listing_scope_changed")
+    return _read_daily_page(
+        page, projection, route, number, total, ids, offers, clicked=True
     )
 
 
@@ -428,7 +530,7 @@ def read_page(
             arg={
                 "previous": signature,
                 "daily": daily,
-                "nextSelector": _DAILY_NEXT if daily else _NATIVE_NEXT,
+                "nextSelector": _DAILY_PAGINATOR if daily else _NATIVE_NEXT,
             },
             timeout=remaining_ms,
         )
@@ -486,6 +588,8 @@ def read_group(
     flat = as_object(
         as_object(as_object(data.get("shell")).get("flatDetails")).get("data")
     )
+    if not flat:
+        raise RejectedCard("unknown_listing_format")
     identifier = flat.get("id")
     if (
         key is None
