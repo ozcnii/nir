@@ -94,6 +94,8 @@ def repeated_house_patch(
     region: str,
     new: HouseAddress | None,
 ) -> dict[str, object] | None:
+    if new is not None and new.subject_conflict:
+        return None
     old = parse_house_address(previous["address"], region)
     updated_address = incoming["address"] if previous["address"] is None else None
     if old is not None and new is not None:

@@ -12,6 +12,7 @@ class HouseAddress:
     qualifiers: dict[str, str]
     complete: bool
     block_marked: bool
+    subject_conflict: bool
 
 
 @dataclass(frozen=True)

@@ -315,8 +315,13 @@ def _house_geography(
     areas: dict[str, set[str]] = {}
     untyped: list[str] = []
     after_street = False
+    complete = True
     for part in location:
-        after_street |= part == street
+        if part == street:
+            after_street = True
+            continue
+        if after_street:
+            complete = False
         territory = _house_territory(part)
         if territory is not None:
             scope, name = territory
@@ -329,17 +334,27 @@ def _house_geography(
                 name, kind = named
                 if kind is not None:
                     typed.setdefault(kind, set()).add(name)
+                    continue
+            complete = False
         elif role == "district":
             name = _district_name(part)
             inside_place = typed or untyped or areas.keys() - _DISTRICT_SCOPES
             scope = _LOCAL_DISTRICT if inside_place else _ENCLOSING_DISTRICT
             if name:
                 areas.setdefault(scope, set()).add(name)
+            else:
+                complete = False
         elif role == "name" and not after_street:
             untyped.append(part)
-    consistent = len(untyped) <= 1 and (
-        not typed
-        or all(any(name in names for names in typed.values()) for name in untyped)
+        else:
+            complete = False
+    consistent = (
+        complete
+        and len(untyped) <= 1
+        and (
+            not typed
+            or all(any(name in names for names in typed.values()) for name in untyped)
+        )
     )
     if not typed and len(untyped) == 1:
         typed[""] = {untyped[0]}
@@ -361,14 +376,14 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
     if parts[:1] == ["россия"]:
         parts.pop(0)
     expected_subject = _plain(region)
+    subjects: set[str] = set()
     location: list[str] = []
     identifiers: dict[str, list[str]] = {}
     for raw_part in parts:
         part, labels = _house_component(raw_part)
         subject = _house_subject(part, expected_subject) if part else None
         if subject is not None:
-            if expected_subject and subject != expected_subject:
-                valid = False
+            subjects.add(subject)
         elif part:
             area = _house_area_component(part)
             building = None if area else _building_component(part)
@@ -398,27 +413,31 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
     qualifiers = {
         tag: ids[0]
         for tag, ids in identifiers.items()
-        if len(ids) == 1 and _valid_house_identifier(tag, ids[0])
+        if all(identifier == ids[0] for identifier in ids)
+        and _valid_house_identifier(tag, ids[0])
     }
     streets = [part for part in location if _named_street(part) is not None]
     street = streets[0] if len(streets) == 1 else None
     settlements, areas, consistent = _house_geography(location, street)
     blocks = HOUSE_BLOCK_TAGS.intersection(identifiers)
     territory = bool(areas.keys() - _DISTRICT_SCOPES)
-    has_street = (
-        street is not None
-        and location[-1] == street
-        and (territory or bool(settlements))
-    )
     rural = any(kind not in ("", "город") for kind in settlements)
+    subject_conflict = (
+        len(subjects) == 1
+        and bool(expected_subject)
+        and expected_subject not in subjects
+    )
     complete = (
         valid
         and consistent
+        and len(subjects) <= 1
+        and not subject_conflict
         and len(qualifiers) == len(identifiers)
+        and all(len(ids) == 1 for ids in identifiers.values())
         and len(streets) <= 1
         and len(blocks) <= 1
         and bool(_BUILDING_TAGS & qualifiers.keys())
-        and (has_street or (territory or rural))
+        and (territory or rural or (street is not None and bool(settlements)))
     )
     return HouseAddress(
         location=tuple(location),
@@ -428,4 +447,5 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
         qualifiers=qualifiers,
         complete=complete,
         block_marked=bool(blocks),
+        subject_conflict=subject_conflict,
     )

@@ -156,6 +156,7 @@ class HouseMatchingTests(TestCase):
         addresses = (
             "город Самара, город Тольятти, улица Садовая, дом 7",
             "Самара, Тольятти, СНТ Луч, улица Садовая, дом 7",
+            "Самара, СНТ Луч, улица Садовая, Тольятти, дом 7",
             HOUSE.replace("Самарская область", "Саратовская обл."),
         )
         for index, address in enumerate(addresses):
@@ -189,7 +190,12 @@ class HouseMatchingTests(TestCase):
 
     def test_inline_plot_and_multiple_house_numbers_do_not_attach(self) -> None:
         street = "Самара, СНТ Луч, улица Садовая"
-        suffixes = ("участок 7", "дом 7 дом 8", "дом 7 участок 17 дом 8")
+        suffixes = (
+            "участок 7",
+            "дом 7 дом 8",
+            "дом 7 участок 17 дом 8",
+            "дом 7, дом 7",
+        )
         for index, suffix in enumerate(suffixes, 1):
             with self.subTest(suffix=suffix):
                 # Arrange
@@ -222,7 +228,7 @@ class HouseMatchingTests(TestCase):
     def test_repeat_preserves_bytes_and_timestamp_on_address_conflict(self) -> None:
         # Arrange
         saved_address = (
-            f"Приволжский район, {HOUSE.removeprefix('Самарская область, ')}, блок 2"
+            HOUSE.replace("Самара,", "Приволжский район, Самара,") + ", блок 2"
         )
         first = accept_snapshot(snapshot("same-key", saved_address, land=Decimal(600)))
         conflicts = (
@@ -234,6 +240,8 @@ class HouseMatchingTests(TestCase):
             "Самара, улица Садовая, 8, СНТ Луч",
             "Самара, территория СНТ Сад",
             "Кинельский район, Самара, СНТ Луч",
+            saved_address.replace("Самарская область", "Саратовская область"),
+            saved_address.replace("дом 7", "дом 9, дом 9"),
         )
         newer = TIME + timedelta(minutes=1)
 
@@ -267,6 +275,24 @@ class HouseMatchingTests(TestCase):
         self.assertEqual(ad.photos, ["https://example.test/first.jpg"])
         self.assertEqual(ad.property.address, saved_address)
         self.assertEqual(PriceHistory.objects.get(ad=ad).price_rub, Decimal(100))
+
+    def test_repeat_with_competing_numbers_retains_published_address(self) -> None:
+        # Arrange
+        first = accept_snapshot(snapshot("ambiguous-repeat", HOUSE))
+        address = HOUSE.replace("дом 7", "дом 9, дом 7")
+        newer = TIME + timedelta(minutes=1)
+
+        # Act
+        repeat = accept_snapshot(snapshot("ambiguous-repeat", address, time=newer))
+
+        # Assert
+        self.assertEqual(repeat.outcome, "unchanged")
+        self.assertEqual(repeat.property_id, first.property_id)
+        assert first.ad_id is not None
+        ad = Ad.objects.get(pk=first.ad_id)
+        self.assertEqual(ad.observed_at, newer)
+        self.assertEqual(ad.property.address, HOUSE)
+        self.assertEqual(PriceHistory.objects.filter(ad=ad).count(), 1)
 
     def test_repeat_needs_a_published_chain_for_address_patch(self) -> None:
         # Arrange
