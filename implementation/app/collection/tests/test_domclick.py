@@ -1,6 +1,7 @@
 """Card projections and deliberately invalid inputs for the Domclick adapter."""
 
 from decimal import Decimal
+from functools import partial
 from typing import cast
 from unittest import TestCase
 
@@ -129,6 +130,85 @@ class DomclickTests(TestCase):
                 "photos": {"status": "unavailable"},
             },
         )
+
+    def test_explicit_room_set_and_area_claims_follow_the_offered_unit(self) -> None:
+        # Arrange: one room in structure, then the same claim with unknown count.
+        data = native_proposal()
+        info = cast(dict[str, object], data["objectInfo"])
+        info["description"] = "Прекрасный район. Продам две комнаты."
+
+        # Act
+        with self.assertRaises(RejectedCard) as rejected:
+            read_native(ROOM, data)
+        set_snapshot = read_native(ROOM, {**data, "roomsOffered": None})
+
+        # Assert
+        self.assertEqual(str(rejected.exception), "conflicting_room_count")
+        assert set_snapshot["state"] == "active"
+        self.assertEqual(set_snapshot["rooms"], 2)
+        self.assertIsNone(set_snapshot["area_m2"])
+
+        # Arrange: distinguish directly offered area after introduction, a
+        # directly offered share, and an unrelated nearby room measurement.
+        cases = (
+            ("Остановка рядом. Продаю комнату 9,0 м².", "conflicting_room_area"),
+            (
+                "Подробности по телефону. Продаётся невыделенная доля в квартире.",
+                "unconfirmed_room_unit",
+            ),
+            ("Продаётся комната 9,0 м² в соседней квартире.", None),
+        )
+        for description, problem in cases:
+            with self.subTest(description=description):
+                info["description"] = description
+                if problem is None:
+                    # Act
+                    accepted = read_native(ROOM, data)
+
+                    # Assert
+                    assert accepted["state"] == "active"
+                    self.assertEqual(accepted["area_m2"], Decimal("9.20"))
+                else:
+                    # Act
+                    with self.assertRaises(RejectedCard) as rejected:
+                        read_native(ROOM, data)
+
+                    # Assert
+                    self.assertEqual(str(rejected.exception), problem)
+
+    def test_native_house_rejects_incompatible_direct_offer_claims(self) -> None:
+        # Arrange: contrast directly offered properties with incidental mentions.
+        data = native_proposal()
+        data.update({"id": 2079647938, "offerType": "house"})
+        cases = (
+            ("Продаются два дома на участке.", "unsupported_house_unit"),
+            ("Срочно. Продам только земельный участок.", "unsupported_house_unit"),
+            ("Продам типовой проект дома.", "unsupported_house_unit"),
+            ("Для семьи. Продаётся половина дома.", "unconfirmed_house_block"),
+            ("Есть сад. Продаётся невыделенная доля дома.", "unallocated_house_share"),
+            (
+                "Хороший район. Продаю дом общей площадью 120 м².",
+                "conflicting_house_area",
+            ),
+            ("Рядом стоят два дома. Площадь гаража 30 м².", None),
+        )
+        for description, problem in cases:
+            with self.subTest(description=description):
+                data["objectInfo"] = {"area": 100, "description": description}
+                if problem is None:
+                    # Act
+                    accepted = read_native(HOUSE, data)
+
+                    # Assert
+                    assert accepted["state"] == "active"
+                    self.assertEqual(accepted["area_m2"], Decimal("100.00"))
+                else:
+                    # Act
+                    with self.assertRaises(RejectedCard) as rejected:
+                        read_native(HOUSE, data)
+
+                    # Assert
+                    self.assertEqual(str(rejected.exception), problem)
 
     def test_home_converts_land_exactly_and_keeps_partial_address(self) -> None:
         # Arrange
@@ -425,6 +505,104 @@ class DomclickTests(TestCase):
         self.assertEqual(missing_id["state"], "unavailable")
         self.assertEqual(still_active["state"], "active")
 
+    def test_native_exact_primary_removal_marker_without_active_id(self) -> None:
+        # Arrange: a confirmed card heading and deliberately ambiguous controls.
+        exact = "<main><h1>Объявление снято с размещения</h1></main>"
+        foreign = ssr({"productCard": {"id": 2079647939, "status": 8}})
+        cases = (
+            (exact, "removed"),
+            ("<aside>Объявление снято с размещения</aside>", "unavailable"),
+            (f"{exact}<script>{foreign}</script>", "unavailable"),
+        )
+
+        def serve(route: Route, *, body: str) -> None:
+            route.fulfill(
+                status=200, content_type="text/html; charset=utf-8", body=body
+            )
+
+        with (
+            sync_playwright() as playwright,
+            playwright.chromium.launch(channel="chromium", headless=True) as browser,
+            browser.new_context() as context,
+        ):
+            for body, expected in cases:
+                with self.subTest(expected=expected, body=body):
+                    # Act
+                    page = context.new_page()
+                    page.route(HOUSE, partial(serve, body=body))
+                    page.goto(HOUSE)
+                    result = read_card(page, HOUSE, OBSERVED)
+
+                    # Assert
+                    self.assertEqual(result["state"], expected)
+
+    def test_native_new_flat_reads_only_published_unit_fields(self) -> None:
+        # Arrange: numeric fields from the card observation and published JS
+        # selectors. The address-region binding is controlled, not a live copy.
+        url = "https://samara.domclick.ru/card/sale__new_flat__2072470551"
+        data = {
+            "id": 2072470551,
+            "address": {
+                "guid": "controlled-address-key",
+                "shortDisplayName": "Гвардейский переулок, 7а",
+                "locality": {"name": "Самара"},
+                "position": {"lat": 53.22549, "lon": 50.23738},
+            },
+            "objectInfo": {"area": 54.3, "rooms": 2, "floorNumber": 2},
+            "building": {"floors": 17},
+            "flatInfo": {"flatNumber": "121"},
+            "priceInfo": {"currentPrice": 8304840},
+            "media": {"photos": ["/vitrina/8b/4a/file.webp"]},
+            "complex": {"description": "Общий текст ЖК"},
+        }
+        regions = {"guid": "controlled-address-key", "regionName": "Самарская область"}
+        shell = {"isDeletedFlat": False, "flatDetails": {"data": data}}
+
+        # Act
+        result = parse_card(
+            url,
+            OBSERVED,
+            [ssr({"shell": shell, "regions": regions})],
+            [],
+            loaded_url=url,
+        )
+
+        # Assert
+        assert result["state"] == "active"
+        self.assertEqual(result["market_segment"], "new_build")
+        self.assertEqual(result["region_id"], 68)
+        self.assertEqual(result["area_m2"], Decimal("54.30"))
+        self.assertEqual(result["floor"], 2)
+        self.assertEqual(result["floors_total"], 17)
+        self.assertEqual(result["address"], "Самара, Гвардейский переулок, 7а, кв. 121")
+        self.assertEqual(
+            result["price"],
+            {
+                "status": "known",
+                "price_rub": Decimal("8304840.00"),
+                "price_kind": "listed",
+                "currency": "RUB",
+            },
+        )
+        self.assertIsNone(result["description"])
+        self.assertEqual(result["photos"], {"status": "unavailable"})
+
+        # Arrange: the default region belongs to a different address.
+        regions["guid"] = "unrelated-address-key"
+
+        # Act
+        with self.assertRaises(RejectedCard) as rejected:
+            parse_card(
+                url,
+                OBSERVED,
+                [ssr({"shell": shell, "regions": regions})],
+                [],
+                loaded_url=url,
+            )
+
+        # Assert
+        self.assertEqual(str(rejected.exception), "invalid_region")
+
     def test_partner_decodes_refs_and_returns_the_confirmed_flat(self) -> None:
         # Arrange
         script = nuxt_script(partner_projection())
@@ -461,15 +639,33 @@ class DomclickTests(TestCase):
         self,
     ) -> None:
         # Arrange: replay selected live DOM controls and publication-shaped state.
-        dom = (
+        expected_uuid = DAILY.rsplit("/", 1)[1]
+        state = ssr(
+            {
+                "serp": {
+                    "ids": [expected_uuid],
+                    "fetchStatus": "success",
+                    "outdatedSearch": False,
+                    "invalidParams": False,
+                    "searchData": {"adt": 1},
+                }
+            }
+        )
+        controls = (
             '<div data-e2e-id="search-form-datepicker"><input value=""></div>'
             '<div data-e2e-id="search-form-guests-control"><input value="1 гость"></div>'
+        )
+        primary = (
             '<div data-e2e-id="snippet-item">'
             f'<a href="{DAILY}">Card</a>'
             '<span data-e2e-id="short-rent-price">3 910 ₽</span>'
             '<span data-e2e-id="short-rent-price-per-night">3 910 ₽ за сутки</span>'
             "</div>"
         )
+        recommendation = f"<aside>{primary.replace('3 910', '1 900')}</aside>"
+        content = f"<script>{state}</script>{controls}"
+        dom = f'{content}<div id="app"><div><section>{primary}</section></div></div>{recommendation}'
+
         card = (
             f"<script>{daily_ssr(daily_projection())}delete window.__SSR_STATE__;</script>"
             '<div data-e2e-id="gallery-widget">'
@@ -500,7 +696,17 @@ class DomclickTests(TestCase):
             page.goto(DAILY)
             snapshot = read_card(page, DAILY, OBSERVED, quote=quote)
 
+            # Repeat with the recommendation alone and then an ambiguous root.
+            dom = f'{content}<div id="app"><div>{recommendation}</div></div>'
+            listing.goto(LISTING)
+            from_recommendation = read_daily_listing_quote(listing, DAILY)
+            dom = f'{content}<div id="app"><div><section>{primary}</section><section>{primary}</section></div></div>'
+            listing.goto(LISTING)
+            from_ambiguous_root = read_daily_listing_quote(listing, DAILY)
+
         # Assert
+        self.assertIsNone(from_recommendation)
+        self.assertIsNone(from_ambiguous_root)
         assert snapshot["state"] == "active"
         self.assertEqual(snapshot["external_id"], card_key(DAILY))
         self.assertEqual(snapshot["area_m2"], Decimal("36.00"))

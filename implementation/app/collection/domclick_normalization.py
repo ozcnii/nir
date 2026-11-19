@@ -18,6 +18,7 @@ from app.catalog.contracts import (
 )
 from app.catalog.reference_defaults import REGIONS
 from app.collection.collectors.domclick_state import NuxtState
+from app.collection.collectors.domclick_units import check_house, check_room
 from app.collection.collectors.nuxt_state import UNDEFINED
 from app.collection.normalization import (
     RejectedCard,
@@ -50,24 +51,6 @@ _NUMBERED_FLAT_TITLE = re.compile(
 _DAILY_HOUSE_TITLE = re.compile(
     r"^(?:(?:снять )?(?:загородный|частный) дом|снять дом)\b"
 )
-_BLOCK_ADDRESS = re.compile(
-    r"(?:^|, )\d+[а-яa-z]?, (?:блок|секция) (?:№ *)?\d+[а-яa-z]?$"
-)
-_COMPOUND_HOUSE_NUMBER = re.compile(r"(?:^|, )\d+[а-яa-z]?/\d+[а-яa-z]?$")
-_DORMITORY = re.compile(r"\b(?:здание общежития|(?:статус|назначение) общежитие)\b")
-_OFFERED_SHARE = re.compile(
-    r"(?:^|[.\n]\s*)(?:прода[её]тся\s+)?(?:\d+/\d+\s+)?дол[яю]\b"
-)
-_ROOM_SIZE = re.compile(
-    r"(?:^|[.!?\n]\s*)(?:прода[её]тся |сда[её]тся |уютная )?"
-    r"комната(?: №?\s*[0-9]+)?(?: в квартире №?\s*[0-9]+)?"
-    r"(?: площадью)?[ :]+([0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.\s*м)(?!\w)"
-)
-_ROOM_ADDRESS = re.compile(r"(?:^|, )комната (?:№\s*)?([0-9]+)$")
-_ALLOCATED_ROOM = re.compile(
-    r"^доля (?:соответствует|выделена в) комнат[еу] (?:№\s*)?([0-9]+)(?![0-9])"
-)
-_DUPLEX_AREA = re.compile(r"\bдуплекс (\d+(?:[.,]\d+)?) *м[²2]\b")
 
 
 @dataclass(frozen=True)
@@ -239,62 +222,6 @@ def _native_address(data: dict[str, object]) -> tuple[int, str | None, bool]:
     return _region(subject), _address(subject, *localities, display), any(localities)
 
 
-def _native_room_area(
-    rooms: int | None, area: Decimal | None, address: str | None, description: str
-) -> Decimal | None:
-    if _OFFERED_SHARE.search(description):
-        published = _ROOM_ADDRESS.search((address or "").casefold())
-        allocation = _ALLOCATED_ROOM.match(description)
-        if (
-            rooms != 1
-            or not published
-            or not allocation
-            or published[1] != allocation[1]
-        ):
-            raise RejectedCard("unconfirmed_room_unit")
-    if rooms == 1 and area is not None:
-        measurements = {number(value) for value in _ROOM_SIZE.findall(description)}
-        if len(measurements) == 1 and area not in measurements:
-            raise RejectedCard("conflicting_room_area")
-    # roomArea is a single-room field. The area of a multi-room offer is
-    # unknown without a separately published area for the entire offer.
-    return None if rooms is not None and rooms > 1 else area
-
-
-def _check_native_house_unit(
-    native_type: str,
-    address: str | None,
-    has_locality: bool,
-    geocoded_name: str | None,
-    description: str | None,
-    area: Decimal | None,
-) -> None:
-    seller_text = " ".join((description or "").casefold().split())
-    if _DORMITORY.search(seller_text):
-        raise RejectedCard("unsupported_house_unit")
-    if _OFFERED_SHARE.search(seller_text):
-        raise RejectedCard("unallocated_house_share")
-    if native_type == "house":
-        return
-    if area is not None and any(
-        number(value) != area for value in _DUPLEX_AREA.findall(seller_text)
-    ):
-        raise RejectedCard("conflicting_house_area")
-    published = (address or "").casefold()
-    # A confirmed townhouse may use its own compound street address. A
-    # number with a slash alone cannot establish a separately offered unit.
-    street_address = geocoded_name.casefold() if geocoded_name else ""
-    addressable = _BLOCK_ADDRESS.search(published) or (
-        native_type == "townhouse"
-        and bool(street_address)
-        and street_address.partition(", ")[0] != street_address
-        and published.endswith(", " + street_address)
-        and _COMPOUND_HOUSE_NUMBER.search(street_address)
-    )
-    if not has_locality or not addressable:
-        raise RejectedCard("unconfirmed_house_block")
-
-
 def normalize_native_card(
     key: SnapshotKey,
     url: str,
@@ -326,9 +253,9 @@ def normalize_native_card(
     )
     description = _text(info.get("description"), problem="invalid_description")
     if is_room:
-        area = _native_room_area(rooms, area, formatted, (description or "").casefold())
+        rooms, area = check_room(rooms, area, formatted, description)
     if is_house:
-        _check_native_house_unit(
+        check_house(
             native_type,
             formatted,
             has_locality,
@@ -357,6 +284,76 @@ def normalize_native_card(
         "land_area_m2": _land(_record(data.get("land"))) if is_house else None,
         "description": description,
         "price": _native_price(data.get("priceInfo")),
+        "photos": photos,
+    }
+
+
+def normalize_new_flat_card(
+    key: SnapshotKey,
+    url: str,
+    data: dict[str, object],
+    geography: dict[str, object],
+    page_title: str,
+) -> ActiveSnapshot:
+    address = _record(data.get("address"))
+    display = _text(address.get("shortDisplayName"), problem="invalid_address")
+    parts = [part.strip() for part in (display or "").split(",")]
+    subjects = {
+        _REGIONS[part.casefold()] for part in parts if part.casefold() in _REGIONS
+    }
+    # The header's default geo does not establish the flat's region. Only
+    # accept a region result attached to the same published address GUID.
+    address_guid = address.get("guid")
+    if (
+        isinstance(address_guid, str)
+        and address_guid
+        and geography.get("guid") == address_guid
+    ):
+        subjects.add(_region(geography.get("regionName")))
+    if len(subjects) != 1:
+        raise RejectedCard("invalid_region")
+
+    position = _record(address.get("position"))
+    latitude, longitude = _point(position.get("lat"), position.get("lon"))
+    info = _record(data.get("objectInfo"))
+    flat = _record(data.get("flatInfo"))
+    building = _record(data.get("building"))
+    floor, levels = _floors(info.get("floorNumber"), building.get("floors"))
+    locality = _text(_record(address.get("locality")).get("name"))
+    album = _record(data.get("media")).get("photos")
+    photos: KnownPhotos | Unavailable = {"status": "unavailable"}
+    if album == []:
+        photos = {"status": "known", "urls": []}
+    price: KnownPrice | Unavailable = {"status": "unavailable"}
+    current_price = _record(data.get("priceInfo")).get("currentPrice")
+    if not _missing(current_price):
+        try:
+            # The current-price selector is displayed as an exact amount in ₽.
+            price = _known_price(current_price)
+        except RejectedCard:
+            pass
+
+    return {
+        **key,
+        "state": "active",
+        "url": url,
+        "region_id": next(iter(subjects)),
+        "property_type_id": TYPE_IDS["flat"],
+        "deal_type": "sale",
+        "market_segment": "new_build",
+        "address": _with_flat_number(
+            _address(locality, display), _text(flat.get("flatNumber"))
+        ),
+        "latitude": latitude,
+        "longitude": longitude,
+        "area_m2": _area(info.get("area")),
+        "rooms": _rooms(info.get("rooms"), page_title),
+        "floor": floor,
+        "floors_total": levels,
+        "land_area_m2": None,
+        # The complex description is not text for this individual offer.
+        "description": None,
+        "price": price,
         "photos": photos,
     }
 
