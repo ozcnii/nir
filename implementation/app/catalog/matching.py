@@ -1,5 +1,6 @@
 """Conservative apartment matching over plain catalog data."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import combinations
 
@@ -28,7 +29,7 @@ class Match:
     patch: dict[str, object]
 
 
-def _patch(
+def property_patch(
     previous: PropertyFacts, incoming: PropertyFacts, address: str | None
 ) -> dict[str, object]:
     patch: dict[str, object] = {
@@ -79,7 +80,7 @@ def repeated_flat_patch(
         if previous["address"] is None
         else None
     )
-    return _patch(previous, incoming, address)
+    return property_patch(previous, incoming, address)
 
 
 def _is_template(house: Address, numbered: list[tuple[Address, str]]) -> bool:
@@ -93,7 +94,10 @@ def _is_template(house: Address, numbered: list[tuple[Address, str]]) -> bool:
 
 
 def choose_flat(
-    incoming: ActiveSnapshot, address: Address, candidates: list[Candidate], region: str
+    incoming: ActiveSnapshot,
+    address: Address,
+    candidates: Iterable[Candidate],
+    region: str,
 ) -> Match | None:
     seller = matching_description(incoming["description"])
     unit = address.detail("квартира")
@@ -144,7 +148,7 @@ def choose_flat(
     candidate, house = valid[0]
     return Match(
         candidate.property_id,
-        _patch(
+        property_patch(
             candidate.facts,
             incoming,
             address_patch(house, address),

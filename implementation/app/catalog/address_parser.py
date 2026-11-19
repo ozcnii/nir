@@ -3,7 +3,7 @@
 import re
 import unicodedata
 
-from app.catalog.address import Address
+from app.catalog.address import Address, HouseAddress
 
 _NUMBER = r"[0-9]+[а-я]?(?:[-/][0-9]+[а-я]?)*"
 _HOUSE_NUMBER = re.compile(_NUMBER)
@@ -59,6 +59,10 @@ _TERRITORIES = {
 _HOUSE = re.compile(rf"(?:дом\s*|д\.\s*)?({_NUMBER})")
 _ADDRESS_TOKEN = re.compile(r"[а-я][а-я0-9 .’'-]*")
 _ADDRESS_FORMAT = str.maketrans("ё–—", "е--")
+HOUSE_BLOCK_TAGS = {"блок", "секция", "таунхаус"}
+_HOUSE_QUALIFIERS = {"корпус", "строение", "участок", *HOUSE_BLOCK_TAGS}
+_HOUSE_MARKERS = {"д": "дом", "корп": "корпус", "стр": "строение"}
+_HOUSE_TERRITORIES = ("снт ", "сдт ", "кп ", "территория ", "коттеджный поселок ")
 
 
 def _plain(value: str) -> str:
@@ -189,3 +193,121 @@ def parse_address(value: str | None, region: str) -> Address | None:
 
 def mentions_unit(address: str) -> bool:
     return any(_TAG.fullmatch(_plain(part)) for part in address.split(","))
+
+
+def _house_marker(component: str) -> tuple[str, str] | None:
+    token, _, identifier = component.replace(".", " ", 1).partition(" ")
+    label = _HOUSE_MARKERS.get(token, token)
+    if label == "дом" or label in _HOUSE_QUALIFIERS:
+        return label, identifier.strip().removeprefix("№").lstrip()
+    return None
+
+
+def mentions_house_block(value: str) -> bool:
+    return any(
+        marker is not None and marker[0] in HOUSE_BLOCK_TAGS
+        for marker in (_house_marker(_plain(part)) for part in value.split(","))
+    )
+
+
+def _valid_house_identifier(label: str, identifier: str) -> bool:
+    return bool(_HOUSE_NUMBER.fullmatch(identifier)) or (
+        label not in ("дом", "участок")
+        and len(identifier) == 1
+        and identifier.isalpha()
+    )
+
+
+def marked_house_ids(value: str | None) -> dict[str, str]:
+    """Keep explicit claims even when the full geographic chain is ambiguous."""
+    identifiers: dict[str, str] = {}
+    ambiguous: set[str] = set()
+    for component in (value or "").split(","):
+        marker = _house_marker(_plain(component))
+        if marker is None:
+            continue
+        label, identifier = marker
+        if not _valid_house_identifier(label, identifier) or (
+            label in identifiers and identifiers[label] != identifier
+        ):
+            ambiguous.add(label)
+        identifiers[label] = identifier
+    return {
+        label: number for label, number in identifiers.items() if label not in ambiguous
+    }
+
+
+def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
+    """Read the published chain without turning a plot number into a building."""
+    if not value:
+        return None
+    parts = [_component(_plain(part)) for part in value.split(",")]
+    if not all(parts):
+        return None
+    region_part = (
+        parts[0].removesuffix(" обл.") + " область"
+        if parts[0].endswith(" обл.")
+        else parts[0]
+    )
+    if region_part == _plain(region) and _address_role(region_part) == "territory":
+        parts.pop(0)
+
+    location: list[str] = []
+    qualifiers: dict[str, str] = {}
+    number = None
+    explicit_building = False
+    for component in parts:
+        marker = _house_marker(component)
+        if marker is not None:
+            label, identifier = marker
+            if not _valid_house_identifier(label, identifier) or label in qualifiers:
+                return None
+            if label == "дом":
+                if number is not None:
+                    return None
+                number = identifier
+                explicit_building = True
+            else:
+                qualifiers[label] = identifier
+            continue
+        if _HOUSE_NUMBER.fullmatch(component) and number is None:
+            # A bare number belongs to a street only when the street was published.
+            if not location or _address_role(location[-1]) != "street" or qualifiers:
+                return None
+            number = component
+            continue
+        if number is not None or qualifiers or not component[0].isalpha():
+            return None
+        street, _, tail = component.rpartition(" ")
+        if (
+            _HOUSE_NUMBER.fullmatch(tail)
+            and street
+            and _address_role(street) == "street"
+        ):
+            component, number = street, tail
+        parts_of_street = component.rsplit(" ", 1)
+        if len(parts_of_street) == 2 and parts_of_street[1] in _STREET_TYPES:
+            component = f"{parts_of_street[1]} {parts_of_street[0]}"
+        location.append(component)
+
+    if not location or len(HOUSE_BLOCK_TAGS.intersection(qualifiers)) > 1:
+        return None
+    roles = [_address_role(part) for part in location]
+    territory = any(part.startswith(_HOUSE_TERRITORIES) for part in location)
+    has_street = (
+        roles[-1] == "street"
+        and roles.count("street") == 1
+        and (territory or any(role in ("name", "settlement") for role in roles[:-1]))
+    )
+    rural = any(
+        _address_role(part) == "settlement" and "город" not in part.split()
+        for part in location
+    )
+    # A published standalone building or townhouse label may carry the only number.
+    if number is None:
+        number = qualifiers.get("строение") or qualifiers.get("таунхаус")
+        explicit_building = number is not None
+    complete = number is not None and (
+        has_street or (explicit_building and (territory or rural))
+    )
+    return HouseAddress(tuple(location), number, qualifiers, complete)

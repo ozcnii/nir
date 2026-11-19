@@ -4,6 +4,14 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class HouseAddress:
+    location: tuple[str, ...]
+    number: str | None
+    qualifiers: dict[str, str]
+    complete: bool
+
+
+@dataclass(frozen=True)
 class Address:
     locality: tuple[str, ...]
     street: str

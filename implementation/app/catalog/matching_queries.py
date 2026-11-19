@@ -1,5 +1,6 @@
-"""Read property facts and candidates for apartment matching."""
+"""Read property facts and candidates for matching."""
 
+from collections.abc import Iterator
 from typing import cast
 
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -23,21 +24,19 @@ def saved_property(property_id: int) -> SavedProperty:
     return cast(SavedProperty, row)
 
 
-def flat_candidates(region_id: int) -> list[Candidate]:
-    rows = (
-        Property.objects.filter(
-            region_id=region_id,
-            property_type_id=APARTMENT_TYPE_ID,
-            address__isnull=False,
-        )
-        .values("id", *PROPERTY_FACT_FIELDS)
-        .annotate(
+def matching_candidates(region_id: int, property_type_id: int) -> Iterator[Candidate]:
+    rows = Property.objects.filter(
+        region_id=region_id,
+        property_type_id=property_type_id,
+        address__isnull=False,
+    ).values("id", *PROPERTY_FACT_FIELDS)
+    if property_type_id == APARTMENT_TYPE_ID:
+        rows = rows.annotate(
             descriptions=ArrayAgg(
                 "ad__description", filter=Q(ad__description__isnull=False), default=[]
             )
         )
-    )
-    return [
-        Candidate(row["id"], cast(PropertyFacts, row), row["descriptions"])
-        for row in rows
-    ]
+    for row in rows:
+        yield Candidate(
+            row["id"], cast(PropertyFacts, row), row.get("descriptions", [])
+        )
