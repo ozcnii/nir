@@ -38,11 +38,12 @@ def has_confirmed_block(
     incoming: HouseAddress | None, previous: HouseAddress | None = None
 ) -> bool:
     """Require block evidence for a marked address or a previously saved block."""
+    previous_block = previous is not None and previous.block_marked
     if incoming is None or not incoming.block_marked:
-        return previous is None or not previous.block_marked
-    if incoming.complete:
+        return not previous_block
+    if incoming.complete and not previous_block:
         return True
-    if incoming.chain != "redundant" or previous is None or not previous.complete:
+    if incoming.chain == "partial" or previous is None or not previous.complete:
         return False
     shared_roles = {
         role for role, _ in previous.qualifiers.items() & incoming.qualifiers.items()

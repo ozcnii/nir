@@ -420,6 +420,12 @@ class HouseMatchingTests(TestCase):
             explicit_whole,
             snapshot("block", without_block, time=newer, price=Decimal(200)),
             snapshot("block", None, time=newer, price=Decimal(200)),
+            snapshot(
+                "block",
+                block_address.replace("дом 7", "строение 8"),
+                time=newer,
+                price=Decimal(200),
+            ),
         )
 
         # Act
@@ -427,9 +433,12 @@ class HouseMatchingTests(TestCase):
         changed = accept_snapshot(snapshot("whole", block_address, time=newer))
 
         # Assert
-        self.assertEqual([item.outcome for item in omitted], ["rejected"] * 3)
         self.assertEqual(
-            [item.reason for item in omitted], ["unconfirmed_house_block"] * 3
+            [item.outcome for item in omitted], ["rejected"] * len(incomplete)
+        )
+        self.assertEqual(
+            [item.reason for item in omitted],
+            ["unconfirmed_house_block"] * len(incomplete),
         )
         self.assertEqual(changed.outcome, "conflict")
         self.assertEqual(Ad.objects.get(pk=block.ad_id).observed_at, TIME)
