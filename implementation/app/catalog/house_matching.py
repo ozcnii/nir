@@ -114,7 +114,10 @@ def _location_conflicts(old: HouseAddress, new: HouseAddress) -> bool:
     if any(
         left is not None and right is not None and left != right
         for left, right in ((old.number, new.number), (old.street, new.street))
-    ) or _conflicting_ids(old.settlements, new.settlements):
+    ) or (
+        _conflicting_ids(old.settlements, new.settlements)
+        or _conflicting_ids(old.areas, new.areas)
+    ):
         return True
     if len(old.settlements) == len(new.settlements) == 1:
         old_kind, old_name = next(iter(old.settlements.items()))

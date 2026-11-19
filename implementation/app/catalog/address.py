@@ -7,6 +7,7 @@ from dataclasses import dataclass
 class HouseAddress:
     location: tuple[str, ...]
     settlements: dict[str, str]
+    areas: dict[str, str]
     street: str | None
     number: str | None
     qualifiers: dict[str, str]

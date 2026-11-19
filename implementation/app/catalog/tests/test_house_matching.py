@@ -58,6 +58,7 @@ class HouseMatchingTests(TestCase):
         bad_blocks = (
             snapshot("no-id", f"{HOUSE}, блок"),
             snapshot("no-inline-id", f"{HOUSE} блок"),
+            snapshot("no-building", "Самара, СНТ Луч, улица Садовая блок 2"),
         )
         valid_block = snapshot("block", f"{HOUSE} блок 2")
 
@@ -69,7 +70,8 @@ class HouseMatchingTests(TestCase):
         # Assert
         self.assertEqual(whole.outcome, "created")
         self.assertEqual(
-            [item.reason for item in rejected], ["unconfirmed_house_block"] * 2
+            [item.reason for item in rejected],
+            ["unconfirmed_house_block"] * len(bad_blocks),
         )
         self.assertEqual(block.outcome, "created")
         self.assertNotEqual(whole.property_id, block.property_id)
@@ -162,9 +164,43 @@ class HouseMatchingTests(TestCase):
         self.assertEqual(second.outcome, "created")
         self.assertNotEqual(first.property_id, second.property_id)
 
+    def test_inline_plot_and_multiple_house_numbers_do_not_attach(self) -> None:
+        street = "Самара, СНТ Луч, улица Садовая"
+        suffixes = ("участок 7", "дом 7 дом 8", "дом 7 участок 17 дом 8")
+        for index, suffix in enumerate(suffixes, 1):
+            with self.subTest(suffix=suffix):
+                # Arrange
+                address = f"{street} {suffix}"
+                key = f"ambiguous-{index}"
+                first = accept_snapshot(snapshot(key, address))
+
+                # Act
+                second = accept_snapshot(snapshot(key, address, source="domclick"))
+
+                # Assert
+                self.assertEqual(first.outcome, "created")
+                self.assertEqual(second.outcome, "created")
+                self.assertNotEqual(first.property_id, second.property_id)
+
+    def test_street_with_a_number_in_its_name_retains_the_building_number(self) -> None:
+        # Arrange
+        first = accept_snapshot(
+            snapshot("first", "Самара, СНТ Луч, улица 8 Марта, дом 7 блок 2")
+        )
+        alternative = "Самара, территория СНТ Луч, 8 Марта ул. дом 7, блок 2"
+
+        # Act
+        second = accept_snapshot(snapshot("second", alternative, source="domclick"))
+
+        # Assert
+        self.assertEqual(first.outcome, "created")
+        self.assertEqual(second.property_id, first.property_id)
+
     def test_repeat_preserves_bytes_and_timestamp_on_address_conflict(self) -> None:
         # Arrange
-        saved_address = f"{HOUSE}, блок 2"
+        saved_address = (
+            f"Приволжский район, {HOUSE.removeprefix('Самарская область, ')}, блок 2"
+        )
         first = accept_snapshot(snapshot("same-key", saved_address, land=Decimal(600)))
         conflicts = (
             f"{HOUSE}, блок 3",
@@ -173,6 +209,8 @@ class HouseMatchingTests(TestCase):
             "Самара, СНТ Луч, ул. Полевая",
             "город Тольятти, улица Садовая",
             "Самара, улица Садовая, 8, СНТ Луч",
+            "Самара, территория СНТ Сад",
+            "Кинельский район, Самара, СНТ Луч",
         )
         newer = TIME + timedelta(minutes=1)
 
@@ -248,7 +286,7 @@ class HouseMatchingTests(TestCase):
         block = accept_snapshot(snapshot("block", block_address))
         whole = accept_snapshot(snapshot("whole", HOUSE))
         newer = TIME + timedelta(minutes=1)
-        without_block = "Самара, СНТ Луч, Садовая ул. дом 7"
+        without_block = "Самара, Садовая ул. дом 7"
 
         # Act
         omitted = accept_snapshot(snapshot("block", without_block, time=newer))
