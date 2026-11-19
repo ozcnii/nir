@@ -122,14 +122,18 @@ def read_daily_listing_quote(page: Page, card_url: str) -> DailyListingQuote | N
             if (date.length !== 1 || guests.length !== 1
                 || !date[0].getClientRects().length
                 || !guests[0].getClientRects().length) return null;
-            const selector = "[data-e2e-id='snippet-item']";
-            const roots = Array.from(document.querySelectorAll("#app > div > section"))
-                .filter(section => section.querySelector(selector));
-            if (roots.length !== 1) return null;
+            const roots = document.querySelectorAll("#app > div > section.QrLw3 > div > div.N05bk");
+            if (roots.length !== 1 || roots[0].closest("aside, [role='complementary']")) return null;
+            if (roots[0].closest("section").hasAttribute("aria-label")) return null;
             const scripts = Array.from(document.scripts)
                 .map(script => script.textContent)
                 .filter(text => /^\s*window\.__SSR_STATE__\s*=/.test(text));
-            const snippets = Array.from(roots[0].querySelectorAll(selector)).map(item => {
+            const rows = roots[0].querySelectorAll(":scope > div > [data-index]");
+            const snippets = Array.from(rows).map(row => {
+                const index = row.getAttribute("data-index");
+                const cards = row.querySelectorAll("[data-e2e-id='snippet-item']");
+                if (!/^[0-9]+$/.test(index) || cards.length !== 1) return null;
+                const item = cards[0];
                 const exact = selector => {
                     const found = item.querySelectorAll(selector);
                     return found.length === 1 && found[0].getClientRects().length
@@ -138,7 +142,7 @@ def read_daily_listing_quote(page: Page, card_url: str) -> DailyListingQuote | N
                 const amount = exact("[data-e2e-id='short-rent-price']");
                 const nightly = exact("[data-e2e-id='short-rent-price-per-night']");
                 const links = Array.from(item.querySelectorAll("a[href]")).map(a => a.href);
-                return {amount, nightly, links};
+                return {index: Number(index), amount, nightly, links};
             });
             return {dates: date[0].value, guests: guests[0].value, snippets, scripts};
         }"""
@@ -172,16 +176,21 @@ def read_daily_listing_quote(page: Page, card_url: str) -> DailyListingQuote | N
     ):
         return None
 
-    # Identify the rendered primary list by the published SSR order. Recommendations
-    # and mismatched or unverified layouts must not supply a seller's quote.
+    # SerpPage renders a primary virtual row at data-index for each serp ID.
     quote = None
-    for raw, published_id in zip(
-        cast(list[object], snippets), cast(list[object], ids), strict=False
-    ):
+    rendered_indices: set[int] = set()
+    published_ids = cast(list[object], ids)
+    for raw in cast(list[object], snippets):
         snippet = as_object(raw)
-        links = snippet.get("links")
-        if not isinstance(links, list):
+        index, links = snippet.get("index"), snippet.get("links")
+        if (
+            type(index) is not int
+            or not 0 <= index < len(published_ids)
+            or index in rendered_indices
+            or not isinstance(links, list)
+        ):
             return None
+        rendered_indices.add(index)
         destinations = {
             destination: link
             for link in cast(list[object], links)
@@ -190,7 +199,10 @@ def read_daily_listing_quote(page: Page, card_url: str) -> DailyListingQuote | N
         if len(destinations) != 1:
             return None
         destination, link = next(iter(destinations.items()))
-        if destination.family != "daily" or destination.published_id != published_id:
+        if (
+            destination.family != "daily"
+            or destination.published_id != published_ids[index]
+        ):
             return None
         if destination != identity:
             continue
@@ -207,30 +219,21 @@ def _parse_native(
     url: str,
     data: dict[str, object],
     removed_marker: bool,
-    primary_removed_marker: bool,
     page_title: str,
 ) -> Snapshot:
     expected = {
         "offerType": identity.native_type,
         "dealType": "sale" if identity.deal == "sale" else "rent",
     }
-    published_id = data.get("id")
-    id_matches = _number_matches(published_id, identity)
-    if (published_id not in (None, UNDEFINED) and not id_matches) or any(
-        data.get(field) not in (None, UNDEFINED, value)
-        for field, value in expected.items()
+    if not _number_matches(data.get("id"), identity) or any(
+        data.get(field) != value for field, value in expected.items()
     ):
         return {**key, "state": "unavailable"}
+
     status = data.get("status")
-    if (status == 8 and removed_marker and id_matches) or (
-        primary_removed_marker and status in (None, UNDEFINED, 8)
-    ):
+    if status == 8 and removed_marker:
         return {**key, "state": "removed", "url": url, "deal_type": identity.deal}
-    if (
-        not id_matches
-        or status != 2
-        or any(data.get(field) != value for field, value in expected.items())
-    ):
+    if status != 2:
         return {**key, "state": "unavailable"}
 
     return normalize_native_card(
@@ -315,7 +318,6 @@ def parse_card(
     *,
     loaded_url: str,
     removed_marker: bool = False,
-    primary_removed_marker: bool = False,
     page_title: str = "",
     gallery: list[str] | None = None,
     quote: DailyListingQuote | None = None,
@@ -338,16 +340,12 @@ def parse_card(
             key, identity, loaded_url, state, gallery or [], quote, page_title
         )
     if identity.family == "native":
-        product = state.get("productCard")
-        valid_marker = primary_removed_marker and (not ssr_scripts or bool(state))
         return _parse_native(
             key,
             identity,
             loaded_url,
-            as_object(product),
+            as_object(state.get("productCard")),
             removed_marker,
-            valid_marker
-            and (product in (None, UNDEFINED) or isinstance(product, dict)),
             page_title,
         )
     shell = as_object(state.get("shell"))
@@ -365,7 +363,6 @@ class EmbeddedPage(TypedDict):
     ssr: list[str]
     nuxt: list[str]
     removed: bool
-    primary_removed: bool
     title: str
     gallery: list[str]
     url: str
@@ -389,18 +386,20 @@ def read_card(
         r"""() => {
             if (document.readyState !== "complete") return false;
             const scripts = Array.from(document.scripts).filter(s => !s.src);
-            const text = document.body?.innerText ?? "";
             const removed = "Объявление снято с размещения";
-            const normalize = value => value.replace(/\s+/g, " ").trim();
-            const title = Array.from(document.querySelectorAll("h1"))
-                .filter(heading => heading.getClientRects().length);
+            const unrelated = "aside, nav, footer, [role='complementary']";
+            const main = document.querySelectorAll("main, [role='main']");
+            const marker = main.length === 1 && !main[0].closest(unrelated)
+                && Array.from(main[0].querySelectorAll("*")).some(element =>
+                    element.children.length === 0 && element.getClientRects().length
+                    && !element.closest(unrelated)
+                    && element.innerText?.replace(/\s+/g, " ").trim() === removed);
             return {
                 ssr: scripts.map(s => s.textContent)
                     .filter(s => /^\s*window\.__SSR_STATE__\s*=/.test(s)),
                 nuxt: scripts.filter(s => s.id === "__NUXT_DATA__")
                     .map(s => s.textContent),
-                removed: text.split("\n").some(line => normalize(line) === removed),
-                primary_removed: title.length === 1 && normalize(title[0].innerText) === removed,
+                removed: marker,
                 title: document.title,
                 gallery: Array.from(document.querySelectorAll(
                     "[data-e2e-id='gallery-widget'] img"
@@ -418,7 +417,6 @@ def read_card(
         projected["nuxt"],
         loaded_url=projected["url"],
         removed_marker=projected["removed"],
-        primary_removed_marker=projected["primary_removed"],
         page_title=projected["title"],
         gallery=projected["gallery"],
         quote=quote,

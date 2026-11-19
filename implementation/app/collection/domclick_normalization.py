@@ -18,7 +18,11 @@ from app.catalog.contracts import (
 )
 from app.catalog.reference_defaults import REGIONS
 from app.collection.collectors.domclick_state import NuxtState
-from app.collection.collectors.domclick_units import check_house, check_room
+from app.collection.collectors.domclick_units import (
+    check_house,
+    check_room,
+    land_square_metres,
+)
 from app.collection.collectors.nuxt_state import UNDEFINED
 from app.collection.normalization import (
     RejectedCard,
@@ -171,14 +175,7 @@ def _land(data: dict[str, object]) -> Decimal | None:
     unit = data.get("areaUnit")
     if _missing(value):
         return None
-    scale = {"сотка": 100, "м²": 1, "га": 10_000}
-    if not isinstance(unit, str) or unit not in scale:
-        raise RejectedCard("invalid_land_unit")
-    return decimal_2(
-        number(value) * scale[unit],
-        minimum=Decimal("0.01"),
-        maximum=Decimal("1e12"),
-    )
+    return land_square_metres(value, unit)
 
 
 def _native_price(value: object) -> KnownPrice | Unavailable:
@@ -254,6 +251,7 @@ def normalize_native_card(
     description = _text(info.get("description"), problem="invalid_description")
     if is_room:
         rooms, area = check_room(rooms, area, formatted, description)
+    land_area = _land(_record(data.get("land"))) if is_house else None
     if is_house:
         check_house(
             native_type,
@@ -262,6 +260,7 @@ def normalize_native_card(
             _text(address.get("name")),
             description,
             area,
+            land_area,
         )
     photos: KnownPhotos | Unavailable = {"status": "unavailable"}
     if data.get("photos") == []:
@@ -281,7 +280,7 @@ def normalize_native_card(
         "rooms": rooms,
         "floor": floor,
         "floors_total": floors,
-        "land_area_m2": _land(_record(data.get("land"))) if is_house else None,
+        "land_area_m2": land_area,
         "description": description,
         "price": _native_price(data.get("priceInfo")),
         "photos": photos,

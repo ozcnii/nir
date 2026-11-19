@@ -176,16 +176,59 @@ class DomclickTests(TestCase):
                     # Assert
                     self.assertEqual(str(rejected.exception), problem)
 
+    def test_numbered_room_set_uses_only_explicit_total_area(self) -> None:
+        # Arrange: explicitly offered room IDs and exact set area.
+        data = native_proposal()
+        info = cast(dict[str, object], data["objectInfo"])
+        info["description"] = "Продам комнаты № 2 и № 3 общая площадь 22,50 м²."
+
+        # Act
+        with self.assertRaises(RejectedCard) as rejected:
+            read_native(ROOM, data)
+        accepted = read_native(ROOM, {**data, "roomsOffered": None})
+
+        # Assert
+        self.assertEqual(str(rejected.exception), "conflicting_room_count")
+        assert accepted["state"] == "active"
+        self.assertEqual(accepted["rooms"], 2)
+        self.assertEqual(accepted["area_m2"], Decimal("22.50"))
+
+        # Arrange: a positive allocation followed by a contradictory denial.
+        address = cast(dict[str, object], data["address"])
+        address["displayName"] = "Самара, Солнечная улица, 7, кв 25, комната 2"
+        info["description"] = "Доля соответствует комнате № 2, но комната не выделена."
+
+        # Act
+        with self.assertRaises(RejectedCard) as unresolved:
+            read_native(ROOM, data)
+
+        # Assert
+        self.assertEqual(str(unresolved.exception), "unconfirmed_room_unit")
+
     def test_native_house_rejects_incompatible_direct_offer_claims(self) -> None:
         # Arrange: contrast directly offered properties with incidental mentions.
         data = native_proposal()
-        data.update({"id": 2079647938, "offerType": "house"})
+        data.update(
+            {
+                "id": 2079647938,
+                "offerType": "house",
+                "land": {"area": "6,24", "areaUnit": "сотка"},
+            }
+        )
         cases = (
             ("Продаются два дома на участке.", "unsupported_house_unit"),
+            ("Продаётся единый лот из двух домов.", "unsupported_house_unit"),
+            (
+                "Продаю дом на участке и второй дом в том же лоте.",
+                "unsupported_house_unit",
+            ),
+            ("Продаю дом № 8.", "conflicting_house_unit"),
+            ("Площадь участка 7 соток.", "conflicting_land_area"),
             ("Срочно. Продам только земельный участок.", "unsupported_house_unit"),
             ("Продам типовой проект дома.", "unsupported_house_unit"),
             ("Для семьи. Продаётся половина дома.", "unconfirmed_house_block"),
             ("Есть сад. Продаётся невыделенная доля дома.", "unallocated_house_share"),
+            ("Неделимая доля в доме.", "unallocated_house_share"),
             (
                 "Хороший район. Продаю дом общей площадью 120 м².",
                 "conflicting_house_area",
@@ -505,14 +548,16 @@ class DomclickTests(TestCase):
         self.assertEqual(missing_id["state"], "unavailable")
         self.assertEqual(still_active["state"], "active")
 
-    def test_native_exact_primary_removal_marker_without_active_id(self) -> None:
-        # Arrange: a confirmed card heading and deliberately ambiguous controls.
+    def test_native_removal_requires_the_own_card_and_main_marker(self) -> None:
+        # Arrange: observed native ID, status and text with controlled placement.
         exact = "<main><h1>Объявление снято с размещения</h1></main>"
-        foreign = ssr({"productCard": {"id": 2079647939, "status": 8}})
-        cases = (
-            (exact, "removed"),
-            ("<aside>Объявление снято с размещения</aside>", "unavailable"),
-            (f"{exact}<script>{foreign}</script>", "unavailable"),
+        notice = "<main><aside><h1>Объявление снято с размещения</h1></aside></main>"
+        card = {"id": 2079647938, "status": 8, "offerType": "house", "dealType": "sale"}
+        cases: tuple[tuple[str, dict[str, object], str], ...] = (
+            (exact, card, "removed"),
+            (notice, card, "unavailable"),
+            (exact, {}, "unavailable"),
+            (exact, {**card, "id": 2079647939}, "unavailable"),
         )
 
         def serve(route: Route, *, body: str) -> None:
@@ -525,13 +570,15 @@ class DomclickTests(TestCase):
             playwright.chromium.launch(channel="chromium", headless=True) as browser,
             browser.new_context() as context,
         ):
-            for body, expected in cases:
-                with self.subTest(expected=expected, body=body):
+            for markup, state, expected in cases:
+                with self.subTest(expected=expected, state=state):
                     # Act
                     page = context.new_page()
+                    body = f"{markup}<script>{ssr({'productCard': state})}</script>"
                     page.route(HOUSE, partial(serve, body=body))
                     page.goto(HOUSE)
                     result = read_card(page, HOUSE, OBSERVED)
+                    page.close()
 
                     # Assert
                     self.assertEqual(result["state"], expected)
@@ -662,10 +709,17 @@ class DomclickTests(TestCase):
             '<span data-e2e-id="short-rent-price-per-night">3 910 ₽ за сутки</span>'
             "</div>"
         )
-        recommendation = f"<aside>{primary.replace('3 910', '1 900')}</aside>"
+        rows = (
+            f'<div class="N05bk"><div><div data-index="0">{primary}</div></div></div>'
+        )
+        result_section = f'<section class="QrLw3"><div>{rows}</div></section>'
+        recommendation = f'<section aria-label="Рекомендации">{rows.replace("3 910", "1 900")}</section>'
         content = f"<script>{state}</script>{controls}"
-        dom = f'{content}<div id="app"><div><section>{primary}</section></div></div>{recommendation}'
 
+        def layout(body: str) -> str:
+            return f'{content}<div id="app"><div>{body}</div></div>'
+
+        dom = layout(result_section + recommendation)
         card = (
             f"<script>{daily_ssr(daily_projection())}delete window.__SSR_STATE__;</script>"
             '<div data-e2e-id="gallery-widget">'
@@ -696,17 +750,23 @@ class DomclickTests(TestCase):
             page.goto(DAILY)
             snapshot = read_card(page, DAILY, OBSERVED, quote=quote)
 
-            # Repeat with the recommendation alone and then an ambiguous root.
-            dom = f'{content}<div id="app"><div>{recommendation}</div></div>'
-            listing.goto(LISTING)
-            from_recommendation = read_daily_listing_quote(listing, DAILY)
-            dom = f'{content}<div id="app"><div><section>{primary}</section><section>{primary}</section></div></div>'
-            listing.goto(LISTING)
-            from_ambiguous_root = read_daily_listing_quote(listing, DAILY)
+            # Repeat with an explicitly labelled recommendation, a duplicate
+            # result root, and a row whose position disagrees with the SSR ID.
+            uncertain = []
+            for candidate in (
+                recommendation,
+                result_section.replace(
+                    "<section ", '<section aria-label="Рекомендации" '
+                ),
+                result_section + result_section,
+                result_section.replace('data-index="0"', 'data-index="1"'),
+            ):
+                dom = layout(candidate)
+                listing.goto(LISTING)
+                uncertain.append(read_daily_listing_quote(listing, DAILY))
 
         # Assert
-        self.assertIsNone(from_recommendation)
-        self.assertIsNone(from_ambiguous_root)
+        self.assertEqual(uncertain, [None, None, None, None])
         assert snapshot["state"] == "active"
         self.assertEqual(snapshot["external_id"], card_key(DAILY))
         self.assertEqual(snapshot["area_m2"], Decimal("36.00"))
@@ -858,6 +918,36 @@ class DomclickTests(TestCase):
 
         # Assert
         self.assertEqual(str(rejected.exception), "unallocated_house_share")
+
+    def test_block_area_is_not_the_enclosing_building_area(self) -> None:
+        # Arrange: the explicit block is № 2 and its own structured area is 55 m².
+        data = native_proposal()
+        address = cast(dict[str, object], data["address"])
+        address["displayName"] = "Самара, Солнечная улица, 7, блок 2"
+        url = "https://samara.domclick.ru/card/sale__house_part__7777777"
+        data.update(id=7777777, offerType="house_part")
+        cases = (
+            ("Продаётся блок № 3 площадью 55 м².", "conflicting_house_unit"),
+            ("Площадь секции 60 м².", "conflicting_house_area"),
+            ("Площадь секции 55 м². Общая площадь дома 100 м².", None),
+        )
+        for text, problem in cases:
+            with self.subTest(text=text):
+                data["objectInfo"] = {"area": 55, "description": text}
+                if problem:
+                    # Act
+                    with self.assertRaises(RejectedCard) as rejected:
+                        read_native(url, data)
+
+                    # Assert
+                    self.assertEqual(str(rejected.exception), problem)
+                else:
+                    # Act
+                    accepted = read_native(url, data)
+
+                    # Assert
+                    assert accepted["state"] == "active"
+                    self.assertEqual(accepted["area_m2"], Decimal("55.00"))
 
     def test_daily_studio_uses_published_unit_title_with_generic_page_title(
         self,

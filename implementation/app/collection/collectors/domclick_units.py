@@ -3,7 +3,12 @@
 import re
 from decimal import Decimal
 
-from app.collection.normalization import RejectedCard, number, optional_integer
+from app.collection.normalization import (
+    RejectedCard,
+    decimal_2,
+    number,
+    optional_integer,
+)
 
 _CLAUSE = r"(?:\A|(?<=[.!?;:\n]))\s*"
 _DEAL = r"(?:прода[её]тся|продаются|сда[её]тся|сдаются|продаю|сдаю|продам)"
@@ -15,15 +20,34 @@ _ROOM_SIZE = re.compile(
     r"(?: площадью)?[ :]+" + _SQUARE_METRES,
     re.IGNORECASE,
 )
-_NON_OFFERED_UNIT = re.compile(r"\s+(?:в|из)\s+(?:соседн|друг)\w*", re.IGNORECASE)
+_NON_OFFERED_UNIT = re.compile(r"\s+(?:в|из|у)\s+(?:сосед|друг)\w*", re.IGNORECASE)
 _COUNTS = {"одна": 1, "одну": 1, "две": 2, "три": 3, "четыре": 4}
 _COUNTED_ROOMS = re.compile(
     _OFFER + r"([0-9]{1,5}|одна|одну|две|три|четыре|несколько)\s+комнат(?:а|ы|у)?\b",
     re.IGNORECASE,
 )
+_ROOM_ID = r"№\s*[1-9][0-9]{0,4}"
+_ROOM_LIST = re.compile(
+    _OFFER + r"(?:единый\s+лот\s+из\s+|лот\s+из\s+)?комнат[ы:]?\s*"
+    rf"(?P<rooms>{_ROOM_ID}(?:\s*(?:,\s*(?:и\s+)?|\s+и\s+){_ROOM_ID})+)",
+    re.IGNORECASE,
+)
+_ROOM_SET_AREA = re.compile(
+    r"\s*,?\s*(?:(?:общей|суммарной) площадью|(?:общая|суммарная) площадь)"
+    r"\s*[:—-]?\s*" + _SQUARE_METRES,
+    re.IGNORECASE,
+)
+_ROOM_SET_AREA_CLAUSE = re.compile(
+    _CLAUSE
+    + r"(?:общая|суммарная) площадь (?:этих )?комнат\s*[:—-]?\s*"
+    + _SQUARE_METRES,
+    re.IGNORECASE,
+)
+_UNALLOCATED = r"не(?:\s*выделенн(?:ая|ую)|делим(?:ая|ую))"
 _OFFERED_SHARE = re.compile(
-    _OFFER + r"(?:не\s*выделенн(?:ая|ую)\s+)?(?:[0-9]+/[0-9]+\s+)?дол[яю]\b"
-    r"|\A\s*доля(?=\s*:|\s+(?:соответствует|выделена))",
+    _OFFER + rf"(?:{_UNALLOCATED}\s+)?(?:[0-9]+/[0-9]+\s+)?дол[яю]\b"
+    rf"|\A\s*{_UNALLOCATED}\s+доля\b"
+    r"|\A\s*доля(?=\s*:|\s+(?:соответствует|выделена|не (?:выделена|определена)))",
     re.IGNORECASE,
 )
 _ROOM_ADDRESS = re.compile(r"(?:^|, )комната (?:№\s*)?([0-9]+)$", re.IGNORECASE)
@@ -31,12 +55,43 @@ _ALLOCATED_ROOM = re.compile(
     r"\s+(?:соответствует|выделена в) комнат[еу] (?:№\s*)?([0-9]+)(?![0-9])",
     re.IGNORECASE,
 )
+_CONTRADICTORY_ALLOCATION = re.compile(
+    r"\b(?:доля|комната)\s+(?:не\s+выделена|не\s+определена)\b"
+    rf"|\s+(?:и|или)\s+комнат[еу]\s+{_ROOM_ID}",
+    re.IGNORECASE,
+)
+_CLAUSE_END = re.compile(r"[.!?;](?=\s|$)|\n")
+_BUILDING_NUMBER = r"\d+[а-яa-z]?(?:[/.-]\d+[а-яa-z]?)*"
+_BLOCK_SCOPE = r"блок|секци[яю]"
 _INDEPENDENT_BLOCK = re.compile(
-    r"(?:^|, )\d+[а-яa-z]?, (?:блок|секция) (?:№ *)?\d+[а-яa-z]?$"
+    rf"(?:^|, )(?:дом )?{_BUILDING_NUMBER}, (?P<scope>{_BLOCK_SCOPE}) "
+    rf"(?:№\s*)?(?P<identifier>{_BUILDING_NUMBER})$",
+    re.IGNORECASE,
+)
+_HOUSE_ADDRESS = re.compile(
+    rf"(?:^|, )(?:дом )?(?P<identifier>{_BUILDING_NUMBER})"
+    rf"(?=, (?:{_BLOCK_SCOPE}|участок)\b|$)",
+    re.IGNORECASE,
+)
+_PLOT_ADDRESS = re.compile(
+    rf"(?:^|, )участок (?:№\s*)?(?P<identifier>{_BUILDING_NUMBER})(?:,|$)",
+    re.IGNORECASE,
+)
+_OFFERED_ADDRESS = re.compile(
+    _OFFER + rf"(?P<scope>дом|коттедж|участок|{_BLOCK_SCOPE})"
+    rf"\s+№\s*(?P<identifier>{_BUILDING_NUMBER})(?![\w/])",
+    re.IGNORECASE,
+)
+_BLOCK_SIZE = re.compile(
+    rf"(?:{_OFFER}(?:{_BLOCK_SCOPE})(?: №?\s*{_BUILDING_NUMBER})?[, :]+"
+    r"(?:(?:общей )?площадью\s+)?|"
+    rf"{_CLAUSE}(?:общая )?площадь (?:блока|секции)\s*[:—-]?\s*)" + _SQUARE_METRES,
+    re.IGNORECASE,
 )
 _COMPOUND_HOUSE_NUMBER = re.compile(r"(?:^|, )\d+[а-яa-z]?/\d+[а-яa-z]?$")
 _HOUSE_SET_OR_PROJECT = re.compile(
-    _OFFER + r"(?:(?:два|три|четыре|несколько|[2-9]|[1-9][0-9]+)\s+"
+    _OFFER + r"(?:(?:(?:единый )?лот из )?"
+    r"(?:два|двух|три|тр[её]х|четыре|четыр[её]х|несколько|[2-9]|[1-9][0-9]+)\s+"
     r"(?:дом(?:а|ов)|коттедж(?:а|ей))|"
     r"(?:типов(?:ой|ого)\s+)?проект\s+(?:дома|коттеджа)|строительство\b|"
     r"(?:земельный\s+)?участок\s+без\s+дома|только (?:земельный )?участок)\b",
@@ -54,6 +109,30 @@ _HOUSE_SIZE = re.compile(
     r"[, :]+(?:(?:общей )?площадью\s+)?" + _SQUARE_METRES,
     re.IGNORECASE,
 )
+
+_SECOND_OFFERED_HOUSE = re.compile(
+    _OFFER + r"(?:дом|коттедж|единый\s+лот)\b"
+    r"(?:(?![.!?;]\s)[^\n])*?\s+и\s+"
+    r"(?:[её]щ[её]\s+один|второй)\s+(?:дом|коттедж)\b"
+    r"(?!\s+(?:по соседству|отдельно))",
+    re.IGNORECASE,
+)
+_LAND_SCALES = {"сотка": 100, "м²": 1, "га": 10_000}
+_LAND_SIZE = re.compile(
+    _CLAUSE + r"площадь (?:земельного )?участка\s*[:—-]?\s*"
+    r"(?P<area>[0-9]+(?:[.,][0-9]+)?)\s*(?P<unit>сот(?:ок|к[аи])|м[²2]|га)(?!\w)",
+    re.IGNORECASE,
+)
+
+
+def land_square_metres(value: object, unit: object) -> Decimal:
+    if not isinstance(unit, str) or unit not in _LAND_SCALES:
+        raise RejectedCard("invalid_land_unit")
+    return decimal_2(
+        number(value) * _LAND_SCALES[unit],
+        minimum=Decimal("0.01"),
+        maximum=Decimal("1e12"),
+    )
 
 
 def _published_areas(pattern: re.Pattern[str], text: str) -> set[Decimal]:
@@ -73,28 +152,57 @@ def check_room(
     text = description or ""
     counts = set() if rooms is None else {rooms}
     multiple = False
+    offer_ends: list[int] = []
     for match in _COUNTED_ROOMS.finditer(text):
         count = match[1].casefold()
         if _NON_OFFERED_UNIT.match(text, match.end()):
             continue
+        offer_ends.append(match.end())
         if count == "несколько":
             multiple = True
         elif count in _COUNTS:
             counts.add(_COUNTS[count])
         elif (published_count := optional_integer(count, minimum=1)) is not None:
             counts.add(published_count)
+    for match in _ROOM_LIST.finditer(text):
+        if _NON_OFFERED_UNIT.match(text, match.end()):
+            continue
+        identifiers = re.findall(_ROOM_ID, match["rooms"])
+        if len(set("".join(label.split()) for label in identifiers)) != len(
+            identifiers
+        ):
+            raise RejectedCard("conflicting_room_count")
+        counts.add(len(identifiers))
+        offer_ends.append(match.end())
     for share in _OFFERED_SHARE.finditer(text):
         published = _ROOM_ADDRESS.search(address or "")
         allocation = _ALLOCATED_ROOM.match(text, share.end())
-        if not published or not allocation or published[1] != allocation[1]:
+        offered_clause = _CLAUSE_END.split(text[share.start() :], maxsplit=1)[0]
+        if (
+            not published
+            or not allocation
+            or published[1] != allocation[1]
+            or _CONTRADICTORY_ALLOCATION.search(offered_clause)
+        ):
             raise RejectedCard("unconfirmed_room_unit")
         counts.add(1)
     if len(counts) > 1 or (multiple and counts == {1}) or 0 in counts:
         raise RejectedCard("conflicting_room_count")
     detected = next(iter(counts), None)
     if multiple or (detected is not None and detected > 1):
-        # roomArea measures one room, never the sum for a set.
-        return detected, None
+        totals = _published_areas(_ROOM_SET_AREA_CLAUSE, text)
+        for end in offer_ends:
+            if total := _ROOM_SET_AREA.match(text, end):
+                totals.add(number(total["area"]))
+        if len(totals) > 1:
+            raise RejectedCard("conflicting_room_area")
+        total_area = next(iter(totals), None)
+        # The structural roomArea is for one room, never the offered set.
+        return detected, (
+            decimal_2(total_area, minimum=Decimal("0.01"), maximum=Decimal("1e10"))
+            if total_area is not None
+            else None
+        )
     areas = _published_areas(_ROOM_SIZE, text)
     if areas and area is not None:
         areas.add(area)
@@ -110,9 +218,14 @@ def check_house(
     geocoded_name: str | None,
     description: str | None,
     area: Decimal | None,
+    land_area: Decimal | None,
 ) -> None:
     text = description or ""
-    if _DORMITORY.search(text) or _HOUSE_SET_OR_PROJECT.search(text):
+    if (
+        _DORMITORY.search(text)
+        or _HOUSE_SET_OR_PROJECT.search(text)
+        or _SECOND_OFFERED_HOUSE.search(text)
+    ):
         raise RejectedCard("unsupported_house_unit")
     if _OFFERED_SHARE.search(text):
         raise RejectedCard("unallocated_house_share")
@@ -120,8 +233,31 @@ def check_house(
     block = _INDEPENDENT_BLOCK.search(published)
     if _OFFERED_HOUSE_PART.search(text) and not block:
         raise RejectedCard("unconfirmed_house_block")
-    if area is not None and _published_areas(_HOUSE_SIZE, text) - {area}:
+    for offer in _OFFERED_ADDRESS.finditer(text):
+        scope = offer["scope"].casefold()
+        if scope in ("блок", "секция", "секцию"):
+            known = block
+        elif scope == "участок":
+            known = _PLOT_ADDRESS.search(published)
+        else:
+            known = _HOUSE_ADDRESS.search(published)
+        if known and offer["identifier"].casefold() != known["identifier"].casefold():
+            raise RejectedCard("conflicting_house_unit")
+        if scope in ("блок", "секция", "секцию") and not block:
+            raise RejectedCard("unconfirmed_house_block")
+
+    # A building's total area is incomparable to its separately offered section.
+    areas = _published_areas(_BLOCK_SIZE if block else _HOUSE_SIZE, text)
+    if area is not None and areas - {area}:
         raise RejectedCard("conflicting_house_area")
+    if land_area is not None:
+        for statement in _LAND_SIZE.finditer(text):
+            if _NON_OFFERED_UNIT.match(text, statement.end()):
+                continue
+            unit = statement["unit"].casefold()
+            unit = "сотка" if unit.startswith("сот") else unit.replace("2", "²")
+            if land_square_metres(statement["area"], unit) != land_area:
+                raise RejectedCard("conflicting_land_area")
     if native_type == "house":
         return
 
