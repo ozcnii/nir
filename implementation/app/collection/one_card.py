@@ -13,7 +13,7 @@ from app.catalog.locks import run_session
 from app.catalog.publications import accept_snapshot, publication_deal
 from app.catalog.references import source_enabled
 from app.collection.browser import browser_page
-from app.collection.collectors import avito, cian
+from app.collection.collectors import avito, cian, domclick
 from app.collection.normalization import RejectedCard
 
 CARD_TIMEOUT_MS = 30_000
@@ -50,8 +50,10 @@ def _without_media(route: Route) -> None:
 def collect_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
     if (key := avito.card_key(url)) is not None:
         source = "avito"
-    elif (key := cian.card_key(url)) is not None:
+    elif cian.card_key(url) is not None:
         source = "cian"
+    elif domclick.card_key(url) is not None:
+        source = "domclick"
     else:
         raise CollectionError("unsupported_card_url")
 
@@ -102,6 +104,8 @@ def _read_card(
                 snapshot = avito.capture_card(
                     page, url, observed_at, deadline, removed_deal=removed_deal
                 )
+            elif source == "domclick":
+                snapshot = domclick.read_card(page, url, observed_at, deadline=deadline)
             else:
                 snapshot = cian.capture_card(page, url, observed_at, deadline)
             _check_stop(stopped)
@@ -113,10 +117,14 @@ def _read_card(
             raise CollectionError(str(error)) from error
         except PlaywrightError as error:
             _check_stop(stopped)
-            if "Execution context was destroyed" in str(error) and not (
-                avito if source == "avito" else cian
-            ).same_card(url, page.url):
-                raise CollectionError("unexpected_redirect") from error
+            if "Execution context was destroyed" in str(error):
+                same_card = {
+                    "avito": avito.same_card,
+                    "cian": cian.same_card,
+                    "domclick": domclick.same_card,
+                }[source]
+                if not same_card(url, page.url):
+                    raise CollectionError("unexpected_redirect") from error
             if retry or not (
                 isinstance(error, PlaywrightTimeout)
                 or any(code in str(error) for code in TRANSPORT_ERRORS)
