@@ -289,7 +289,8 @@ def verify_avito() -> None:
         title="Комната 12,5 м²",
         description=(
             "Продаются комната 12,5 м² и комната 10 м² одним лотом, "
-            "общей площадью 22,5 м²."
+            "общей площадью 22,5 м². В соседней квартире две комнаты № 4 и № 5. "
+            "Общая площадь этих комнат — 23 м²."
         ),
     )
     params = as_object(buyer["paramsDto"])
@@ -302,7 +303,7 @@ def verify_avito() -> None:
     # Act
     bundle = collect()
 
-    # Assert: one offered unit, with its own announced count and total.
+    # Assert: the neighbor's total does not change the offered unit's total.
     saved_bundle = Ad.objects.get(source_id="avito", external_id="7697142163")
     assert bundle["outcome"] == "created"
     assert saved_bundle.property.rooms == 2

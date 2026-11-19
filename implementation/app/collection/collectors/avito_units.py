@@ -21,7 +21,7 @@ _OFFERED = r"(?:продаваем|предлагаем|сдаваем)"
 _ROOM_NUMBER = r"№\s*(?P<room>[1-9][0-9]*)"
 _ROOM_SIZE = rf"(?:\s+(?:(?P<total>общей )?площадью )?(?P<area>{_MEASUREMENT})\s+м²)?"
 _ROOM = re.compile(
-    r"(?:доля:\s*)?(?:(?P<count>[1-9][0-9]*|одна|две|три)\s+)?"
+    r"(?<!\w)(?:доля:\s*)?(?:(?P<count>[1-9][0-9]*|одна|две|три)\s+)?"
     rf"(?P<unit>комнат[ауы]?)\b(?:\s+{_ROOM_NUMBER})?{_ROOM_SIZE}"
 )
 _NUMBERED_MEMBER = re.compile(_ROOM_NUMBER + _ROOM_SIZE)
@@ -33,7 +33,7 @@ _BUNDLE_AREA = re.compile(
     rf" (?P<area>{_MEASUREMENT}) м²"
 )
 _OUTSIDE_OFFER = re.compile(
-    r"\s*(?:[,—-]\s*)?(?:(?P<other_owner>соседская|соседей|принадлежит соседям)"
+    r"\s*(?:[,—-]\s*)?(?<!\w)(?:(?P<other_owner>соседская|соседей|принадлежит соседям)"
     r"|(?P<separate>по отдельности|не одним лотом)|отдельно|не входит"
     r"|на фото|в соседней квартире)\b"
 )
@@ -53,9 +53,9 @@ _OFFERED_ROOM_AREA = re.compile(
     rf"(?: № ?(?P<room>[1-9][0-9]*))?(?:[: ]+|[ —-]+)(?P<area>{_MEASUREMENT}) м²"
 )
 _OFFERED_BUNDLE_AREA = re.compile(
-    rf"(?:общая|суммарная) площадь (?:набора|{_OFFERED}ых"
+    rf"(?:общая|суммарная) площадь (?:набора|(?P<own>{_OFFERED}ых)"
     rf"|(?:этих(?: (?P<count>двух|тр[её]х|[1-9][0-9]*))?|(?P<both>обеих))"
-    rf"(?: {_OFFERED}ых)?) комнат"
+    rf"(?: (?P<own_reference>{_OFFERED}ых))?) комнат"
     rf"\b[\s:–—-]+(?P<area>{_MEASUREMENT}) м²"
 )
 _ROOM_ALLOCATION = re.compile(
@@ -263,8 +263,10 @@ def rooms_and_area(
     share = share or label.startswith("доля")
     offered: list[RoomClaim] = []
     explicit_areas: list[tuple[str | None, Decimal]] = []
-    bundle_areas: set[Decimal] = set()
-    bundle_counts: set[int] = set()
+    bundle_measures: list[re.Match[str]] = []
+    unbound_measures: list[re.Match[str]] = []
+    refers_to_own_bundle: bool | None = None
+    competing_room_scope = False
     denied_rooms: set[str] = set()
     allocated = (
         heading is not None
@@ -272,6 +274,13 @@ def rooms_and_area(
         and (bool(heading.member_areas) or heading.explicit_count)
     )
     for statement, offer in _seller_statements(description):
+        outside_scope = (
+            _ROOM.search(statement) is not None
+            and _OUTSIDE_OFFER.search(statement) is not None
+        )
+        if outside_scope:
+            competing_room_scope = True
+            refers_to_own_bundle = False
         if share and _UNALLOCATED.match(statement):
             raise RejectedCard("unconfirmed_room_unit")
         if share and (room := _ROOM.match(statement)) is not None:
@@ -291,6 +300,8 @@ def rooms_and_area(
             claim := _room_claim(statement)
         ) is not None:
             offered.append(claim)
+            if not outside_scope:
+                refers_to_own_bundle = claim.bundle
         elif (
             measure := _OFFERED_ROOM_AREA.match(statement)
         ) is not None and not _OUTSIDE_OFFER.match(statement, measure.end()):
@@ -298,13 +309,12 @@ def rooms_and_area(
         elif (
             measure := _OFFERED_BUNDLE_AREA.match(statement)
         ) is not None and not _OUTSIDE_OFFER.match(statement, measure.end()):
-            bundle_areas.add(number(measure["area"]))
-            if reference := (measure["count"] or measure["both"]):
-                referred_count = _BUNDLE_COUNT_WORDS.get(reference)
-                if referred_count is None:
-                    referred_count = optional_integer(reference, minimum=2)
-                if referred_count is not None:
-                    bundle_counts.add(referred_count)
+            if measure["own"] or measure["own_reference"]:
+                refers_to_own_bundle = True
+            if refers_to_own_bundle is True:
+                bundle_measures.append(measure)
+            elif refers_to_own_bundle is None:
+                unbound_measures.append(measure)
 
     bundle = any(claim.bundle for claim in offered) or (
         not offered
@@ -351,9 +361,17 @@ def rooms_and_area(
     if any(len(measurements) > 1 for measurements in member_areas.values()):
         raise RejectedCard("conflicting_room_area")
     if bundle:
-        if rooms is not None and bundle_counts - {rooms}:
-            raise RejectedCard("conflicting_room_count")
-        areas.update(bundle_areas)
+        # A leading reference can resolve forward only without a competing scope.
+        if not competing_room_scope:
+            bundle_measures.extend(unbound_measures)
+        for measure in bundle_measures:
+            if rooms is not None and (reference := measure["count"] or measure["both"]):
+                referred_count = _BUNDLE_COUNT_WORDS.get(reference)
+                if referred_count is None:
+                    referred_count = optional_integer(reference, minimum=2)
+                if referred_count is not None and referred_count != rooms:
+                    raise RejectedCard("conflicting_room_count")
+            areas.add(number(measure["area"]))
     else:
         if area is not None:
             areas.add(area)
