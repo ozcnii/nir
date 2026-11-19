@@ -419,6 +419,7 @@ class CianCardTests(TestCase):
             "Продаю дом площадью 90,9 м², второй дом площадью 40 м² "
             "и третий дом площадью 55 м² одним лотом.",
             "Предложение недели, продаётся дом и коттедж одним лотом.",
+            "Продаётся дом площадью 90,9 м² и жилой блок площадью 55 м² одним лотом.",
             "СРОЧНО. Продаётся 1/2 доля дома без отдельного входа.",
             "Продаётся проект коттеджа.",
             "Продаётся дом, точнее блок.",
@@ -633,24 +634,29 @@ class CianCardTests(TestCase):
     def test_bundle_rejects_two_conflicting_totals_for_those_rooms(self) -> None:
         for first, second in (("19", "18"), ("18", "19")):
             for rooms in ("этих комнат", "этих двух комнат", "обеих комнат"):
-                with self.subTest(first=first, second=second, rooms=rooms):
-                    # Arrange: both totals refer to the same explicit lot.
-                    url, offer, product = projection()
-                    offer.update(
-                        category="roomSale",
-                        roomsForSaleCount=2,
-                        roomArea="9.0",
-                        description=f"Продаются две комнаты общей площадью {first} м². "
-                        f"Общая площадь {rooms} — {second} м².",
-                    )
-
-                    # Act
-                    with self.assertRaisesRegex(
-                        RejectedCard, "^conflicting_room_area$"
+                for count, offered in ((2, "две комнаты"), (None, "несколько комнат")):
+                    with self.subTest(
+                        first=first, second=second, rooms=rooms, count=count
                     ):
-                        parsed(url, offer, product)
+                        # Arrange: both totals refer to the same explicit lot.
+                        url, offer, product = projection()
+                        offer.update(
+                            category="roomSale",
+                            roomsForSaleCount=count,
+                            roomArea="9.0",
+                            description=(
+                                f"Продаются {offered} общей площадью {first} м². "
+                                f"Общая площадь {rooms} — {second} м²."
+                            ),
+                        )
 
-                    # Assert: either ordering of the contradictory totals rejects.
+                        # Act
+                        with self.assertRaisesRegex(
+                            RejectedCard, "^conflicting_room_area$"
+                        ):
+                            parsed(url, offer, product)
+
+                        # Assert: either ordering of the contradictory totals rejects.
 
     def test_room_checks_all_own_measurements_with_the_same_identity(self) -> None:
         for first, second in (("9", "10"), ("10", "9"), ("9", "9")):
@@ -680,6 +686,38 @@ class CianCardTests(TestCase):
                         parsed(url, offer, product)
 
                     # Assert: neither conflicting measurement is chosen.
+
+    def test_bundle_checks_member_areas_across_repeated_claims(self) -> None:
+        for first, second in (("9", "11"), ("11", "9"), ("9", "9")):
+            with self.subTest(first=first, second=second):
+                # Arrange: both claims name the same two rooms in one lot.
+                url, offer, product = projection()
+                offer.update(
+                    category="roomSale",
+                    roomsForSaleCount=2,
+                    roomArea="9.0",
+                    description=(
+                        f"Продаются комната № 2 площадью {first} м² "
+                        "и комната № 3 площадью 10 м² одним лотом. "
+                        f"Продаются комната № 3 площадью 10 м² "
+                        f"и комната № 2 площадью {second} м² одним лотом."
+                    ),
+                )
+
+                if first == second:
+                    # Act
+                    result = parsed(url, offer, product)
+
+                    # Assert: agreeing member sizes do not supply a set total.
+                    self.assertEqual((result["rooms"], result["area_m2"]), (2, None))
+                else:
+                    # Act
+                    with self.assertRaisesRegex(
+                        RejectedCard, "^conflicting_room_area$"
+                    ):
+                        parsed(url, offer, product)
+
+                    # Assert: either ordering rejects the conflicting member sizes.
 
     def test_block_checks_its_own_area_and_ignores_enclosing_house_total(self) -> None:
         # Arrange: one published block address and an enclosing building area.

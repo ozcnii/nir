@@ -199,13 +199,14 @@ _UNSUPPORTED_HOUSE_SUBJECT = (
     r"(?:дома|коттеджа)|строительство|(?:земельный\s+)?участок\s+без\s+дома)"
 )
 _BLOCK_KINDS = r"блок|секци[яю]|таунхаус"
+_BLOCK_MODIFIER = r"(?:(?:жилой|самостоятельный)\s+)?"
 _HOUSE_SUBJECT = r"(?:дом|коттедж)"
 _WHOLE_QUALIFIER = r"(?:весь|целый)"
 _SCOPE_SEPARATOR = r"[\s—–:-]+"
 _PART_SUBJECT = (
     rf"(?:(?:{_WHOLE_QUALIFIER}\s+)?{_HOUSE_SUBJECT}[\s,—–:-]+точнее{_SCOPE_SEPARATOR})?"
     r"(?:только\s+)?(?:(?:[0-9]+/[0-9]+\s+)?(?:дол[яю]|половин[ау]|часть)\s+"
-    rf"(?:в\s+)?(?:дом[ае]|коттедж[ае])|(?:жилой\s+)?(?P<block>{_BLOCK_KINDS}))"
+    rf"(?:в\s+)?(?:дом[ае]|коттедж[ае])|{_BLOCK_MODIFIER}(?P<block>{_BLOCK_KINDS}))"
 )
 _HOUSE_OFFER = re.compile(
     _OFFER
@@ -215,7 +216,8 @@ _HOUSE_OFFER = re.compile(
     + r")\b",
     re.IGNORECASE,
 )
-_BLOCK_LABEL = rf"(?P<kind>{_BLOCK_KINDS})\s+(?:№\s*)?(?P<number>[0-9][0-9a-я/.-]*)\b"
+_BLOCK_NUMBER = r"\s+(?:№\s*)?(?P<number>[0-9][0-9a-я/.-]*)\b"
+_BLOCK_LABEL = rf"(?P<kind>{_BLOCK_KINDS}){_BLOCK_NUMBER}"
 _ADDRESSABLE_BLOCK = re.compile(_BLOCK_LABEL, re.IGNORECASE)
 _ADDRESS_BLOCK_SCOPE = re.compile(
     rf"(?:\A\s*|\b(?:дом|д\.)\s+(?:№\s*)?[0-9][0-9a-я/.-]*{_SCOPE_SEPARATOR})"
@@ -227,7 +229,9 @@ _HOUSE_ORDINAL = (
     r"восьмой|девятый|десятый|ещ[её]\s+один|[1-9][0-9]*-й)"
 )
 _NEXT_HOUSE = re.compile(
-    _LIST_LINK + rf"(?:{_HOUSE_ORDINAL}\s+)?(?:{_HOUSE_SUBJECT}\b|{_BLOCK_LABEL})",
+    _LIST_LINK
+    + rf"(?:{_HOUSE_ORDINAL}\s+)?"
+    + rf"(?:{_HOUSE_SUBJECT}\b|{_BLOCK_MODIFIER}(?:{_BLOCK_KINDS})\b(?:{_BLOCK_NUMBER})?)",
     re.IGNORECASE,
 )
 _HOUSE_AREA = re.compile(
@@ -302,7 +306,7 @@ def _linked_set_areas(
             if claim["both"]
             else _REFERENCED_COUNTS.get(count_label) or _room_count(count_label)
         )
-        if referenced is not None and referenced != count:
+        if referenced is not None and count is not None and referenced != count:
             break
         yield area_m2(claim["area"])
 
@@ -321,6 +325,7 @@ def check_room(
 
     single_areas: set[Decimal] = set()
     set_areas: set[Decimal] = set()
+    member_areas_by_group: dict[frozenset[str], dict[str, set[Decimal]]] = {}
     multiple = False
     for offer in _OFFERED_ROOMS.finditer(text):
         raw_count = (offer["count"] or "").casefold()
@@ -351,14 +356,21 @@ def check_room(
             multiple = True
         if member_count > 1:
             counts.add(member_count)
-        for claims in members.values():
-            measurements = {area_m2(value) for value in claims}
+        # Identical numbered sets identify the same members across offer claims.
+        member_areas = (
+            member_areas_by_group.setdefault(frozenset(members), {})
+            if member_count > 1
+            else {}
+        )
+        for number, claims in members.items():
+            measurements = member_areas.setdefault(number, set())
+            measurements.update(
+                measured for value in claims if (measured := area_m2(value)) is not None
+            )
             if len(measurements) > 1:
                 raise RejectedCard("conflicting_room_area")
             if not bundle:
-                single_areas.update(
-                    value for value in measurements if value is not None
-                )
+                single_areas.update(measurements)
         if measurement and (measured := area_m2(measurement["area"])):
             (set_areas if bundle else single_areas).add(measured)
         if bundle:
