@@ -35,12 +35,12 @@ class CollectionStopped(Exception):
     pass
 
 
-def _check_stop(stopped: Callable[[], bool]) -> None:
+def check_stop(stopped: Callable[[], bool]) -> None:
     if stopped():
         raise CollectionStopped
 
 
-def _without_media(route: Route) -> None:
+def without_media(route: Route) -> None:
     if route.request.resource_type in ("image", "media"):
         route.abort()
     else:
@@ -57,17 +57,17 @@ def collect_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
     else:
         raise CollectionError("unsupported_card_url")
 
-    _check_stop(stopped)
+    check_stop(stopped)
     with run_session():
         if not source_enabled(source):
             raise CollectionError(f"{source}_is_disabled")
-        _check_stop(stopped)
+        check_stop(stopped)
         removed_deal = publication_deal(source, key) if key is not None else None
         with browser_page() as page:
-            page.route("**/*", _without_media)
-            snapshot = _read_card(page, url, source, stopped, removed_deal)
+            page.route("**/*", without_media)
+            snapshot = read_card(page, url, source, stopped, removed_deal)
 
-        _check_stop(stopped)
+        check_stop(stopped)
         receipt = (
             snapshot
             if isinstance(snapshot, SnapshotResult)
@@ -78,53 +78,75 @@ def collect_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
         return receipt
 
 
-def _read_card(
+def read_card(
     page: Page,
     url: str,
     source: str,
     stopped: Callable[[], bool],
     removed_deal: Deal | None,
 ) -> Snapshot | SnapshotResult:
+    def capture(observed_at: datetime, deadline: float) -> Snapshot | SnapshotResult:
+        if source == "avito":
+            return avito.capture_card(
+                page, url, observed_at, deadline, removed_deal=removed_deal
+            )
+        if source == "domclick":
+            return domclick.read_card(page, url, observed_at, deadline=deadline)
+        return cian.capture_card(page, url, observed_at, deadline)
+
+    same_card = {
+        "avito": avito.same_card,
+        "cian": cian.same_card,
+        "domclick": domclick.same_card,
+    }[source]
+    return read_page(
+        page,
+        url,
+        stopped,
+        capture,
+        accepts_redirect=lambda loaded: same_card(url, loaded),
+    )
+
+
+def read_page[Result](
+    page: Page,
+    url: str,
+    stopped: Callable[[], bool],
+    capture: Callable[[datetime, float], Result],
+    *,
+    accepts_redirect: Callable[[str], bool],
+) -> Result:
     for retry in (False, True):
-        _check_stop(stopped)
+        check_stop(stopped)
         observed_at = datetime.now(UTC)
         deadline = time.monotonic() + CARD_TIMEOUT_MS / 1000
         try:
             response = page.goto(
                 url, wait_until="domcontentloaded", timeout=CARD_TIMEOUT_MS
             )
-            _check_stop(stopped)
+            check_stop(stopped)
             if not retry and response is not None and 500 <= response.status < 600:
                 continue
             if response is None:
                 raise CollectionError("no_http_response")
             if not response.ok:
                 raise CollectionError(f"http_{response.status}")
-            if source == "avito":
-                snapshot = avito.capture_card(
-                    page, url, observed_at, deadline, removed_deal=removed_deal
-                )
-            elif source == "domclick":
-                snapshot = domclick.read_card(page, url, observed_at, deadline=deadline)
-            else:
-                snapshot = cian.capture_card(page, url, observed_at, deadline)
-            _check_stop(stopped)
+            result = capture(observed_at, deadline)
+            check_stop(stopped)
             if time.monotonic() >= deadline:
-                raise PlaywrightTimeout("Card attempt deadline elapsed")
-            return snapshot
+                raise PlaywrightTimeout("Page attempt deadline elapsed")
+            return result
         except RejectedCard as error:
-            _check_stop(stopped)
+            check_stop(stopped)
             raise CollectionError(str(error)) from error
         except PlaywrightError as error:
-            _check_stop(stopped)
-            if "Execution context was destroyed" in str(error):
-                same_card = {
-                    "avito": avito.same_card,
-                    "cian": cian.same_card,
-                    "domclick": domclick.same_card,
-                }[source]
-                if not same_card(url, page.url):
-                    raise CollectionError("unexpected_redirect") from error
+            check_stop(stopped)
+            if page.is_closed():
+                raise
+            if "Execution context was destroyed" in str(error) and not accepts_redirect(
+                page.url
+            ):
+                raise CollectionError("unexpected_redirect") from error
             if retry or not (
                 isinstance(error, PlaywrightTimeout)
                 or any(code in str(error) for code in TRANSPORT_ERRORS)

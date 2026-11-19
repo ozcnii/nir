@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 import django
 from check_avito import verify_avito
+from check_cian_search import verify_cian_search
 from check_domclick import verify_domclick
 from check_saved_cards import verify_saved_cards
 from django.core.management import call_command
@@ -400,3 +401,4 @@ if __name__ == "__main__":
                 verify_avito()
                 verify_domclick()
                 verify_saved_cards()
+                verify_cian_search()

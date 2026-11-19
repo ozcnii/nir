@@ -11,7 +11,7 @@ from playwright.sync_api import Page
 from app.catalog.contracts import ActiveSnapshot
 from app.collection.collectors.cian import parse_card
 from app.collection.normalization import RejectedCard
-from app.collection.one_card import CollectionStopped, _read_card
+from app.collection.one_card import CollectionStopped, read_card
 from app.collection.tests.cian_fixture import FIXTURE, native_case, projection, script
 
 OBSERVED_AT = datetime(2026, 11, 18, 12, tzinfo=UTC)
@@ -177,7 +177,7 @@ class CianCardTests(TestCase):
             patch("app.collection.one_card.cian.capture_card", side_effect=rejected),
             self.assertRaises(CollectionStopped),
         ):
-            _read_card(cast(Page, page), url, "cian", stopped.is_set, None)
+            read_card(cast(Page, page), url, "cian", stopped.is_set, None)
 
     def test_replay_published_native_directions(self) -> None:
         expectations = {
