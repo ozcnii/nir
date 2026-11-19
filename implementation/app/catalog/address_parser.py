@@ -86,9 +86,13 @@ def canonical_street(street: str) -> str:
     return f"{kind} {name}" if name and kind else street
 
 
-def _address_role(component: str) -> str:
+def _address_role(component: str, *, room: bool = False) -> str:
     words = component.split()
+    if not words:
+        return "other"
     terms = {word.strip(".") for word in words}
+    if room and "участок" in terms:
+        return "parcel"
     ends = {words[0].strip("."), words[-1].strip(".")}
     if words[:2] == ["жилой", "комплекс"]:
         return "territory"
@@ -107,25 +111,30 @@ def _address_role(component: str) -> str:
 
 def _address_details(
     parts: tuple[str, ...], normalized: list[str], *, room: bool
-) -> tuple[int, dict[str, tuple[str, str]]] | None:
+) -> tuple[int, dict[str, tuple[str, str]], bool]:
     start = len(parts)
     details: dict[str, tuple[str, str]] = {}
     for i, part in enumerate(normalized):
         match = _TAG.fullmatch(part)
         if match is None:
             if details:
-                return None
+                return start, {}, False
+            if room and any(
+                part.startswith(tag) and not part[len(tag) : len(tag) + 1].isalpha()
+                for tag in _TAGS
+            ):
+                return i, {}, False
             continue
+        start = min(start, i)
         name, number = _TAGS[match[1]], match[2]
         if (
             name in details
             or (name in _ROOM_TAGS and not room)
             or (name not in ("корпус", "строение") and not number[0].isdigit())
         ):
-            return None
+            return start, {}, False
         details[name] = number, parts[i]
-        start = min(start, i)
-    return start, details
+    return start, details, True
 
 
 def _building_component(component: str) -> tuple[str, str, bool] | None:
@@ -152,61 +161,86 @@ def _typed_street(component: str, role: str) -> str | None:
     if role != "street" or not _ADDRESS_TOKEN.fullmatch(component):
         return None
     words = component.split()
-    if len(words) < 2 or set(words) & (_TERRITORIES | {"участок"}):
+    if len(words) < 2 or set(words) & _TERRITORIES:
         return None
     return canonical_street(component)
 
 
-def _partial_address(
+def _room_address(
+    parts: tuple[str, ...],
+    first: int,
     components: list[str],
-    roles: list[str],
-    buildings: list[tuple[str, str, bool] | None],
     details: dict[str, tuple[str, str]],
-) -> PartialAddress:
+    *,
+    complete_details: bool,
+) -> Address | PartialAddress:
     streets: dict[int, str] = {}
     localities: list[tuple[int, str, str]] = []
-    numbers: list[tuple[str, bool]] = []
-    for i, (label, role, building) in enumerate(
-        zip(components, roles, buildings, strict=True)
-    ):
-        if building is not None:
-            prefix, number, explicit = building
-            prefix_role = _address_role(prefix) if prefix else ""
-            if (
-                explicit
-                or _typed_street(prefix, prefix_role)
-                or (not prefix and i - 1 in streets)
-            ):
-                numbers.append((number, explicit))
-                label, role = prefix, prefix_role
-            elif not prefix:
-                continue
+    numbers: list[tuple[int, str, str]] = []
+    labels: list[str] = []
+    roles: list[str] = []
+    for i, label in enumerate(components):
+        role = _address_role(label, room=True)
         street = _typed_street(label, role)
+        building = _building_component(label)
+        if building is not None:
+            prefix, found_number, explicit = building
+            prefix_role = _address_role(prefix, room=True)
+            inline_street = _typed_street(prefix, prefix_role)
+            scope = None
+            if role == "parcel" or prefix_role == "parcel":
+                role, street = "parcel", None
+            elif explicit:
+                scope = "explicit"
+            elif inline_street is not None or (not prefix and i - 1 in streets):
+                scope = "street"
+            elif not prefix and numbers and numbers[-1][0] == i - 1:
+                # A second number in the same position makes the first ambiguous.
+                scope = "full"
+            elif i == len(components) - 1 and (
+                prefix_role == "name" or (not prefix and roles and roles[-1] == "name")
+            ):
+                scope = "full"
+
+            if scope is not None:
+                numbers.append((i, found_number, scope))
+                if not prefix:
+                    continue
+                label, role, street = prefix, prefix_role, inline_street
+            elif not prefix:
+                role = "other"
+
+        labels.append(label)
+        roles.append(role)
         if street is not None:
             streets[i] = street
         if role in ("settlement", "name"):
             localities.append((i, label, role))
 
+    number = None
     street_index = next(iter(streets)) if len(streets) == 1 else None
+    if len(numbers) == 1:
+        index, found, scope = numbers[0]
+        if complete_details and index == len(components) - 1:
+            full = _complete_address(parts, first, labels, roles, found, details)
+            if full is not None:
+                return full
+        if scope == "explicit" or (scope == "street" and street_index is not None):
+            number = found
+    elif len(numbers) > 1:
+        details = {}
+
     settlement = kind = None
     if len(localities) == 1:
         i, label, role = localities[0]
         # An untyped name is evidence only in the locality position before a typed street.
         if role == "settlement" or (street_index is not None and i < street_index):
             settlement, kind = _settlement_name(label, role) or (None, None)
-
-    building_number = None
-    if len(numbers) == 1:
-        number, explicit = numbers[0]
-        if explicit or street_index is not None:
-            building_number = number
-    elif numbers:
-        details = {}
     return PartialAddress(
         settlement,
         kind,
-        streets.get(street_index) if street_index is not None else None,
-        building_number,
+        streets[street_index] if street_index is not None else None,
+        number,
         details,
     )
 
@@ -231,34 +265,36 @@ def _read_address(
     if not value:
         return None
     parts = tuple(item.strip() for item in value.split(","))
-    if not all(parts):
+    if not room and not all(parts):
         return None
     normalized = [_component(_plain(item)) for item in parts]
-    parsed = _address_details(parts, normalized, room=room)
-    if parsed is None:
-        return None
-    detail_start, details = parsed
+    detail_start, details, complete_details = _address_details(
+        parts, normalized, room=room
+    )
     first = int(region is not None and normalized[0] == _plain(region))
     components = normalized[first:detail_start]
-    roles = [_address_role(part) for part in components]
-    buildings = [_building_component(part) for part in components]
-    terminal_building = buildings[-1] if buildings else None
-    if (
-        region is not None
-        and terminal_building is not None
-        and not any(part is not None and part[2] for part in buildings[:-1])
-    ):
-        inline_street, number, _ = terminal_building
-        complete_components, complete_roles = components[:-1], roles[:-1]
-        if inline_street:
-            complete_components.append(inline_street)
-            complete_roles.append(_address_role(inline_street))
-        address = _complete_address(
-            parts, first, complete_components, complete_roles, number, details
+    if room:
+        return _room_address(
+            parts,
+            first,
+            components,
+            details,
+            complete_details=complete_details and region is not None,
         )
-        if address is not None:
-            return address
-    return _partial_address(components, roles, buildings, details) if room else None
+    if not complete_details or region is None or not components:
+        return None
+    building = _building_component(components[-1])
+    if building is None or any(
+        part is not None and part[2]
+        for part in map(_building_component, components[:-1])
+    ):
+        return None
+    inline_street, number, _ = building
+    complete_components = components[:-1]
+    if inline_street:
+        complete_components.append(inline_street)
+    roles = [_address_role(part) for part in complete_components]
+    return _complete_address(parts, first, complete_components, roles, number, details)
 
 
 def _complete_address(

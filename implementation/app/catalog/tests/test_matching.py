@@ -63,6 +63,32 @@ class MatchingTests(TestCase):
         )
         self.assertIsNone(misplaced_street)
 
+    def test_full_room_address_requires_a_unique_building(self) -> None:
+        # Arrange
+        region = "Самарская область"
+        tail = "квартира 25, комната 2"
+        valid = "Самара, улица 8 Марта, 7"
+        incomplete = (
+            "Самара, участок 9",
+            "Самара, ул. Солнечная, участок 9",
+            "Самара, ул. Солнечная участок 9",
+            "Самара, ул. Солнечная, дом 7, участок 9",
+            "Самара, ул. Солнечная 7, 9",
+            "Самара, ул. Солнечная, 7, 9",
+        )
+
+        # Act
+        complete = parse_address(f"{valid}, {tail}", region, room=True)
+        results = [
+            parse_address(f"{address}, {tail}", region, room=True)
+            for address in incomplete
+        ]
+
+        # Assert
+        assert complete is not None
+        self.assertEqual((complete.street, complete.number), ("улица 8 марта", "7"))
+        self.assertEqual(results, [None] * len(incomplete))
+
     def test_room_repeat_compares_only_known_fields_in_incomplete_addresses(
         self,
     ) -> None:
@@ -115,6 +141,14 @@ class MatchingTests(TestCase):
             (f"{territory}, дом 7, дом 9, квартира 25", False),
             (f"{territory}, дом 7, квартира 25, комната 3, квартира 26", False),
             (f"{territory}, дом 7, квартира 25, другое здание, комната 3", False),
+            ("Самара, ул. Солнечная 7, 9, квартира 25", False),
+            ("Самара, ул. Солнечная, 7, 9, квартира 25", False),
+            ("Самара, участок 9, квартира 25, комната 2", False),
+            ("Самара, ул. Полевая, 7, квартира 25, квартира 26", True),
+            (f"{territory}, дом 9, квартира 25, квартира 26", True),
+            (f"{territory}, дом 9, кв25?, комната 2", True),
+            (f"{territory}, дом 9, квартира 25,, комната 2", True),
+            (f"{territory}, дом 7, кв25?, комната 3", False),
         )
 
         for address, conflict in cases:

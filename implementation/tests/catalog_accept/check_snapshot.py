@@ -140,6 +140,7 @@ class SnapshotTests(TestCase):
             {"rooms": None},
             {"area_m2": None, "floor": None},
         )
+        parcel = "Самара, участок 9, квартира 25, комната 2"
         with as_app():
             # Act
             a = self.accept(first)
@@ -148,6 +149,12 @@ class SnapshotTests(TestCase):
                 self.accept({**second, **changes, "external_id": f"room-{index}"})
                 for index, changes in enumerate(different)
             ]
+            first_parcel = self.accept(
+                {**first, "address": parcel, "external_id": "room-first-parcel"}
+            )
+            second_parcel = self.accept(
+                {**second, "address": parcel, "external_id": "room-second-parcel"}
+            )
 
         # Assert
         self.assertEqual(a.outcome, "created")
@@ -159,6 +166,10 @@ class SnapshotTests(TestCase):
             len({a.property_id, *(result.property_id for result in others)}),
             len(different) + 1,
         )
+        self.assertEqual(
+            (first_parcel.outcome, second_parcel.outcome), ("created", "created")
+        )
+        self.assertNotEqual(first_parcel.property_id, second_parcel.property_id)
 
     def test_room_standalone_scope_and_ambiguous_candidates(self) -> None:
         # Arrange: neither a room in an apartment nor the same number alone qualifies.
@@ -278,7 +289,7 @@ class SnapshotTests(TestCase):
             **later(full, 5),
             "address": (
                 "Самара, микрорайон Солнечный, улица Ставропольская, "
-                "131, корпус 2, квартира 25"
+                "131, корпус 2, квартира 25, квартира 26"
             ),
             "price": conflict["price"],
             "photos": conflict["photos"],
