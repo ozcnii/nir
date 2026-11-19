@@ -80,7 +80,7 @@ def seed_property_card() -> tuple[int, int]:
         external_id="listing-removed",
         url="https://example.test/domclick/archive/",
         description="Сохранённое снятое предложение.",
-        deal_type=DealType.SALE,
+        deal_type=DealType.MONTH_RENT,
         is_active=False,
         photos=[REMOVED_PHOTO],
         photos_observed_at=OBSERVED,
@@ -89,7 +89,7 @@ def seed_property_card() -> tuple[int, int]:
     PriceHistory.objects.create(
         ad=archived,
         observed_at=PRICE_RECORDED,
-        price_rub=Decimal("8000000"),
+        price_rub=Decimal("80000"),
         price_kind=PriceKind.LISTED,
     )
     removed = Property.objects.create(
@@ -167,21 +167,25 @@ def check_property_card(page: Page, live_server_url: str, ids: tuple[int, int]) 
     expect(daily.locator(".price")).to_have_text("от 4 000 руб./сут.")
 
     # Act: a failed first photo, a working second photo, and a removed publication.
-    expect(sale.get_by_text("Фото недоступно")).to_be_visible()
+    current_slide = sale.locator("[data-slide]:not([hidden])")
+    current_slide.scroll_into_view_if_needed()
+    expect(current_slide.get_by_text("Фото недоступно")).to_be_visible()
     sale.get_by_role("button", name="Следующее").click()
     page.get_by_text("Снятые объявления (1)", exact=True).click()
 
     # Assert: gallery navigation retains source URLs; removed data stays separate.
-    expect(sale.get_by_role("img", name="Фото 2")).to_be_visible()
+    expect(current_slide.get_by_role("img", name="Фото 2")).to_have_js_property(
+        "naturalWidth", 1
+    )
     expect(
         sale.get_by_role("link", name="Открыть опубликованное фото")
     ).to_have_attribute("href", PUBLISHED_PHOTO)
     sale.get_by_role("button", name="Предыдущее").click()
-    expect(sale.get_by_text("Фото недоступно")).to_be_visible()
+    expect(current_slide.get_by_text("Фото недоступно")).to_be_visible()
     removed = page.get_by_role("article").filter(has_text="Домклик · № listing-removed")
     expect(removed.get_by_text("Снято с публикации")).to_be_visible()
     expect(removed.get_by_text("Сохранённое снятое предложение.")).to_be_visible()
-    expect(removed.get_by_role("table")).to_contain_text("8 000 000 руб.")
+    expect(removed.get_by_role("table")).to_contain_text("80 000 руб./мес.")
     expect(
         removed.get_by_role("link", name="Открыть опубликованное фото")
     ).to_have_attribute("href", REMOVED_PHOTO)
