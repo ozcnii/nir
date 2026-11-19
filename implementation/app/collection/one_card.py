@@ -8,14 +8,16 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, Route
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from app.catalog.contracts import ActiveSnapshot, SnapshotResult
+from app.catalog.contracts import SnapshotResult
 from app.catalog.locks import run_session
 from app.catalog.publications import accept_snapshot
 from app.catalog.references import source_enabled
 from app.collection.browser import browser_page
 from app.collection.collectors.cian import (
+    CianSnapshot,
     capture_card,
     card_key,
+    same_card,
 )
 from app.collection.collectors.cian_fields import RejectedCard
 
@@ -51,8 +53,7 @@ def _without_media(route: Route) -> None:
 
 
 def collect_cian_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
-    key = card_key(url)
-    if key is None:
+    if card_key(url) is None:
         raise CollectionError("unsupported_card_url")
 
     _check_stop(stopped)
@@ -62,18 +63,16 @@ def collect_cian_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
         _check_stop(stopped)
         with browser_page() as page:
             page.route("**/*", _without_media)
-            snapshot = _read_card(page, url, key, stopped)
+            snapshot = _read_card(page, url, stopped)
 
         _check_stop(stopped)
         receipt = accept_snapshot(snapshot)
-        if receipt.outcome not in ("created", "updated", "unchanged"):
+        if receipt.outcome not in ("created", "updated", "unchanged", "not_found"):
             raise CollectionError(receipt.reason or receipt.outcome)
         return receipt
 
 
-def _read_card(
-    page: Page, url: str, key: str, stopped: Callable[[], bool]
-) -> ActiveSnapshot:
+def _read_card(page: Page, url: str, stopped: Callable[[], bool]) -> CianSnapshot:
     for retry in (False, True):
         _check_stop(stopped)
         observed_at = datetime.now(UTC)
@@ -89,7 +88,7 @@ def _read_card(
                 raise CollectionError("no_http_response")
             if not response.ok:
                 raise CollectionError(f"http_{response.status}")
-            snapshot = capture_card(page, url, key, observed_at, deadline)
+            snapshot = capture_card(page, url, observed_at, deadline)
             _check_stop(stopped)
             if time.monotonic() >= deadline:
                 raise PlaywrightTimeout("Card attempt deadline elapsed")
@@ -99,6 +98,10 @@ def _read_card(
             raise CollectionError(str(error)) from error
         except PlaywrightError as error:
             _check_stop(stopped)
+            if not same_card(
+                url, page.url
+            ) and "Execution context was destroyed" in str(error):
+                raise CollectionError("unexpected_redirect") from error
             if retry or not (
                 isinstance(error, PlaywrightTimeout)
                 or any(code in str(error) for code in TRANSPORT_ERRORS)
