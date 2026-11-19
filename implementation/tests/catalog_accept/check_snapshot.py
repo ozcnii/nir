@@ -348,12 +348,12 @@ class SnapshotTests(TestCase):
         )
         self.assertEqual(after_move_history, history)
 
-    def test_room_repeat_retains_district_and_ambiguous_house(self) -> None:
+    def test_room_repeat_compares_known_location_with_incomplete_unit(self) -> None:
         from app.catalog.models import Ad, PriceHistory
 
         # Arrange
         address = (
-            "Красноярский район, село Красный Яр, улица Советская, "
+            "Красноярский район, село Красный Яр, Советская, "
             "дом 7, корпус 2, квартира 25, комната 2"
         )
         source: ActiveSnapshot = {
@@ -365,7 +365,7 @@ class SnapshotTests(TestCase):
         changed_district: ActiveSnapshot = {
             **later(source, 1),
             "address": address.replace("Красноярский", "Приволжский")
-            .replace("улица Советская", "Советский район, Советская")
+            .replace("Советская", "Советский район, Советская")
             .replace("комната 2", "комната ?"),
             "price": price("6000000"),
             "photos": {"status": "known", "urls": []},
@@ -374,8 +374,15 @@ class SnapshotTests(TestCase):
             **later(changed_district, 2),
             "address": f"{address.replace('дом 7', 'дом 9')}, дом 9",
         }
+        changed_street: ActiveSnapshot = {
+            **later(changed_district, 3),
+            "address": address.replace(
+                "Советская", "Советский район, Кировская"
+            ).replace("комната 2", "комната ?"),
+        }
+        changed_region: ActiveSnapshot = {**later(changed_street, 4), "region_id": 69}
         ambiguous_building: ActiveSnapshot = {
-            **later(source, 3),
+            **later(source, 5),
             "address": f"{address.replace('дом 7', 'дом 9')}, дом 7",
             "price": price("7000000"),
         }
@@ -386,8 +393,15 @@ class SnapshotTests(TestCase):
             history = PriceHistory.objects.filter(ad_id=first.ad_id).order_by("id")
 
             # Act
-            district_conflict = self.accept(changed_district)
-            house_conflict = self.accept(changed_house)
+            conflicts = [
+                self.accept(snapshot)
+                for snapshot in (
+                    changed_district,
+                    changed_house,
+                    changed_street,
+                    changed_region,
+                )
+            ]
             after_conflict = ad.values_list(
                 "property_id", "property__address", "observed_at", "photos"
             ).get()
@@ -399,8 +413,8 @@ class SnapshotTests(TestCase):
 
         # Assert
         self.assertEqual(
-            (district_conflict.outcome, house_conflict.outcome),
-            ("conflict", "conflict"),
+            [conflict.outcome for conflict in conflicts],
+            ["conflict"] * 4,
         )
         self.assertEqual(after_conflict, (first.property_id, address, START, [PHOTO]))
         self.assertEqual(compatible.outcome, "updated")

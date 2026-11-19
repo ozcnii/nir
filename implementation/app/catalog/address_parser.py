@@ -3,7 +3,7 @@
 import re
 import unicodedata
 
-from app.catalog.address import Address, PartialAddress
+from app.catalog.address import STREET_TYPES, Address, PartialAddress
 
 _NUMBER = r"[0-9]+[а-я]?(?:[-/][0-9]+[а-я]?)*"
 _PREFIXES = {
@@ -32,17 +32,6 @@ _TAGS = {
 _ROOM_TAGS = {"комната", "комната дома"}
 _DETAIL_MARKERS = sorted(_TAGS, key=len, reverse=True)
 _TAG = re.compile(rf"({'|'.join(_DETAIL_MARKERS)})\.?\s*(?:№\s*)?({_NUMBER}|[а-я])")
-_STREET_TYPES = (
-    "улица",
-    "проспект",
-    "переулок",
-    "бульвар",
-    "шоссе",
-    "набережная",
-    "проезд",
-    "площадь",
-    "тракт",
-)
 _DISTRICTS = {"район", "р-н"}
 _SETTLEMENT_TYPES = {"город", "село", "поселок", "деревня", "станица", "хутор", "аул"}
 _TERRITORIES = {
@@ -80,7 +69,7 @@ def _component(value: str) -> str:
 
 def _street_type(word: str) -> str | None:
     kind = _PREFIXES.get(word, word).strip(".")
-    return kind if kind in _STREET_TYPES else None
+    return kind if kind in STREET_TYPES else None
 
 
 def canonical_street(street: str) -> str:
@@ -173,15 +162,17 @@ def _building_component(component: str) -> tuple[str, str, bool] | None:
     return component[: match.start()].rstrip(), match[2], match[1] is not None
 
 
-def _room_building(component: str) -> tuple[str, str | None, bool] | None:
+def _room_building(component: str) -> tuple[str, str | None, bool, bool] | None:
     matches = list(_EXPLICIT_HOUSE.finditer(component))
     if not matches:
-        return _building_component(component)
+        building = _building_component(component)
+        return (*building, True) if building is not None else None
     first = matches[0]
     prefix = component[: first.start()].rstrip()
-    if len(matches) == 1 and first.end() == len(component):
-        return prefix, first[1], True
-    return prefix, None, True
+    known = matches[-1].end() == len(component) and all(
+        match[1] == first[1] for match in matches
+    )
+    return prefix, first[1] if known else None, True, known and len(matches) == 1
 
 
 def _settlement_name(component: str, role: str) -> tuple[str, str | None] | None:
@@ -229,6 +220,7 @@ def _room_address(
     numbers: list[tuple[int, str, str]] = []
     late_numbers: set[str] = set()
     ambiguous_number = False
+    strict_building = True
     labels: list[str] = []
     roles: list[str] = []
     for i, label in enumerate(components):
@@ -245,7 +237,7 @@ def _room_address(
             continue
         street = _typed_street(label, role)
         if building is not None:
-            prefix, found_number, explicit = building
+            prefix, found_number, explicit, complete_building = building
             prefix_role = _address_role(prefix, room=True)
             inline_street = _typed_street(prefix, prefix_role)
             scope = None
@@ -269,6 +261,7 @@ def _room_address(
                 scope = "full"
 
             if scope is not None and found_number is not None:
+                strict_building = strict_building and complete_building
                 numbers.append((i, found_number, scope))
                 if not prefix:
                     continue
@@ -285,34 +278,43 @@ def _room_address(
         if role == "district" and (district := _district_name(label)) is not None:
             districts[i] = district
 
+    # A sole name in the street position can be compared even if the full
+    # chain is invalid. Without a typed place, require the simple address order.
+    if not streets and numbers and len(localities) == 2:
+        place, (index, label, role) = localities
+        if (
+            role == "name"
+            and _ADDRESS_TOKEN.fullmatch(label)
+            and numbers[0][0] - index in (0, 1)
+            and (
+                place[2] == "settlement"
+                or all(role in ("name", "district") for role in roles)
+            )
+        ):
+            streets[index] = canonical_street(label)
+            localities.pop()
+
     number = None
     street_index = next(iter(streets)) if len(streets) == 1 else None
-    if (
-        ambiguous_number
-        or len(numbers) > 1
-        or late_numbers.difference(found for _, found, _ in numbers)
-    ):
+    possible_numbers = {found for _, found, _ in numbers} | late_numbers
+    if ambiguous_number or len(possible_numbers) > 1:
         details = {}
     elif numbers:
-        index, found, scope = numbers[0]
-        if index == detail_offset - 1:
+        index, found, _ = numbers[0]
+        if (
+            strict_building
+            and len(numbers) == 1
+            and index == detail_offset - 1
+            and complete_details
+            and not late_numbers
+        ):
             full = _complete_address(parts, first, labels, roles, found, details)
             if full is not None:
-                if complete_details and not late_numbers:
-                    return full
-                return PartialAddress(
-                    settlement=full.settlement,
-                    settlement_kind=full.settlement_kind,
-                    enclosing_district=full.enclosing_district,
-                    district=full.district,
-                    street=full.street,
-                    number=full.number,
-                    details=full.details,
-                )
-        if (
+                return full
+        if found in late_numbers or any(
             scope == "explicit"
-            or (scope == "street" and street_index is not None)
-            or found in late_numbers
+            or (street_index is not None and index - street_index in (0, 1))
+            for index, _, scope in numbers
         ):
             number = found
 
@@ -322,7 +324,7 @@ def _room_address(
         localities = explicit_localities
     if len(localities) == 1:
         i, label, role = localities[0]
-        # An untyped name is evidence only in the locality position before a typed street.
+        # An untyped settlement needs a resolved street later in the chain.
         if role == "settlement" or (street_index is not None and i < street_index):
             settlement, kind = _settlement_name(label, role) or (None, None)
         if settlement is not None:

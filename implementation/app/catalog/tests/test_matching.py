@@ -175,6 +175,8 @@ class MatchingTests(TestCase):
             (f"{territory}, дом 9, квартира 25, комната 2, дом 7", False),
             (f"{territory}, дом 9, квартира 25, дом 7, комната 2", False),
             (f"{territory}, дом 9, квартира 25, комната 2, дом 9", True),
+            (f"{territory}, дом 9, дом 9, квартира 25, комната 2", True),
+            (f"{territory} дом 9 дом 9, квартира 25, комната 2", True),
             (f"{territory}, 9, квартира 25, комната 2, дом 9", True),
             (f"{territory}, дом 7, квартира 25, комната 2, дом 7", False),
             (f"{territory}, дом 9, квартира 25, участок 7", True),
@@ -234,6 +236,22 @@ class MatchingTests(TestCase):
                 True,
             ),
             (untyped_street, two_districts_untyped_street, False),
+            (
+                two_districts_untyped_street.replace("Красноярский район, ", ""),
+                two_districts_untyped_street.replace("Советская", "Кировская"),
+                True,
+            ),
+            (saved_address, two_districts_untyped_street, False),
+            (
+                saved_address,
+                two_districts_untyped_street.replace("Советская", "переулок Советская"),
+                True,
+            ),
+            (
+                saved_address,
+                two_districts_untyped_street.replace("Советская", "Кировская, Полевая"),
+                False,
+            ),
         )
 
         for old, address, conflict in cases:

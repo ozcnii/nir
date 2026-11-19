@@ -3,6 +3,18 @@
 from collections.abc import Collection
 from dataclasses import dataclass
 
+STREET_TYPES = (
+    "улица",
+    "проспект",
+    "переулок",
+    "бульвар",
+    "шоссе",
+    "набережная",
+    "проезд",
+    "площадь",
+    "тракт",
+)
+
 
 @dataclass(frozen=True)
 class PartialAddress:
@@ -46,7 +58,7 @@ class Address:
         return None
 
 
-def location_conflicts(
+def _geography_conflicts(
     left: Address | PartialAddress, right: Address | PartialAddress
 ) -> bool:
     return any(
@@ -56,17 +68,36 @@ def location_conflicts(
             (left.settlement_kind, right.settlement_kind),
             (left.enclosing_district, right.enclosing_district),
             (left.district, right.district),
-            (left.street, right.street),
             (left.number, right.number),
         )
+    )
+
+
+def _street_parts(street: str) -> tuple[str | None, str]:
+    kind, _, name = street.partition(" ")
+    return (kind, name) if name and kind in STREET_TYPES else (None, street)
+
+
+def location_conflicts(
+    left: Address | PartialAddress, right: Address | PartialAddress
+) -> bool:
+    if _geography_conflicts(left, right):
+        return True
+    if left.street is None or right.street is None:
+        return False
+    left_kind, left_name = _street_parts(left.street)
+    right_kind, right_name = _street_parts(right.street)
+    return left_name != right_name or (
+        left_kind is not None and right_kind is not None and left_kind != right_kind
     )
 
 
 def same_house(left: Address, right: Address) -> bool:
     return (
         left.locality == right.locality
+        and left.street == right.street
         and left.building_parts == right.building_parts
-        and not location_conflicts(left, right)
+        and not _geography_conflicts(left, right)
     )
 
 
@@ -86,7 +117,8 @@ def details_conflict(
 def address_conflicts(previous: Address, incoming: Address) -> bool:
     return (
         previous.locality != incoming.locality
-        or location_conflicts(previous, incoming)
+        or previous.street != incoming.street
+        or _geography_conflicts(previous, incoming)
         or details_conflict(previous, incoming)
     )
 
