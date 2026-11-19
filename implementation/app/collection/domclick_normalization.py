@@ -16,7 +16,13 @@ from app.catalog.contracts import (
     is_database_text,
     is_photo_url,
 )
-from app.catalog.reference_defaults import REGIONS
+from app.catalog.reference_defaults import (
+    APARTMENT_TYPE_ID,
+    HOUSE_TYPE_ID,
+    REGIONS,
+    ROOM_TYPE_ID,
+    SAMARA_REGION_ID,
+)
 from app.collection.collectors.domclick_state import NuxtState
 from app.collection.collectors.domclick_units import (
     check_house,
@@ -35,12 +41,12 @@ from app.collection.normalization import (
 
 _REGIONS = {name.casefold(): ident for ident, name in REGIONS}
 TYPE_IDS = {
-    "flat": 1,
-    "new_flat": 1,
-    "room": 2,
-    "house": 3,
-    "house_part": 3,
-    "townhouse": 3,
+    "flat": APARTMENT_TYPE_ID,
+    "new_flat": APARTMENT_TYPE_ID,
+    "room": ROOM_TYPE_ID,
+    "house": HOUSE_TYPE_ID,
+    "house_part": HOUSE_TYPE_ID,
+    "townhouse": HOUSE_TYPE_ID,
 }
 
 
@@ -235,8 +241,8 @@ def normalize_native_card(
     info = _record(data.get("objectInfo"))
     house = _record(_record(data.get("house")).get("info"))
     property_type_id = TYPE_IDS[native_type]
-    is_house = property_type_id == 3
-    is_room = property_type_id == 2
+    is_house = property_type_id == HOUSE_TYPE_ID
+    is_room = property_type_id == ROOM_TYPE_ID
     floor, floors = _floors(
         None if is_house else info.get("floor"), house.get("floors")
     )
@@ -337,7 +343,7 @@ def normalize_new_flat_card(
         "state": "active",
         "url": url,
         "region_id": next(iter(subjects)),
-        "property_type_id": TYPE_IDS["flat"],
+        "property_type_id": APARTMENT_TYPE_ID,
         "deal_type": "sale",
         "market_segment": "new_build",
         "address": _with_flat_number(
@@ -358,7 +364,7 @@ def normalize_new_flat_card(
 
 
 # The partner exposes a locality ID and title in the card, without a subject.
-_PARTNER_REGIONS = {(366640, "Новокуйбышевск"): 68}
+_PARTNER_REGIONS = {(366640, "Новокуйбышевск"): SAMARA_REGION_ID}
 
 
 def _partner_properties(
@@ -460,7 +466,7 @@ def normalize_partner_card(
         "state": "active",
         "url": url,
         "region_id": region_id,
-        "property_type_id": TYPE_IDS["flat"],
+        "property_type_id": APARTMENT_TYPE_ID,
         "deal_type": deal,
         "market_segment": None,
         "address": address,
@@ -556,7 +562,7 @@ def normalize_daily_card(
         "state": "active",
         "url": url,
         "region_id": region_id,
-        "property_type_id": TYPE_IDS["flat"],
+        "property_type_id": APARTMENT_TYPE_ID,
         "deal_type": deal,
         "market_segment": None,
         "address": _address(address),

@@ -1,10 +1,13 @@
 """Replay the observed card families through collect and the restricted app role."""
 
 import json
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 from decimal import Decimal
+from functools import partial
 from io import StringIO
 from typing import cast
 from unittest.mock import patch
@@ -14,21 +17,27 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from playwright.sync_api import Page, Route
 
+from app.catalog.contracts import Snapshot, SnapshotResult
 from app.catalog.reference_defaults import (
     APARTMENT_TYPE_ID as FLAT,
 )
 from app.catalog.reference_defaults import (
     HOUSE_TYPE_ID,
     ROOM_TYPE_ID,
+    SAMARA_REGION_ID,
 )
 from app.collection.browser import browser_page
+from app.collection.collectors import avito, domclick
+from app.collection.tests.avito_fixture import DAILY_LISTING_LABEL
 from app.collection.tests.avito_fixture import projection as avito_projection
 from app.collection.tests.avito_fixture import projection_html as avito_html
 from app.collection.tests.cian_fixture import FIXTURE, projection_html
 from app.collection.tests.domclick_fixture import (
     DAILY,
     DAILY_PHOTO,
+    LISTING,
     PARTNER,
+    daily_listing_parts,
     daily_projection,
     daily_ssr,
     nuxt_script,
@@ -36,6 +45,8 @@ from app.collection.tests.domclick_fixture import (
     ssr,
 )
 from app.collection.tests.test_cian_partner import PARTNER_CASES, partner_card
+
+_QUERY_CONTEXT = "?utm_source=replay#card"
 
 
 @dataclass(frozen=True)
@@ -50,6 +61,7 @@ class SavedCard:
     rooms: int | None
     price: tuple[int, str] | None
     segment: str | None = None
+    region_id: int = SAMARA_REGION_ID
 
 
 def _avito_cards() -> Iterator[SavedCard]:
@@ -57,7 +69,6 @@ def _avito_cards() -> Iterator[SavedCard]:
         ("new_build", "sale", FLAT, "48.10", 2, 14766700, "new_build"),
         ("house", "sale", HOUSE_TYPE_ID, "59.20", 2, 6250000, None),
         ("month_rent", "month_rent", FLAT, "64.00", 2, 43000, None),
-        ("day_rent", "day_rent", FLAT, "42.00", 1, None, None),
     ):
         card = avito_projection(family)
         key = card["url"].rsplit("_", 1)[-1]
@@ -228,41 +239,30 @@ def _domclick_cards() -> Iterator[SavedCard]:
         1,
         None,
     )
-    html = (
-        f"<script>{daily_ssr(daily_projection())}</script>"
-        f'<div data-e2e-id="gallery-widget"><img src="{DAILY_PHOTO}"></div>'
-    )
-    yield SavedCard(
-        "domclick",
-        urlsplit(DAILY).path,
-        DAILY,
-        html,
-        "day_rent",
-        FLAT,
-        "36.00",
-        1,
-        None,
-    )
 
 
-def _collect(url: str, html: str) -> dict[str, object]:
+@contextmanager
+def _fixture_page(documents: dict[str, str]) -> Iterator[Page]:
     def serve(route: Route) -> None:
-        if route.request.url.split("?", 1)[0] == url:
+        html = documents.get(route.request.url.split("?", 1)[0])
+        if html is None:
+            route.abort()
+        else:
             route.fulfill(
                 status=200, content_type="text/html; charset=utf-8", body=html
             )
-        else:
-            route.abort()
 
-    @contextmanager
-    def local_page() -> Iterator[Page]:
-        with browser_page() as page:
-            page.route("**/*", serve)
-            yield page
+    with browser_page() as page:
+        page.route("**/*", serve)
+        yield page
 
+
+def _collect(url: str, html: str) -> dict[str, object]:
     output = StringIO()
-    with patch("app.collection.one_card.browser_page", local_page):
-        call_command("collect", url + "?utm_source=replay#card", stdout=output)
+    with patch(
+        "app.collection.one_card.browser_page", partial(_fixture_page, {url: html})
+    ):
+        call_command("collect", url + _QUERY_CONTEXT, stdout=output)
     return cast(dict[str, object], json.loads(output.getvalue()))
 
 
@@ -282,6 +282,7 @@ def _verify_active(case: SavedCard) -> None:
     assert created["property_id"] == ad.property_id, case
     assert ad.deal_type == case.deal and ad.market_segment == case.segment, case
     assert ad.property.property_type_id == case.property_type, case
+    assert ad.property.region_id == case.region_id, case
     assert (
         ad.property.area_m2 == Decimal(case.area) and ad.property.rooms == case.rooms
     ), case
@@ -293,6 +294,109 @@ def _verify_active(case: SavedCard) -> None:
     print(
         f"{case.source} {case.key}: {case.deal}, {case.area} m², price {case.price}: verified"
     )
+
+
+def _verify_quote_history(
+    case: SavedCard,
+    snapshots: tuple[Snapshot | SnapshotResult, ...],
+    amount: str,
+    kind: str,
+) -> None:
+    from app.catalog.models import Ad, PriceHistory, Property
+    from app.catalog.publications import accept_snapshot
+
+    # Arrange: direct collect already stored this card with an empty price history.
+    ad = Ad.objects.get(source_id=case.source, external_id=case.key)
+    prices = PriceHistory.objects.filter(ad=ad)
+    counts = (Ad.objects.count(), Property.objects.count())
+    expectations = ((False, False), (True, True), (True, False))
+    for snapshot, (matching_id, changes_price) in zip(
+        snapshots, expectations, strict=True
+    ):
+        # Act: same card with a foreign quote, then twice with its published quote.
+        assert (
+            not isinstance(snapshot, SnapshotResult) and snapshot["state"] == "active"
+        )
+        receipt = accept_snapshot(snapshot)
+
+        # Assert: the first confirmed price updates one existing publication.
+        assert receipt.outcome == ("updated" if changes_price else "unchanged")
+        assert (receipt.ad_id, receipt.property_id) == (ad.id, ad.property_id)
+        assert receipt.price_changed is changes_price
+        expected = [(Decimal(amount), kind)] if matching_id else []
+        assert list(prices.values_list("price_rub", "price_kind")) == expected
+        assert (Ad.objects.count(), Property.objects.count()) == counts
+
+    print(
+        f"{case.source} {case.key}: {amount}/{kind} recorded once; foreign quote ignored"
+    )
+
+
+def verify_saved_daily_quotes() -> None:
+    # Arrange: use the collected item and its observed listing label from 6.1.
+    card = avito_projection("day_rent")
+    url = card["url"]
+    avito_case = SavedCard(
+        "avito",
+        "4595685717",
+        url,
+        avito_html(card),
+        "day_rent",
+        FLAT,
+        "42.00",
+        1,
+        None,
+    )
+    _verify_active(avito_case)
+    with _fixture_page({url: avito_case.html}) as page:
+        page.goto(url + _QUERY_CONTEXT)
+
+        wrong_url = url.replace("4595685717", "4595685718")
+        avito_snapshots = tuple(
+            avito.capture_card(
+                page,
+                url,
+                datetime.now(UTC),
+                time.monotonic() + 5,
+                listing_price=(quote_url, DAILY_LISTING_LABEL),
+            )
+            for quote_url in (wrong_url, url, url)
+        )
+    _verify_quote_history(avito_case, avito_snapshots, "4980.00", "from")
+
+    # Arrange: the same confirmed UUID in the main list and the Domclick 24 card.
+    card_html = (
+        f"<script>{daily_ssr(daily_projection())}</script>"
+        f'<div data-e2e-id="gallery-widget"><img src="{DAILY_PHOTO}"></div>'
+    )
+    domclick_case = SavedCard(
+        "domclick",
+        urlsplit(DAILY).path,
+        DAILY,
+        card_html,
+        "day_rent",
+        FLAT,
+        "36.00",
+        1,
+        None,
+    )
+    _verify_active(domclick_case)
+    controls, primary = daily_listing_parts()
+    listing_html = f'{controls}<div id="app"><div>{primary}</div></div>'
+    with _fixture_page({LISTING: listing_html, DAILY: card_html}) as page:
+        page.goto(LISTING)
+        quote = domclick.read_daily_listing_quote(page, DAILY)
+        assert quote is not None
+        wrong_url = DAILY.replace("1999c326", "1999c327")
+        assert domclick.read_daily_listing_quote(page, wrong_url) is None
+        wrong_quote = replace(quote, card_url=wrong_url)
+        page.goto(DAILY + _QUERY_CONTEXT)
+
+        domclick_snapshots = tuple(
+            domclick.read_card(page, DAILY, datetime.now(UTC), quote=listing_quote)
+            for listing_quote in (wrong_quote, quote, quote)
+        )
+    _verify_quote_history(domclick_case, domclick_snapshots, "3910.00", "listed")
 
 
 def _verify_no_active_write(url: str, html: str, reason: str) -> None:
@@ -326,6 +430,7 @@ def _verify_no_active_write(url: str, html: str, reason: str) -> None:
 def verify_saved_cards() -> None:
     for case in (*_avito_cards(), *_cian_cards(), *_domclick_cards()):
         _verify_active(case)
+    verify_saved_daily_quotes()
 
     url, _, html = _cian_observation("sale_room")
     _verify_no_active_write(url, html, "conflicting_room_area")

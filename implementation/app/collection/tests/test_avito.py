@@ -9,10 +9,16 @@ from playwright.sync_api import Route, sync_playwright
 from app.catalog.contracts import Snapshot, SnapshotResult
 from app.collection.collectors.avito import capture_card, parse_card
 from app.collection.normalization import RejectedCard, as_object
-from app.collection.tests.avito_fixture import Projection, projection, projection_html
+from app.collection.tests.avito_fixture import (
+    DAILY_LISTING_LABEL as DAILY_LABEL,
+)
+from app.collection.tests.avito_fixture import (
+    Projection,
+    projection,
+    projection_html,
+)
 
 OBSERVED_AT = datetime(2026, 11, 18, 16, tzinfo=UTC)
-DAILY_LABEL = "от 4 980 ₽ за 1 сутки"
 
 
 def item_for(card: Projection) -> dict[str, object]:

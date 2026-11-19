@@ -5,6 +5,9 @@ from html import escape
 from pathlib import Path
 from typing import TypedDict, cast
 
+# The published position of card 4595685717, FINAL61-STATUS.md.
+DAILY_LISTING_LABEL = "от 4 980 ₽ за 1 сутки"
+
 _FILE = Path(__file__).with_name("fixtures") / "avito-6.1.json"
 
 

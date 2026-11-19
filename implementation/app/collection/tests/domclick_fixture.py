@@ -137,3 +137,35 @@ def daily_ssr(data: dict[str, object]) -> str:
             }
         }
     )
+
+
+def daily_listing_parts() -> tuple[str, str]:
+    # Preserve the observed one-night primary result and its SSR identity.
+    expected_uuid = DAILY.rsplit("/", 1)[1]
+    state = ssr(
+        {
+            "serp": {
+                "ids": [expected_uuid.upper()],
+                "fetchStatus": "success",
+                "outdatedSearch": False,
+                "invalidParams": False,
+                "searchData": {"adt": 1},
+            }
+        }
+    )
+    controls = (
+        '<div data-e2e-id="search-form-datepicker"><input value=""></div>'
+        '<div data-e2e-id="search-form-guests-control"><input value="1 гость"></div>'
+    )
+    primary = (
+        '<div data-e2e-id="snippet-item">'
+        f'<a href="{DAILY}">Card</a>'
+        '<span data-e2e-id="short-rent-price">3 910 ₽</span>'
+        '<span data-e2e-id="short-rent-price-per-night">3 910 ₽ за сутки</span>'
+        "</div>"
+    )
+    rows = f'<div class="N05bk"><div><div data-index="0">{primary}</div></div></div>'
+    result_section = f'<section class="QrLw3"><div>{rows}</div></section>'
+    content = f"<script>{state}</script>{controls}"
+
+    return content, result_section

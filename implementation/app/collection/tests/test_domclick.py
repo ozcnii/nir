@@ -24,6 +24,7 @@ from app.collection.tests.domclick_fixture import (
     OBSERVED,
     PARTNER,
     ROOM,
+    daily_listing_parts,
     daily_projection,
     daily_ssr,
     native_proposal,
@@ -1139,34 +1140,10 @@ class DomclickTests(TestCase):
     ) -> None:
         # Arrange: replay selected live DOM controls and publication-shaped state.
         expected_uuid = DAILY.rsplit("/", 1)[1]
-        state = ssr(
-            {
-                "serp": {
-                    "ids": [expected_uuid.upper()],
-                    "fetchStatus": "success",
-                    "outdatedSearch": False,
-                    "invalidParams": False,
-                    "searchData": {"adt": 1},
-                }
-            }
-        )
-        controls = (
-            '<div data-e2e-id="search-form-datepicker"><input value=""></div>'
-            '<div data-e2e-id="search-form-guests-control"><input value="1 гость"></div>'
-        )
-        primary = (
-            '<div data-e2e-id="snippet-item">'
-            f'<a href="{DAILY}">Card</a>'
-            '<span data-e2e-id="short-rent-price">3 910 ₽</span>'
-            '<span data-e2e-id="short-rent-price-per-night">3 910 ₽ за сутки</span>'
-            "</div>"
-        )
-        rows = (
-            f'<div class="N05bk"><div><div data-index="0">{primary}</div></div></div>'
-        )
-        result_section = f'<section class="QrLw3"><div>{rows}</div></section>'
-        recommendation = f'<section aria-label="Рекомендации">{rows.replace("3 910", "1 900")}</section>'
-        content = f"<script>{state}</script>{controls}"
+        content, result_section = daily_listing_parts()
+        recommendation = result_section.replace(
+            '<section class="QrLw3">', '<section aria-label="Рекомендации">'
+        ).replace("3 910", "1 900")
 
         def layout(body: str) -> str:
             return f'{content}<div id="app"><div>{body}</div></div>'
