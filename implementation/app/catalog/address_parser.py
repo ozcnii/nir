@@ -8,6 +8,7 @@ from itertools import pairwise
 from app.catalog.address import STREET_TYPES, Address, PartialAddress
 
 _NUMBER = r"[0-9]+[а-я]?(?:[-/][0-9]+[а-я]?)*"
+_HOUSE_NUMBER = re.compile(_NUMBER)
 _PREFIXES = {
     "г.": "город",
     "с.": "село",
@@ -32,6 +33,7 @@ _TAGS = {
     "комната дома": "комната дома",
 }
 _ROOM_TAGS = {"комната", "комната дома"}
+_FLAT_DETAILS = set(_TAGS.values()) - _ROOM_TAGS
 _DETAIL_MARKERS = sorted(_TAGS, key=len, reverse=True)
 _TAG = re.compile(rf"({'|'.join(_DETAIL_MARKERS)})\.?\s*(?:№\s*)?({_NUMBER}|[а-я])")
 _DISTRICTS = {"район", "р-н"}
@@ -53,6 +55,7 @@ _TERRITORIES = {
 }
 _HOUSE_MARKER = r"(?:дом|д\.)\s*(?:№\s*)?"
 _HOUSE = re.compile(rf"(?<!\S)({_HOUSE_MARKER})?({_NUMBER})\Z")
+_FLAT_HOUSE = re.compile(rf"(?:дом\s*|д\.\s*)?({_NUMBER})")
 _EXPLICIT_HOUSE = re.compile(rf"(?<![\w/-]){_HOUSE_MARKER}({_NUMBER})(?![\w/-])")
 _ADDRESS_TOKEN = re.compile(r"[а-я][а-я0-9 .’'-]*")
 _ADDRESS_FORMAT = str.maketrans("ё–—", "е--")
@@ -74,9 +77,11 @@ def _street_type(word: str) -> str | None:
     return kind if kind in STREET_TYPES else None
 
 
-def canonical_street(street: str) -> str:
+def _canonical_street(street: str, *, room: bool) -> str:
     name, _, suffix = street.rpartition(" ")
-    kind = _street_type(suffix)
+    kind = suffix if suffix in STREET_TYPES else None
+    if room and kind is None:
+        kind = _street_type(suffix)
     return f"{kind} {name}" if name and kind else street
 
 
@@ -92,13 +97,15 @@ def _address_role(component: str, *, room: bool = False) -> str:
         return "territory"
     if ends & _SETTLEMENT_TYPES:
         return "settlement"
-    if _street_type(words[0]) or _street_type(words[-1]):
+    if ends.intersection(STREET_TYPES) or (
+        room and any(_street_type(word) for word in (words[0], words[-1]))
+    ):
         return "street"
     if ends & _DISTRICTS:
         return "district"
     if terms & (_TERRITORIES | _DISTRICTS):
         return "territory"
-    if ends.intersection((*_TAGS.values(), "дом")):
+    if "дом" in ends or ends & _FLAT_DETAILS or (room and ends & _ROOM_TAGS):
         return "other"
     return "name"
 
@@ -121,7 +128,7 @@ def _address_details(
     complete = True
     for i, part in enumerate(normalized):
         match = _TAG.fullmatch(part)
-        if match is None:
+        if match is None or (not room and _TAGS[match[1]] in _ROOM_TAGS):
             name = _detail_name(part) if room else None
             number = None
         else:
@@ -136,7 +143,6 @@ def _address_details(
         if (
             number is None
             or name in unresolved
-            or (name in _ROOM_TAGS and not room)
             or (name not in ("корпус", "строение") and not number[0].isdigit())
             or (previous is not None and (not room or previous[0] != number))
         ):
@@ -170,6 +176,19 @@ def _building_component(component: str) -> tuple[str, str, bool] | None:
     if match is None:
         return None
     return component[: match.start()].rstrip(), match[2], match[1] is not None
+
+
+def _flat_building_component(component: str) -> tuple[str, str] | None:
+    house = _FLAT_HOUSE.fullmatch(component)
+    if house is not None:
+        return "", house[1]
+    street, separator, number = component.rpartition(" ")
+    if not separator or not _HOUSE_NUMBER.fullmatch(number):
+        return None
+    street_name, _, marker = street.rpartition(" ")
+    if street_name and marker in ("дом", "д."):
+        street = street_name
+    return street, number
 
 
 def _room_building(component: str) -> tuple[str, str | None, bool, bool] | None:
@@ -218,7 +237,7 @@ def _typed_street(component: str, role: str) -> str | None:
     words = component.split()
     if len(words) < 2 or set(words) & _TERRITORIES:
         return None
-    return canonical_street(component)
+    return _canonical_street(component, room=True)
 
 
 def _unique[T](choices: set[T]) -> T | None:
@@ -328,7 +347,7 @@ def _room_address(
                 or all(role in ("name", "district") for role in roles)
             )
         ):
-            streets[index] = canonical_street(label)
+            streets[index] = _canonical_street(label, room=True)
             localities.pop()
 
     number = None
@@ -345,7 +364,9 @@ def _room_address(
             and complete_details
             and not late_numbers
         ):
-            full = _complete_address(parts, first, labels, roles, found, details)
+            full = _complete_address(
+                parts, first, labels, roles, found, details, room=True
+            )
             if full is not None:
                 return full
         if found in late_numbers or any(
@@ -424,18 +445,17 @@ def _read_address(
     components = normalized[first:detail_start]
     if not complete_details or region is None or not components:
         return None
-    building = _building_component(components[-1])
-    if building is None or any(
-        part is not None and part[2]
-        for part in map(_building_component, components[:-1])
-    ):
+    building = _flat_building_component(components[-1])
+    if building is None:
         return None
-    inline_street, number, _ = building
+    inline_street, number = building
     complete_components = components[:-1]
     if inline_street:
         complete_components.append(inline_street)
     roles = [_address_role(part) for part in complete_components]
-    return _complete_address(parts, first, complete_components, roles, number, details)
+    return _complete_address(
+        parts, first, complete_components, roles, number, details, room=False
+    )
 
 
 def _complete_address(
@@ -445,6 +465,8 @@ def _complete_address(
     roles: list[str],
     number: str,
     details: dict[str, tuple[str, str]],
+    *,
+    room: bool,
 ) -> Address | None:
     if len(components) < 2 or not all(
         _ADDRESS_TOKEN.fullmatch(part) for part in components
@@ -487,7 +509,7 @@ def _complete_address(
             settlement = (f"район {name}", *settlement)
     return Address(
         settlement,
-        canonical_street(street),
+        _canonical_street(street, room=room),
         district,
         number,
         details,

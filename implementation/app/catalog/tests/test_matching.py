@@ -41,7 +41,7 @@ class MatchingTests(TestCase):
         assert result is not None
         self.assertEqual(result.detail("квартира"), "25/1")
 
-    def test_street_suffix_uses_the_canonical_street_type(self) -> None:
+    def test_room_street_suffix_uses_the_canonical_street_type(self) -> None:
         # Arrange
         region = "Самарская область"
         addresses = (
@@ -53,8 +53,10 @@ class MatchingTests(TestCase):
         )
 
         # Act
-        results = [parse_address(address, region) for address in addresses]
-        misplaced_street = parse_address("Солнечная ул., Песочная ул., 7", region)
+        results = [parse_address(address, region, room=True) for address in addresses]
+        misplaced_street = parse_address(
+            "Солнечная ул., Песочная ул., 7", region, room=True
+        )
 
         # Assert
         self.assertEqual(

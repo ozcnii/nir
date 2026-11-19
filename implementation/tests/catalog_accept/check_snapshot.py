@@ -506,6 +506,61 @@ class SnapshotTests(TestCase):
         )
         self.assertEqual(prices_after_repeat, [Decimal("8000000"), Decimal("7500000")])
 
+    def test_apartment_keeps_existing_street_and_house_syntax(self) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        # Arrange
+        address = "Самара, улица Лесная, дом 7, квартира 25"
+        original: ActiveSnapshot = {**card("flat-address-syntax"), "address": address}
+        same: ActiveSnapshot = {
+            **original,
+            "source_code": "domclick",
+            "external_id": "flat-established-abbreviation",
+            "address": address.replace("улица Лесная", "ул. Лесная"),
+        }
+        suffix: ActiveSnapshot = {
+            **same,
+            "external_id": "flat-unrecognized-suffix",
+            "address": address.replace("улица Лесная", "Лесная ул."),
+        }
+        with as_app():
+            # Act
+            first = self.accept(original)
+            matched = self.accept(same)
+            separate = self.accept(suffix)
+            changed_syntax = self.accept(
+                {
+                    **later(original, 1),
+                    "address": address.replace("дом 7", "дом №7"),
+                    "price": price("6000000"),
+                }
+            )
+            assert first.ad_id is not None
+            before_repeat = Ad.objects.values_list("observed_at", flat=True).get(
+                pk=first.ad_id
+            )
+            compatible = self.accept(
+                {
+                    **later(original, 2),
+                    "address": same["address"],
+                    "price": price("7500000"),
+                }
+            )
+            prices = list(
+                PriceHistory.objects.filter(ad_id=first.ad_id)
+                .order_by("id")
+                .values_list("price_rub", flat=True)
+            )
+
+        # Assert
+        self.assertEqual(matched.property_id, first.property_id)
+        self.assertNotEqual(separate.property_id, first.property_id)
+        self.assertEqual(changed_syntax.outcome, "conflict")
+        self.assertEqual(before_repeat, START)
+        self.assertEqual(compatible.outcome, "updated")
+        self.assertEqual(compatible.property_id, first.property_id)
+        self.assertEqual(prices, [Decimal("8000000"), Decimal("7500000")])
+
     def test_matching_apartment_numbers_and_unique_candidate(self) -> None:
         # Arrange: one exact A match and two contradictory existing room counts.
         address = "Самарская область, Самара, ул. Гагарина, 17а, кв. 25"
