@@ -25,6 +25,7 @@ _ROOM_SIZE = re.compile(
 )
 _NON_OFFERED_UNIT = re.compile(
     r"\s*(?:[,:—–-]\s*)?(?:(?:в|из|у)\s+(?:сосед|друг)\w*"
+    r"|по соседству"
     r"|(?:можно\s+(?:купить|приобрести)\s+)?(?:отдельно|по отдельности)"
     r"|не (?:входит|одним лотом))\b",
     re.IGNORECASE,
@@ -41,6 +42,11 @@ _ROOM_OFFER = re.compile(
 )
 _ROOM_MEMBER_ID = re.compile(_ROOM_ID)
 _ROOM_MEMBER_SIZE = re.compile(_ROOM_MEASURE_PREFIX + _SQUARE_METRES, re.IGNORECASE)
+_IDENTIFIED_ROOM_AREA = re.compile(
+    _CLAUSE + rf"(?:общая )?площадь (?:этой|предлагаемой|продаваемой|сдаваемой) "
+    rf"комнаты\s+{_ROOM_ID}\s*[:—–-]?\s*" + _SQUARE_METRES,
+    re.IGNORECASE,
+)
 _ROOM_SET_AREA = re.compile(
     r"\s*,?\s*(?:одним лотом(?:,\s*|\s+))?"
     r"(?:(?:общей|суммарной) площадью|(?:общая|суммарная) площадь)"
@@ -137,13 +143,6 @@ _HOUSE_SIZE = re.compile(
     re.IGNORECASE,
 )
 
-_SECOND_OFFERED_HOUSE = re.compile(
-    _OFFER + r"(?:дом|коттедж|единый\s+лот)\b"
-    r"(?:(?![.!?;]\s)[^\n])*?\s+и\s+"
-    r"(?:[её]щ[её]\s+один|второй)\s+(?:дом|коттедж)\b"
-    r"(?!\s+(?:по соседству|отдельно))",
-    re.IGNORECASE,
-)
 _LAND_SCALES = {"сотка": 100, "м²": 1, "га": 10_000}
 _PLOT_MEASUREMENT = (
     rf"(?P<land_area>{_AMOUNT})\s*(?P<land_unit>сот(?:ок|к[аи])|м[²2]|га)(?!\w)"
@@ -153,17 +152,27 @@ _LAND_SIZE = re.compile(
     r"(?:земельного )?участка\s*[:—-]?\s*" + _PLOT_MEASUREMENT,
     re.IGNORECASE,
 )
-_BUILDING_OFFER = re.compile(
-    _OFFER + _EXCLUSIVE_OFFER + rf"(?:{_HOUSE_UNIT}(?:\s+№\s*{_BUILDING_NUMBER})?"
-    rf"(?:{_BUILDING_MEASUREMENT}{_AMOUNT}\s*{_SQUARE_METRE_UNIT})?"
-    r"\s*(?:[,—–-]\s*)?\bточнее\b\s*(?:[,:—–-]\s*)?)?"
-    rf"(?:(?P<block>{_BLOCK_SCOPE})\b"
+_BUILDING_FACTS = (
+    r"(?:(?P<block>(?:(?:жил(?:ой|ая|ую)|самостоятельн(?:ый|ая|ую))\s+)?"
+    rf"(?:{_BLOCK_SCOPE}))\b"
     rf"(?:\s+(?:№\s*)?(?P<block_id>{_BUILDING_NUMBER})(?![\w/]|[.,-][0-9]|\s*{_SQUARE_METRE_UNIT}))?"
     rf"|{_HOUSE_UNIT}(?:\s+№\s*(?P<house_id>{_BUILDING_NUMBER})(?![\w/]))?)"
     rf"(?:{_BUILDING_MEASUREMENT}{_SQUARE_METRES})?"
-    rf"(?:\s+на (?:земельном )?участке\s+{_PLOT_MEASUREMENT})?",
+    rf"(?:\s+на (?:земельном )?участке(?:\s+{_PLOT_MEASUREMENT})?)?"
+)
+_BUILDING_OFFER = re.compile(
+    _OFFER + _EXCLUSIVE_OFFER + rf"(?:{_HOUSE_UNIT}(?:\s+№\s*{_BUILDING_NUMBER})?"
+    rf"(?:{_BUILDING_MEASUREMENT}{_AMOUNT}\s*{_SQUARE_METRE_UNIT})?"
+    r"\s*(?:[,—–-]\s*)?\bточнее\b\s*(?:[,:—–-]\s*)?)?" + _BUILDING_FACTS,
     re.IGNORECASE,
 )
+_BUILDING_MEMBER = re.compile(
+    r"(?:\s*,\s*(?:(?P<comma_join>и)\s+)?|\s+(?P<join>и)\s+)"
+    r"(?:(?P<additional>[её]щ[её] один|второй|третий|четв[её]ртый)\s+)?"
+    + _BUILDING_FACTS,
+    re.IGNORECASE,
+)
+_JOINT_LOT = re.compile(r"\s*(?:,\s*)?(?:одним лотом|в том же лоте)\b", re.IGNORECASE)
 
 
 def land_square_metres(value: object, unit: object) -> Decimal:
@@ -188,6 +197,29 @@ def _published_areas(pattern: re.Pattern[str], text: str) -> set[Decimal]:
         for match in pattern.finditer(text)
         if not _NON_OFFERED_UNIT.match(text, match.end())
     }
+
+
+def _building_offers(text: str) -> list[re.Match[str]]:
+    offers = []
+    for claim in _BUILDING_OFFER.finditer(text):
+        if _NON_OFFERED_UNIT.match(text, claim.end()):
+            continue
+        end = claim.end()
+        attached = False
+        joined = False
+        while (member := _BUILDING_MEMBER.match(text, end)) is not None:
+            end = member.end()
+            if (detached := _NON_OFFERED_UNIT.match(text, end)) is not None:
+                end = detached.end()
+                continue
+            attached = True
+            joined |= bool(
+                member["join"] or member["comma_join"] or member["additional"]
+            )
+        if attached and (joined or _JOINT_LOT.match(text, end)):
+            raise RejectedCard("unsupported_house_unit")
+        offers.append(claim)
+    return offers
 
 
 def check_room(
@@ -236,10 +268,11 @@ def check_room(
             for identifier in numbered:
                 name = identifier[1]
                 identifiers.add(name)
+                measurements = member_areas.setdefault(name, set())
                 if (
                     size := _ROOM_MEMBER_SIZE.match(members, identifier.end())
                 ) is not None:
-                    member_areas.setdefault(name, set()).add(number(size["area"]))
+                    measurements.add(number(size["area"]))
             # One published member of an explicitly counted set does not
             # prove that the remaining members are absent.
             if len(numbered) > 1 or count is None:
@@ -270,6 +303,11 @@ def check_room(
         or 0 in counts
     ):
         raise RejectedCard("conflicting_room_count")
+    if counts == {1} and (published := _ROOM_ADDRESS.search(address or "")) is not None:
+        member_areas.setdefault(published[1], set())
+    for claim in _IDENTIFIED_ROOM_AREA.finditer(text):
+        if claim[1] in member_areas and not _NON_OFFERED_UNIT.match(text, claim.end()):
+            member_areas[claim[1]].add(number(claim["area"]))
     if any(len(sizes) > 1 for sizes in member_areas.values()):
         raise RejectedCard("conflicting_room_area")
     detected = next(iter(counts), None)
@@ -323,11 +361,7 @@ def check_house(
     land_area: Decimal | None,
 ) -> None:
     text = description or ""
-    if (
-        _DORMITORY.search(text)
-        or _HOUSE_SET_OR_PROJECT.search(text)
-        or _SECOND_OFFERED_HOUSE.search(text)
-    ):
+    if _DORMITORY.search(text) or _HOUSE_SET_OR_PROJECT.search(text):
         raise RejectedCard("unsupported_house_unit")
     if _OFFERED_SHARE.search(text):
         raise RejectedCard("unallocated_house_share")
@@ -339,11 +373,7 @@ def check_house(
     ):
         raise RejectedCard("unconfirmed_house_block")
     house = _HOUSE_ADDRESS.search(published)
-    offers = [
-        claim
-        for claim in _BUILDING_OFFER.finditer(text)
-        if not _NON_OFFERED_UNIT.match(text, claim.end())
-    ]
+    offers = _building_offers(text)
     for claim in offers:
         offers_block = claim["block"] is not None
         if offers_block and not block:

@@ -197,7 +197,8 @@ def verify_domclick() -> None:
         inconsistent_member = {
             **room_set,
             "description": (
-                "Продам комнату № 2 площадью 9,2 м² и комнату № 2 площадью 10 м²."
+                "Продам комнату № 2 площадью 9,2 м². "
+                "Площадь предлагаемой комнаты № 2 — 10 м²."
             ),
         }
         for next_projection, reason in (

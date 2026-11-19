@@ -313,6 +313,51 @@ class DomclickTests(TestCase):
                 # Assert
                 self.assertEqual(str(conflicting.exception), "conflicting_room_area")
 
+    def test_comparable_room_measurements_keep_the_identified_member_scope(
+        self,
+    ) -> None:
+        # Arrange
+        data = native_proposal()
+        info = cast(dict[str, object], data["objectInfo"])
+        member = "Продам комнату № 2 площадью 9,2 м²"
+        offer_and_count = (
+            (member + ".", 1),
+            (member + " и комнату № 3 площадью 10 м² одним лотом.", 2),
+        )
+        for offer, count in offer_and_count:
+            for claims in (
+                (offer, "Площадь предлагаемой комнаты № 2 — 11 м²."),
+                ("Площадь предлагаемой комнаты № 2 — 11 м².", offer),
+            ):
+                with self.subTest(count=count, claims=claims):
+                    # Arrange
+                    info["description"] = " ".join(claims)
+
+                    # Act
+                    with self.assertRaises(RejectedCard) as conflicting:
+                        read_native(ROOM, {**data, "roomsOffered": count})
+
+                    # Assert
+                    self.assertEqual(
+                        str(conflicting.exception), "conflicting_room_area"
+                    )
+
+        for claim in (
+            "Площадь предлагаемой комнаты № 2 — 9,2 м².",
+            "Площадь соседней комнаты № 2 — 11 м².",
+            "Площадь комнаты № 2 — 11 м² в соседней квартире.",
+        ):
+            with self.subTest(claim=claim):
+                # Arrange
+                info["description"] = offer_and_count[1][0] + " " + claim
+
+                # Act
+                accepted = read_native(ROOM, {**data, "roomsOffered": 2})
+
+                # Assert
+                assert accepted["state"] == "active"
+                self.assertEqual((accepted["rooms"], accepted["area_m2"]), (2, None))
+
     def test_native_house_rejects_incompatible_direct_offer_claims(self) -> None:
         # Arrange: contrast directly offered properties with incidental mentions.
         data = native_proposal()
@@ -329,6 +374,31 @@ class DomclickTests(TestCase):
             (
                 "Продаю дом на участке и второй дом в том же лоте.",
                 "unsupported_house_unit",
+            ),
+            (
+                "Продаётся дом площадью 100 м² и самостоятельный блок № 2 "
+                "площадью 40 м² одним лотом.",
+                "unsupported_house_unit",
+            ),
+            (
+                "Продаётся жилой блок площадью 55 м² и дом "
+                "площадью 100 м² одним лотом.",
+                "unsupported_house_unit",
+            ),
+            (
+                "Продаётся дом площадью 100 м², дом площадью 80 м² "
+                "и жилой блок площадью 55 м² одним лотом.",
+                "unsupported_house_unit",
+            ),
+            (
+                "Продаётся дом площадью 100 м² и второй дом "
+                "площадью 80 м² по отдельности.",
+                None,
+            ),
+            (
+                "Продаётся дом площадью 100 м² и самостоятельный блок № 2 "
+                "площадью 40 м² отдельно.",
+                None,
             ),
             ("Продаю дом № 8.", "conflicting_house_unit"),
             ("Площадь участка 7 соток.", "conflicting_land_area"),
