@@ -159,7 +159,7 @@ def _room_claim(text: str) -> RoomClaim | None:
     members = [first]
     end = first.end()
     # A room number can stand for a repeated noun within one published list.
-    while (rooms == 1 or rooms is None and first["room"] is not None) and (
+    while (rooms == 1 or first["room"] is not None) and (
         link := _NEXT_MEMBER.match(text, end)
     ) is not None:
         member = _ROOM.match(text, link.end())
@@ -176,6 +176,8 @@ def _room_claim(text: str) -> RoomClaim | None:
         outside = _OUTSIDE_OFFER.match(text, member.end())
         if outside is not None:
             if outside["separate"]:
+                if rooms != 1:
+                    return None
                 members, end = [first], first.end()
             break
         members.append(member)
@@ -192,7 +194,9 @@ def _room_claim(text: str) -> RoomClaim | None:
     distinct_members = len(identified) + sum(
         member["room"] is None for member in members
     )
-    if distinct_members > 1:
+    if len(members) > 1:
+        if rooms not in (None, 1, distinct_members):
+            raise RejectedCard("conflicting_room_count")
         rooms = distinct_members
     areas: list[Decimal] = []
     if rooms == 1:

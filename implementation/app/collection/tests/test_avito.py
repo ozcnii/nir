@@ -622,6 +622,11 @@ class AvitoCardTests(TestCase):
                 "22.50",
             ),
             (
+                "Продам две комнаты № 2 и № 3 одним лотом, общей площадью 22,5 м².",
+                2,
+                "22.50",
+            ),
+            (
                 "Продам комнаты № 2 и № 3 одним лотом, общей площадью 22,5 м².",
                 2,
                 "22.50",
@@ -676,6 +681,12 @@ class AvitoCardTests(TestCase):
 
     def test_scoped_conflicts_are_detected_after_seller_introduction(self) -> None:
         cases = (
+            (
+                "room",
+                "Комната 12,5 м²",
+                "Продам две комнаты № 2 и № 2 одним лотом, общей площадью 22,5 м².",
+                "conflicting_room_count",
+            ),
             (
                 "room",
                 "Доля: одна комната 12,5 м²",
