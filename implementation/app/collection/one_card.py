@@ -66,7 +66,11 @@ def collect_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
             snapshot = _read_card(page, url, source, key, stopped, removed_deal)
 
         _check_stop(stopped)
-        receipt = accept_snapshot(snapshot)
+        receipt = (
+            snapshot
+            if isinstance(snapshot, SnapshotResult)
+            else accept_snapshot(snapshot)
+        )
         if receipt.outcome not in ("created", "updated", "unchanged", "not_found"):
             raise CollectionError(receipt.reason or receipt.outcome)
         return receipt
@@ -79,7 +83,7 @@ def _read_card(
     key: str,
     stopped: Callable[[], bool],
     removed_deal: Deal | None,
-) -> Snapshot:
+) -> Snapshot | SnapshotResult:
     for retry in (False, True):
         _check_stop(stopped)
         observed_at = datetime.now(UTC)

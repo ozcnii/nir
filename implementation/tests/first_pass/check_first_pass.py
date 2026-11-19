@@ -238,6 +238,47 @@ def verify_avito() -> None:
         Property.objects.count(),
         PriceHistory.objects.count(),
     )
+    # Arrange: an advertised room explicitly conflicts with its structured area.
+    item = as_object(as_object(card["route"]["buyerItem"])["item"])
+    item.update(
+        title="Доля: одна комната 12,5 м²",
+        description="Квартира светлая. Площадь предлагаемой комнаты 9,2 м².",
+    )
+
+    # Act
+    try:
+        collect()
+    except CommandError as error:
+        assert str(error) == "conflicting_room_area"
+    else:
+        raise AssertionError("A conflicting offered room must not write a publication")
+
+    # Assert
+    assert counts == (
+        Ad.objects.count(),
+        Property.objects.count(),
+        PriceHistory.objects.count(),
+    )
+
+    # Arrange: the exact closure marker also has a known public URL but no saved ad.
+    card = avito_projection("closed")
+    url = card["url"]
+
+    # Act
+    unknown = collect()
+
+    # Assert: no rows or guessed deal.
+    assert unknown == {
+        "outcome": "not_found",
+        "ad_id": None,
+        "property_id": None,
+        "price_changed": False,
+    }
+    assert counts == (
+        Ad.objects.count(),
+        Property.objects.count(),
+        PriceHistory.objects.count(),
+    )
     print(
         "Avito: terminal collection, repeat, wrong ID and explicit close verified in PostgreSQL"
     )

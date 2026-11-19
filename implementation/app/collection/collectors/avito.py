@@ -15,6 +15,7 @@ from app.catalog.contracts import (
     Deal,
     Snapshot,
     SnapshotKey,
+    SnapshotResult,
     is_publication_url,
 )
 from app.collection.collectors.avito_fields import normalize_avito_card
@@ -56,7 +57,7 @@ def parse_card(
     page_title: str = "",
     removed_deal: Deal | None = None,
     listing_price: tuple[str, str] | None = None,
-) -> Snapshot:
+) -> Snapshot | SnapshotResult:
     identity = _identity(requested_url)
     if identity is None or observed_at.utcoffset() is None:
         raise RejectedCard("invalid_identity")
@@ -74,8 +75,9 @@ def parse_card(
         route.get("buyerItem") is None
         and route.get("type") == "notFound"
         and route.get("message") == "Объявление закрыто."
-        and removed_deal is not None
     ):
+        if removed_deal is None:
+            return SnapshotResult("not_found")
         return {
             **key,
             "state": "removed",
@@ -119,7 +121,7 @@ def capture_card(
     *,
     removed_deal: Deal | None = None,
     listing_price: tuple[str, str] | None = None,
-) -> Snapshot:
+) -> Snapshot | SnapshotResult:
     """Read the public fields of a loaded card within the navigation deadline."""
     remaining_ms = (deadline - time.monotonic()) * 1000
     if remaining_ms <= 0:

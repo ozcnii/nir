@@ -23,12 +23,12 @@ from app.catalog.reference_defaults import (
     ROOM_TYPE_ID,
     SAMARA_REGION_ID,
 )
+from app.collection.collectors.avito_units import area_m2, check_house, rooms_and_area
 from app.collection.normalization import (
     RejectedCard,
     as_object,
     coordinate,
     decimal_2,
-    number,
     optional_integer,
 )
 
@@ -68,21 +68,6 @@ _PUBLISHED_PRICE = re.compile(
     r"(от )?([0-9][0-9 ,.]*) ?₽(?: (в месяц|за (?:1 )?сутки))?"
 )
 _PRICE_PERIOD = {"sale": None, "month_rent": "в месяц", "day_rent": "за сутки"}
-_AREA = re.compile(r"(.+?)\s+(м²|сот\.|га)")
-_MEASUREMENT = r"[0-9]+(?:[.,][0-9]+)?"
-_ROOM_TITLE = re.compile(
-    r"(?:доля:\s*)?(?:(?P<count>[1-9][0-9]*|одна|две|три)\s+)?"
-    r"(?P<unit>комната|комнаты|комнат)\b(?:\s+№\s*(?P<room>[1-9][0-9]*))?"
-    rf"(?:\s+(?P<total>общей площадью )?(?P<area>{_MEASUREMENT})\s+м²)?"
-)
-_NEXT_ROOM = re.compile(r"\s+и\s+(?:ещ[её]\s+)?")
-_SELLER_ROOM = re.compile(r"(?:прода[её]тся|сда[её]тся)\s+")
-_HOUSE_TITLE = re.compile(
-    rf"дом(?: (?P<area>{_MEASUREMENT}) м²)?"
-    rf"(?: на участке (?P<land>{_MEASUREMENT} (?:м²|сот\.|га)))?"
-)
-
-
 _HOTEL_UNIT = re.compile(
     r"\b(?:гостиничный номер|номер в (?:отеле|гостинице|апарт-отеле))\b"
     r"|^номер\s+.+\bв (?:отеле|гостинице|апарт-отеле)\b"
@@ -110,22 +95,6 @@ def _params(buyer: dict[str, object]) -> dict[str, str]:
             raise RejectedCard("invalid_card_param")
         result[label] = value
     return result
-
-
-def _area(value: str | None, *, land: bool = False) -> Decimal | None:
-    if value is None:
-        return None
-    match = _AREA.fullmatch(value)
-    if match is None or (not land and match[2] != "м²"):
-        raise RejectedCard("invalid_area_unit")
-    scale = {"м²": 0, "сот.": 2, "га": 4}[match[2]]
-    sign, digits, exponent = number(match[1]).as_tuple()
-    assert isinstance(exponent, int)
-    return decimal_2(
-        Decimal((sign, digits, exponent + scale)),
-        minimum=Decimal("0.01"),
-        maximum=Decimal("1e12" if land else "1e10"),
-    )
 
 
 def _address(item: dict[str, object]) -> tuple[str, int]:
@@ -276,84 +245,6 @@ def _classify(
     raise RejectedCard("unconfirmed_avito_card_family")
 
 
-def _room_advertised(
-    title: str, position: int = 0
-) -> tuple[int | None, Decimal | None, int]:
-    match = _ROOM_TITLE.match(title, position)
-    if match is None:
-        return None, None, position
-    count = match["count"]
-    if count is None:
-        rooms = 1 if match["unit"] == "комната" else None
-    elif count.isdecimal():
-        rooms = optional_integer(count, minimum=1)
-    else:
-        rooms = {"одна": 1, "две": 2, "три": 3}[count]
-    area = (
-        _area(f"{match['area']} м²")
-        if match["area"] and (rooms == 1 or match["total"])
-        else None
-    )
-    return rooms, area, match.end()
-
-
-def _rooms_and_area(
-    title: str, description: str, area: Decimal | None, *, share: bool
-) -> tuple[int | None, Decimal | None]:
-    label = title.casefold()
-    rooms, title_area, end = _room_advertised(label)
-    more = _NEXT_ROOM.match(label, end)
-    if rooms is not None and more is not None:
-        additional, _, _ = _room_advertised(label, more.end())
-        if additional is not None:
-            rooms += additional
-            title_area = None
-    if share or label.startswith("доля"):
-        heading = _ROOM_TITLE.match(label)
-        if (
-            rooms != 1
-            or heading is None
-            or not label.startswith("доля:")
-            or not (heading["room"] or heading["count"] in ("одна", "1"))
-        ):
-            raise RejectedCard("unconfirmed_room_unit")
-
-    seller = description.casefold()
-    introduction = _SELLER_ROOM.match(seller)
-    seller_count, seller_area, _ = (
-        _room_advertised(seller, introduction.end())
-        if introduction
-        else (None, None, 0)
-    )
-    if rooms is not None and seller_count is not None and rooms != seller_count:
-        raise RejectedCard("conflicting_room_count")
-    rooms = rooms if rooms is not None else seller_count
-    if rooms is not None and rooms > 1:
-        # The structured room-area field does not describe the entire set.
-        area = None
-    areas = {value for value in (area, title_area, seller_area) if value is not None}
-    if len(areas) > 1:
-        raise RejectedCard("conflicting_room_area")
-    return rooms, next(iter(areas), None)
-
-
-def _check_house(
-    title: str, area: Decimal | None, land: Decimal | None, share: bool
-) -> None:
-    card = _HOUSE_TITLE.fullmatch(title.casefold())
-    if card is None or share:
-        raise RejectedCard("unconfirmed_house_unit")
-    if (
-        area is not None
-        and card["area"]
-        and number(card["area"]) != area
-        or land is not None
-        and card["land"]
-        and _area(card["land"], land=True) != land
-    ):
-        raise RejectedCard("conflicting_house_measurement")
-
-
 def normalize_avito_card(
     family: str,
     key: SnapshotKey,
@@ -373,7 +264,7 @@ def normalize_avito_card(
         _ROOM: "Площадь комнаты",
         _HOUSE: "Площадь дома",
     }
-    area = _area(params.get(area_label[family]))
+    area = area_m2(params.get(area_label[family]))
     floor = None
     floors = None
     if family == _HOUSE:
@@ -392,11 +283,13 @@ def normalize_avito_card(
     room_count = params.get("Количество комнат")
     share = params.get("Условия продажи") == "Продажа доли"
     title = _text(item.get("title"))
-    land = _area(params.get("Площадь участка"), land=True) if family == _HOUSE else None
+    land = (
+        area_m2(params.get("Площадь участка"), land=True) if family == _HOUSE else None
+    )
     if family == _ROOM:
-        rooms, area = _rooms_and_area(title, _text(description), area, share=share)
+        rooms, area = rooms_and_area(title, description or "", area, share=share)
     elif family == _HOUSE:
-        _check_house(title, area, land, share)
+        check_house(title, description or "", area, land, share=share)
         rooms = optional_integer(room_count, minimum=1)
     elif family == _FLAT and room_count == "Студия":
         rooms = 0

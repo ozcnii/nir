@@ -6,7 +6,7 @@ from unittest import TestCase
 
 from playwright.sync_api import Route, sync_playwright
 
-from app.catalog.contracts import Deal, Snapshot
+from app.catalog.contracts import Snapshot, SnapshotResult
 from app.collection.collectors.avito import capture_card, parse_card
 from app.collection.normalization import RejectedCard, as_object
 from app.collection.tests.avito_fixture import Projection, projection, projection_html
@@ -20,13 +20,15 @@ def item_for(card: Projection) -> dict[str, object]:
 
 
 def parsed(card: Projection) -> Snapshot:
-    return parse_card(
+    result = parse_card(
         card["url"],
         OBSERVED_AT,
         card["route"],
         loaded_url=card["url"],
         page_title=card["title"],
     )
+    assert not isinstance(result, SnapshotResult)
+    return result
 
 
 class AvitoCardTests(TestCase):
@@ -140,7 +142,7 @@ class AvitoCardTests(TestCase):
                             page, card["url"], OBSERVED_AT, time.monotonic() + 5
                         )
                     continue
-                results[label] = capture_card(
+                snapshot = capture_card(
                     page,
                     card["url"],
                     OBSERVED_AT,
@@ -150,6 +152,8 @@ class AvitoCardTests(TestCase):
                     if label == "day_rent"
                     else None,
                 )
+                assert not isinstance(snapshot, SnapshotResult)
+                results[label] = snapshot
 
         # Assert: URL-only gallery; no request beyond the fixture documents.
         self.assertEqual(requests, list(by_url))
@@ -248,7 +252,7 @@ class AvitoCardTests(TestCase):
 
         # Assert
         self.assertEqual(str(raised.exception), "invalid_identity")
-        assert same["state"] == "active"
+        assert not isinstance(same, SnapshotResult) and same["state"] == "active"
         self.assertEqual(same["external_id"], "3638106726")
         self.assertEqual(same["url"], url + "?context=y#after")
         self.assertEqual(
@@ -264,23 +268,27 @@ class AvitoCardTests(TestCase):
             * 4,
         )
 
-    def test_missing_closed_signal_or_known_deal_is_unavailable(self) -> None:
-        cases: tuple[tuple[dict[str, object], Deal | None], ...] = (
-            ({"type": "notFound", "isGone": True}, "sale"),
-            ({"type": "notFound", "message": "Объявление закрыто."}, None),
+    def test_only_exact_closure_for_same_unknown_key_returns_not_found(self) -> None:
+        # Arrange
+        card = projection("closed")
+        url = card["url"]
+
+        # Act
+        closed = parse_card(url, OBSERVED_AT, card["route"], loaded_url=url)
+        unsigned = parse_card(url, OBSERVED_AT, {"type": "notFound"}, loaded_url=url)
+        redirected = parse_card(
+            url,
+            OBSERVED_AT,
+            card["route"],
+            loaded_url=url.replace("8417769121", "8417769122"),
         )
-        for route, removed_deal in cases:
-            with self.subTest(route=route, removed_deal=removed_deal):
-                # Arrange
-                url = projection("closed")["url"]
 
-                # Act
-                snapshot = parse_card(
-                    url, OBSERVED_AT, route, loaded_url=url, removed_deal=removed_deal
-                )
-
-                # Assert
-                self.assertEqual(snapshot["state"], "unavailable")
+        # Assert
+        self.assertEqual(closed, SnapshotResult("not_found"))
+        assert not isinstance(unsigned, SnapshotResult)
+        assert not isinstance(redirected, SnapshotResult)
+        self.assertEqual(unsigned["state"], "unavailable")
+        self.assertEqual(redirected["state"], "unavailable")
 
     def test_invalid_structural_units_and_unsupported_units_do_not_produce_p3(
         self,
@@ -379,7 +387,9 @@ class AvitoCardTests(TestCase):
 
         # Assert
         for result in results:
-            assert result["state"] == "active"
+            assert (
+                not isinstance(result, SnapshotResult) and result["state"] == "active"
+            )
             self.assertEqual(result["photos"], {"status": "unavailable"})
             self.assertEqual(result["price"], {"status": "unavailable"})
         assert explicit["state"] == "active"
@@ -410,7 +420,9 @@ class AvitoCardTests(TestCase):
         )
 
         # Assert
-        assert snapshot["state"] == "active"
+        assert (
+            not isinstance(snapshot, SnapshotResult) and snapshot["state"] == "active"
+        )
         self.assertEqual(
             snapshot["price"],
             {
@@ -577,6 +589,92 @@ class AvitoCardTests(TestCase):
 
         # Assert
         self.assertEqual(str(rejected.exception), "unconfirmed_room_unit")
+
+    def test_only_offered_bundle_and_its_total_are_used(self) -> None:
+        cases = (
+            ("Удобный район. Продаются две комнаты одним лотом.", 2, None),
+            (
+                "Удобный район. Продаются две комнаты общей площадью 22,5 м².",
+                2,
+                "22.50",
+            ),
+            (
+                "Кухня площадью 7 м². Комната соседей 15 м². "
+                "Отдельно можно купить вторую комнату.",
+                1,
+                "12.50",
+            ),
+        )
+        for description, count, area in cases:
+            with self.subTest(description=description):
+                # Arrange
+                card = projection("room")
+                item_for(card).update(title="Комната 12,5 м²", description=description)
+                card["title"] = "Комната 12,5 м² на продажу"
+                params = as_object(as_object(card["route"]["buyerItem"])["paramsDto"])
+                params["items"] = [
+                    row
+                    for row in cast(list[dict[str, object]], params["items"])
+                    if row["title"] != "Условия продажи"
+                ]
+
+                # Act
+                snapshot = parsed(card)
+
+                # Assert
+                assert snapshot["state"] == "active"
+                self.assertEqual(snapshot["rooms"], count)
+                self.assertEqual(
+                    snapshot["area_m2"], Decimal(area) if area is not None else None
+                )
+
+    def test_scoped_conflicts_are_detected_after_seller_introduction(self) -> None:
+        cases = (
+            (
+                "room",
+                "Доля: одна комната 12,5 м²",
+                "Квартира светлая. Площадь предлагаемой комнаты 9,2 м².",
+                "conflicting_room_area",
+            ),
+            (
+                "room",
+                "Доля: комната № 2 12,5 м²",
+                "Квартира светлая. Доля не выделена. Комната № 2 принадлежит соседям.",
+                "unconfirmed_room_unit",
+            ),
+            (
+                "house",
+                None,
+                "Рядом лес. Продаются два дома одним лотом.",
+                "unconfirmed_house_unit",
+            ),
+            (
+                "house",
+                None,
+                "Рядом лес. Продаётся половина дома без выделения.",
+                "unconfirmed_house_unit",
+            ),
+            (
+                "house",
+                None,
+                "Рядом лес. Общая площадь дома 62 м².",
+                "conflicting_house_measurement",
+            ),
+        )
+        for family, title, description, reason in cases:
+            with self.subTest(description=description):
+                # Arrange
+                card = projection(family)
+                item_for(card)["description"] = description
+                if title is not None:
+                    item_for(card)["title"] = title
+
+                with self.assertRaises(RejectedCard) as raised:
+                    # Act
+                    parsed(card)
+
+                # Assert
+                self.assertEqual(str(raised.exception), reason)
 
     def test_browser_projection_preserves_malformed_geo(self) -> None:
         # Arrange: serve only the local replay document at the public card URL.
