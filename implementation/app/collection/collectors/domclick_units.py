@@ -3,6 +3,7 @@
 import re
 from bisect import bisect_right
 from decimal import Decimal
+from itertools import chain
 
 from app.collection.normalization import (
     RejectedCard,
@@ -12,20 +13,28 @@ from app.collection.normalization import (
 )
 
 _CLAUSE = r"(?:\A|(?<=[.!?;:\n]))\s*"
+_OFFER_START = rf"(?:{_CLAUSE}|(?<=,)\s*)"
 _DEAL = r"(?:прода[её]тся|продаются|сда[её]тся|сдаются|продаю|сдаю|продам)"
-_OFFER = rf"(?:{_CLAUSE}|(?<=,)\s*){_DEAL}\s+"
+_OFFER = rf"{_OFFER_START}{_DEAL}\s+"
 _AMOUNT = r"[0-9]+(?:[.,][0-9]+)?"
 _SQUARE_METRE_UNIT = r"(?:м[²2]|кв\.\s*м)(?!\w)"
 _SQUARE_METRES = rf"(?P<area>{_AMOUNT})\s*{_SQUARE_METRE_UNIT}"
 _ROOM_MEASURE_PREFIX = r"\s+(?:(?:общей )?площадью\s+)?"
 _ROOM_SIZE = re.compile(
     rf"(?:{_OFFER}|{_CLAUSE})(?:1 |одна |одну |уютная )?комнат[ау]"
-    r"(?: №?\s*[0-9]+)?(?: в квартире №?\s*[0-9]+)?"
+    r"(?: №?\s*(?P<member>[0-9]+))?(?: в квартире №?\s*[0-9]+)?"
     r"(?: (?:общей )?площадью)?[ :]+" + _SQUARE_METRES,
     re.IGNORECASE,
 )
+_OTHER_PLACE = r"(?:в|из|у)\s+(?:сосед|друг)\w*"
+_ROOM_CONTEXT = re.compile(
+    _OFFER_START + rf"(?:(?P<own>в этой квартире|в этом объявлении)"
+    rf"|{_OTHER_PLACE} (?:квартир[ыеу]|комнат[ыеу]|дом[ае])(?:\s+№\s*[0-9]+)?)"
+    r"[^\S\n]*(?::|\n)",
+    re.IGNORECASE,
+)
 _NON_OFFERED_UNIT = re.compile(
-    r"\s*(?:[,:—–-]\s*)?(?:(?:в|из|у)\s+(?:сосед|друг)\w*"
+    rf"\s*(?:[,:—–-]\s*)?(?:{_OTHER_PLACE}"
     r"|по соседству"
     r"|(?:можно\s+(?:купить|приобрести)\s+)?(?:отдельно|по отдельности)"
     r"|не (?:входит|одним лотом))\b",
@@ -232,14 +241,17 @@ def check_room(
     text = description or ""
     counts = set() if rooms is None else {rooms}
     offered_set = False
-    offer_starts: list[int] = []
+    headings = {
+        match.end(): match["own"] is not None for match in _ROOM_CONTEXT.finditer(text)
+    }
+    owners = dict(headings)
     offer_ends: list[int] = []
-    detached: set[int] = set()
+    has_foreign_offer = False
     member_sets: set[frozenset[str]] = set()
     member_areas: dict[str, set[Decimal]] = {}
     area_claims = {claim.start(): claim for claim in _ROOM_SIZE.finditer(text)}
     for match in _ROOM_OFFER.finditer(text):
-        offer_starts.append(match.start())
+        start = match.start()
         # Determine ownership after the described list or measure, not after
         # the room noun: a qualifier belongs to the quantified offer.
         end = match.end()
@@ -249,8 +261,10 @@ def check_room(
             end = total.end()
         if (lot := _JOINT_LOT.match(text, end)) is not None:
             end = lot.end()
-        if _NON_OFFERED_UNIT.match(text, end):
-            detached.add(match.start())
+        owned = headings.get(start, True) and not _NON_OFFERED_UNIT.match(text, end)
+        owners[start] = owned
+        if not owned:
+            has_foreign_offer = True
             continue
         count = match["count"]
         members = match["members"]
@@ -314,22 +328,45 @@ def check_room(
         raise RejectedCard("conflicting_room_count")
     if counts == {1} and (published := _ROOM_ADDRESS.search(address or "")) is not None:
         member_areas.setdefault(published[1], set())
-    for claim in _IDENTIFIED_ROOM_AREA.finditer(text):
-        if claim[1] in member_areas and not _NON_OFFERED_UNIT.match(text, claim.end()):
+    identified = list(_IDENTIFIED_ROOM_AREA.finditer(text))
+    set_totals = list(_ROOM_SET_AREA_CLAUSE.finditer(text))
+    for claim in chain(identified, set_totals, area_claims.values()):
+        if _NON_OFFERED_UNIT.match(text, claim.end()):
+            owners[claim.start()] = False
+    scopes = sorted(owners)
+
+    def belongs_to_offer(claim: re.Match[str], *, generic: bool = False) -> bool:
+        start = claim.start()
+        preceding = bisect_right(scopes, start)
+        if preceding == 0:
+            return not has_foreign_offer
+        anchor = scopes[preceding - 1]
+        # A generic reference does not distinguish two actual offers.
+        return owners[anchor] and (
+            not generic or not has_foreign_offer or headings.get(anchor, False)
+        )
+
+    for claim in identified:
+        if belongs_to_offer(claim) and claim[1] in member_areas:
             member_areas[claim[1]].add(number(claim["area"]))
+
+    individual = set()
+    for claim in area_claims.values():
+        if not belongs_to_offer(claim):
+            continue
+        member = claim["member"]
+        if member in member_areas:
+            member_areas[member].add(number(claim["area"]))
+        elif member is None or not member_areas:
+            individual.add(number(claim["area"]))
+
     if any(len(sizes) > 1 for sizes in member_areas.values()):
         raise RejectedCard("conflicting_room_area")
     detected = next(iter(counts), None)
     if offered_set or (detected is not None and detected > 1):
         totals = set()
-        for claim in _ROOM_SET_AREA_CLAUSE.finditer(text):
-            preceding = bisect_right(offer_starts, claim.start())
-            # An indirect total needs an own offer in scope. An explicit
-            # total for the offered rooms identifies that scope itself.
-            separate = (
-                offer_starts[preceding - 1] in detached if preceding else bool(detached)
-            )
-            if not claim["offered"] and separate:
+        for claim in set_totals:
+            if not belongs_to_offer(claim, generic=claim["offered"] is not None):
                 continue
             referent = claim["pair"] or claim["count"]
             if referent is not None and detected is not None:
@@ -338,8 +375,7 @@ def check_room(
                     count_value = int(referent)
                 if count_value != detected:
                     continue
-            if not _NON_OFFERED_UNIT.match(text, claim.end()):
-                totals.add(number(claim["area"]))
+            totals.add(number(claim["area"]))
         for end in offer_ends:
             while (total := _ROOM_SET_AREA.match(text, end)) is not None:
                 if not _NON_OFFERED_UNIT.match(text, total.end()):
@@ -354,16 +390,10 @@ def check_room(
             if total_area is not None
             else None
         )
-    areas = {
-        number(claim["area"])
-        for claim in area_claims.values()
-        if claim.start() not in detached
-        and not _NON_OFFERED_UNIT.match(text, claim.end())
-    }
-    areas.update(size for sizes in member_areas.values() for size in sizes)
-    if areas and area is not None:
-        areas.add(area)
-    if len(areas) > 1:
+    individual.update(size for sizes in member_areas.values() for size in sizes)
+    if area is not None:
+        individual.add(area)
+    if len(individual) > 1:
         raise RejectedCard("conflicting_room_area")
     return detected, area
 

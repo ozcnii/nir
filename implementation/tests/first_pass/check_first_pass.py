@@ -4,7 +4,7 @@ import json
 import os
 import signal
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from decimal import Decimal
 from io import StringIO
@@ -171,6 +171,16 @@ def verify_domclick() -> None:
             page.route("**/*", serve_domclick)
             yield page
 
+    def persisted_rows() -> tuple[list[Mapping[str, object]], ...]:
+        return tuple(
+            list(rows.order_by("pk").values())
+            for rows in (
+                Property.objects.all(),
+                Ad.objects.all(),
+                PriceHistory.objects.all(),
+            )
+        )
+
     initial_count = Property.objects.count()
     with patch("app.collection.one_card.browser_page", fixture_page):
         # Act
@@ -210,6 +220,7 @@ def verify_domclick() -> None:
                 "Общая площадь этих комнат — 23 м²."
             ),
         }
+        before_rejection = persisted_rows()
         for next_projection, reason in (
             (
                 {**projection, "id": 2071752357, "priceInfo": {"price": 1}},
@@ -248,18 +259,55 @@ def verify_domclick() -> None:
             else:
                 raise AssertionError(f"collect should reject Domclick {reason}")
 
-    # Assert
-    current_ad = ads.get()
-    assert current_ad.id == saved.id
-    assert current_ad.observed_at == saved.observed_at
-    assert current_ad.property.area_m2 == Decimal("9.20")
-    assert current_ad.photos == saved.photos
-    assert list(
-        PriceHistory.objects.filter(ad=saved).values_list("price_rub", flat=True)
-    ) == [Decimal("1400000.00")]
-    assert Property.objects.count() == initial_count + 1
+        # Assert
+        assert persisted_rows() == before_rejection
+
+        # Arrange: only the other apartment's room has a published measurement.
+        foreign_room = {
+            **room_set,
+            "roomArea": None,
+            "description": (
+                "Продам комнату № 2. В соседней квартире: сдаётся комната № 2. "
+                "Площадь этой комнаты № 2 — 11 м²."
+            ),
+        }
+        price = {**cast(dict[str, object], projection["priceInfo"]), "price": 1350000}
+        current = {**projection, "objectInfo": foreign_room, "priceInfo": price}
+
+        # Act
+        call_command("collect", ROOM, stdout=StringIO())
+
+        # Assert
+        updated = ads.get()
+        assert (updated.id, updated.property_id) == (saved.id, saved.property_id)
+        assert updated.property.area_m2 == Decimal("9.20")
+        assert updated.property.address == saved.property.address
+        assert updated.photos == saved.photos
+        assert list(
+            PriceHistory.objects.filter(ad=updated)
+            .order_by("observed_at")
+            .values_list("price_rub", flat=True)
+        ) == [Decimal("1400000.00"), Decimal("1350000.00")]
+        assert Property.objects.count() == initial_count + 1
+
+        # Arrange: without an earlier measurement the same foreign value stays NULL.
+        fresh_id = 2071752358
+        current_url = ROOM.replace(str(projection["id"]), str(fresh_id))
+        current = {**current, "id": fresh_id}
+
+        # Act
+        call_command("collect", current_url, stdout=StringIO())
+
+        # Assert
+        fresh = Ad.objects.get(
+            source_id="domclick", external_id=f"/card/sale__room__{fresh_id}"
+        )
+        assert fresh.property_id != saved.property_id
+        assert fresh.property.area_m2 is None
+        assert Property.objects.count() == initial_count + 2
+
     print(
-        "Domclick: terminal collection, repeat and rejected snapshot no-write verified"
+        "Domclick: own conflict leaves rows unchanged; foreign room area does not write"
     )
 
     # Arrange: replay one own uncounted group and later another party's offer.
@@ -304,7 +352,7 @@ def verify_domclick() -> None:
         Decimal("1300000.00"),
         Decimal("1200000.00"),
     ]
-    assert Property.objects.count() == initial_count + 2
+    assert Property.objects.count() == initial_count + 3
     print("Domclick: neighbor total doesn't block the own group's price update")
 
 

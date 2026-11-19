@@ -351,16 +351,18 @@ class DomclickTests(TestCase):
                 with self.assertRaisesRegex(RejectedCard, "^conflicting_room_area$"):
                     read_native(ROOM, data)
 
-        # Arrange: the total explicitly identifies the offered rooms, so
-        # the nearby detached offer does not make this same-set claim foreign.
+        # Arrange: two genuine offers make a generic reference ambiguous.
         info["description"] = (
             f"{own} Продаются комнаты в соседней квартире. "
             "Общая площадь предлагаемых комнат — 23 м²."
         )
 
-        # Act / Assert
-        with self.assertRaisesRegex(RejectedCard, "^conflicting_room_area$"):
-            read_native(ROOM, data)
+        # Act
+        snapshot = read_native(ROOM, data)
+
+        # Assert
+        assert snapshot["state"] == "active"
+        self.assertEqual(snapshot["area_m2"], Decimal("22.50"))
 
     def test_native_room_set_rejects_conflicting_totals_before_count_is_known(
         self,
@@ -474,6 +476,74 @@ class DomclickTests(TestCase):
                 # Assert
                 assert accepted["state"] == "active"
                 self.assertEqual((accepted["rooms"], accepted["area_m2"]), (2, None))
+
+    def test_measures_follow_the_offer_before_a_reused_room_number(self) -> None:
+        own = "Продам комнату № 2 площадью 9,2 м²."
+        foreign_claim = "Площадь этой комнаты № 2 — 11 м²."
+        for foreign_offer in (
+            "Продам комнату № 2 в соседней квартире.",
+            "В соседней квартире: продаётся комната № 2.",
+            "В соседней квартире\nПродаётся комната № 2.",
+        ):
+            for claims in (
+                (own, foreign_offer, foreign_claim),
+                (foreign_offer, foreign_claim, own),
+            ):
+                for structured in (None, 9.2):
+                    with self.subTest(claims=claims, structured=structured):
+                        # Arrange
+                        data = native_proposal()
+                        info = cast(dict[str, object], data["objectInfo"])
+                        info.update(roomArea=structured, description=" ".join(claims))
+
+                        # Act
+                        snapshot = read_native(ROOM, data)
+
+                        # Assert
+                        assert snapshot["state"] == "active"
+                        self.assertEqual(snapshot["rooms"], 1)
+                        expected = Decimal("9.20") if structured is not None else None
+                        self.assertEqual(snapshot["area_m2"], expected)
+
+        # Arrange: the other offer's statement stays foreign; the owner's
+        # explicitly re-established statement is compared with their own area.
+        info["description"] = (
+            f"{own} В соседней квартире: продам комнату № 2. {foreign_claim} "
+            "В этой квартире: площадь этой комнаты № 2 — 10 м²."
+        )
+
+        # Act
+        with self.assertRaises(RejectedCard) as conflict:
+            read_native(ROOM, data)
+
+        # Assert
+        self.assertEqual(str(conflict.exception), "conflicting_room_area")
+
+    def test_foreign_heading_can_neither_supply_nor_override_a_set_total(self) -> None:
+        for own_offer, area in (
+            ("Продам комнаты.", None),
+            ("Продам комнаты общей площадью 22,5 м².", Decimal("22.50")),
+        ):
+            for heading in ("В соседней квартире:", "В соседней квартире\n"):
+                foreign_offer = (
+                    f"{heading} Продаются три комнаты. "
+                    "Общая площадь этих комнат — 23 м²."
+                )
+                for claims in ((own_offer, foreign_offer), (foreign_offer, own_offer)):
+                    with self.subTest(claims=claims):
+                        # Arrange
+                        data = {**native_proposal(), "roomsOffered": None}
+                        info = cast(dict[str, object], data["objectInfo"])
+                        info["description"] = " ".join(claims)
+
+                        # Act
+                        snapshot = read_native(ROOM, data)
+
+                        # Assert
+                        assert snapshot["state"] == "active"
+                        self.assertEqual(
+                            (snapshot["rooms"], snapshot["area_m2"]), (None, area)
+                        )
 
     def test_native_house_rejects_incompatible_direct_offer_claims(self) -> None:
         # Arrange: contrast directly offered properties with incidental mentions.
