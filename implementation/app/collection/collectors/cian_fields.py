@@ -142,7 +142,7 @@ def seller_description(value: object) -> str | None:
 
 # Only a direct offer clause can establish the subject and a comparable area.
 # Layout mentions, kitchen measurements and neighboring units have other scope.
-_OFFER = r"(?:\A|(?<=[.!?;:\n]))\s*(?:прода[её]тся|продаются|сда[её]тся|сдаются|продаю|сдаю)\s+"
+_OFFER = r"(?:\A|(?<=[.!?;:,\n]))\s*(?:прода[её]тся|продаются|сда[её]тся|сдаются|продаю|сдаю)\s+"
 _AREA = (
     r"(?P<area>[0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.\s*м)"
     r"(?=[\s,.;!?]|$)"
@@ -154,13 +154,16 @@ _OFFERED_ROOMS = re.compile(
     + r"(?P<unit>комнат[ауы]?)\b",
     re.IGNORECASE,
 )
-_NUMBERED_ROOMS = re.compile(r"\s*№\s*[1-9][0-9]*(?:\s*(?:,|и)\s*№\s*[1-9][0-9]*)*")
 _ROOM_NUMBER = re.compile(r"\s*№\s*([1-9][0-9]*)")
+_LIST_LINK = r"(?:\s*,\s*(?:и\s+)?|\s+и\s+)"
+_NEXT_NUMBERED_ROOM = re.compile(_LIST_LINK + r"(?:комнат[ауы]?\s+)?", re.IGNORECASE)
+_JOINT_LOT = re.compile(r"[\s,]+одним\s+лотом\b", re.IGNORECASE)
 _OWN_AREA = re.compile(r"[,\s:]+(?:(?:общей\s+)?площадью\s+)?" + _AREA, re.IGNORECASE)
 _SET_AREA = re.compile(
     r"[,\s:]+(?:общей|суммарной)\s+площадью\s+" + _AREA, re.IGNORECASE
 )
-_OTHER_UNIT = re.compile(r"\s+(?:в|из)\s+(?:соседн|друг)\w+", re.IGNORECASE)
+_OTHER_UNIT = re.compile(r"[\s,]+(?:в|из)\s+(?:соседн|друг)\w+", re.IGNORECASE)
+_SEPARATE_OFFER = re.compile(r"[\s,]+(?:отдельно|не\s+одним\s+лотом)\b", re.IGNORECASE)
 _ROOM_SHARE = re.compile(
     _OFFER + r"(?:[0-9]+/[0-9]+\s+)?дол[яю]\s+(?:в\s+)?квартир[еы]\b",
     re.IGNORECASE,
@@ -180,26 +183,53 @@ _HOUSE_SET_OR_PROJECT = re.compile(
     r"(?:дома|коттеджа)|строительство\b|(?:земельный\s+)?участок\s+без\s+дома)\b",
     re.IGNORECASE,
 )
+_BLOCK_KINDS = r"блок|секци[яю]|таунхаус"
 _HOUSE_PART = re.compile(
-    _OFFER + r"(?:(?:[0-9]+/[0-9]+\s+)?(?:дол[яю]|половин[ау]|часть)\s+"
-    r"(?:в\s+)?(?:дом[ае]|коттедж[ае])|(?:жилой\s+)?блок|секци[яю]|таунхаус)\b",
+    _OFFER + r"(?:только\s+)?(?:(?:[0-9]+/[0-9]+\s+)?(?:дол[яю]|половин[ау]|часть)\s+"
+    rf"(?:в\s+)?(?:дом[ае]|коттедж[ае])|(?:жилой\s+)?(?:{_BLOCK_KINDS}))\b",
     re.IGNORECASE,
 )
-_BLOCK_LABEL = (
-    r"(?P<kind>блок|секци[яю]|таунхаус)\s+(?:№\s*)?(?P<number>[0-9][0-9a-я/.-]*)\b"
-)
+_BLOCK_LABEL = rf"(?P<kind>{_BLOCK_KINDS})\s+(?:№\s*)?(?P<number>[0-9][0-9a-я/.-]*)\b"
 _ADDRESSABLE_BLOCK = re.compile(_BLOCK_LABEL, re.IGNORECASE)
-_OFFERED_BLOCK = re.compile(_OFFER + r"(?:жилой\s+)?" + _BLOCK_LABEL, re.IGNORECASE)
+_ADDRESS_BLOCK_SCOPE = re.compile(
+    rf"\s*(?:дом\s+(?:№\s*)?[0-9][0-9a-я/.-]*\s+)?"
+    rf"(?=(?:{_BLOCK_KINDS})\b)",
+    re.IGNORECASE,
+)
+_OFFERED_BLOCK = re.compile(
+    _OFFER + r"(?:только\s+)?(?:жилой\s+)?" + _BLOCK_LABEL, re.IGNORECASE
+)
 _OFFERED_HOUSE = re.compile(
     _OFFER + r"(?:(?P<whole>весь|целый)\s+)?(?:дом|коттедж)\b", re.IGNORECASE
 )
 
 
-def _own_area(text: str, start: int) -> Decimal | None:
-    match = _OWN_AREA.match(text, start)
-    if match is None or _OTHER_UNIT.match(text, match.end()):
-        return None
-    return area_m2(match["area"])
+_NEXT_HOUSE = re.compile(
+    _LIST_LINK + r"(?:(?:второй|ещ[её] один)\s+)?(?:дом|коттедж)\b", re.IGNORECASE
+)
+_LAND_IN_OFFER = re.compile(
+    r"[\s,]+на\s+участке\s+(?P<land>[0-9]+(?:[.,][0-9]+)?)\s*"
+    r"(?P<unit>сот(?:ок|ки|ка)?|м[²2]|кв\.\s*м)(?=[\s,.;!?]|$)",
+    re.IGNORECASE,
+)
+
+
+def _numbered_rooms(text: str, start: int) -> tuple[set[str], int]:
+    numbers: set[str] = set()
+    if first := _ROOM_NUMBER.match(text, start):
+        numbers.add(first[1])
+        start = first.end()
+    while numbers and (link := _NEXT_NUMBERED_ROOM.match(text, start)):
+        member = _ROOM_NUMBER.match(text, link.end())
+        if (
+            not member
+            or _OTHER_UNIT.match(text, member.end())
+            or _SEPARATE_OFFER.match(text, member.end())
+        ):
+            break
+        numbers.add(member[1])
+        start = member.end()
+    return numbers, start
 
 
 def check_room(
@@ -221,12 +251,10 @@ def check_room(
         raw_count = (offer["count"] or "").casefold()
         singular = offer["unit"].casefold() in ("комната", "комнату")
         bundle = not singular or raw_count not in ("", "1", "одна", "одну")
-        end = offer.end()
-        numbered = (_NUMBERED_ROOMS if bundle else _ROOM_NUMBER).match(text, end)
-        room_numbers = set()
-        if numbered:
-            room_numbers = set(_ROOM_NUMBER.findall(numbered[0]))
-            end = numbered.end()
+        room_numbers, end = _numbered_rooms(text, offer.end())
+        bundle = bundle or len(room_numbers) > 1
+        if bundle and (lot := _JOINT_LOT.match(text, end)):
+            end = lot.end()
         measurement = (_SET_AREA if bundle else _OWN_AREA).match(text, end)
         if _OTHER_UNIT.match(text, end) or (
             measurement and _OTHER_UNIT.match(text, measurement.end())
@@ -268,45 +296,83 @@ def _block(match: re.Match[str]) -> tuple[str, str]:
     return ("секция" if kind == "секцию" else kind, match["number"].casefold())
 
 
+def _house_measurements(
+    text: str, start: int
+) -> tuple[re.Match[str] | None, re.Match[str] | None, int]:
+    area = _OWN_AREA.match(text, start)
+    if area and _OTHER_UNIT.match(text, area.end()):
+        area = None
+    if area:
+        start = area.end()
+    plot = _LAND_IN_OFFER.match(text, start)
+    if plot and _OTHER_UNIT.match(text, plot.end()):
+        plot = None
+    return area, plot, plot.end() if plot else start
+
+
 def _check_house(
     area: Decimal | None,
+    plot: Decimal | None,
     building: dict[str, object],
     names: list[str],
     description: str | None,
 ) -> None:
     text = description or ""
-    blocks = {
-        _block(match) for part in names if (match := _ADDRESSABLE_BLOCK.fullmatch(part))
-    }
+    blocks = set()
+    for part in ", ".join(names).split(","):
+        if scope := _ADDRESS_BLOCK_SCOPE.match(part):
+            block = _ADDRESSABLE_BLOCK.fullmatch(part, scope.end())
+            if block is None:
+                raise RejectedCard("unconfirmed_house_unit")
+            blocks.add(_block(block))
     if len(blocks) > 1:
         raise RejectedCard("conflicting_house_unit")
     if _HOUSE_SET_OR_PROJECT.search(text) or (_HOUSE_PART.search(text) and not blocks):
         raise RejectedCard("unconfirmed_house_unit")
 
     areas = {area}
+    plots = {plot}
+
+    def record(measured: re.Match[str] | None, lot: re.Match[str] | None) -> None:
+        if measured:
+            areas.add(area_m2(measured["area"]))
+        if lot:
+            plots.add(
+                _plot_area(lot["land"], sotka=lot["unit"].casefold().startswith("сот"))
+            )
+
     if blocks:
-        for offer in _OFFERED_BLOCK.finditer(text):
+        for offer in _HOUSE_PART.finditer(text):
             if _OTHER_UNIT.match(text, offer.end()):
                 continue
-            if _block(offer) not in blocks:
+            block = _OFFERED_BLOCK.match(text, offer.start())
+            if block and _block(block) not in blocks:
                 raise RejectedCard("conflicting_house_unit")
-            areas.add(_own_area(text, offer.end()))
-        # The surrounding building can carry a different total area.
-        for offer in _HOUSE_PART.finditer(text):
-            if not _OFFERED_BLOCK.match(text, offer.start()):
-                areas.add(_own_area(text, offer.end()))
-        if any(
-            offer["whole"] and not _OTHER_UNIT.match(text, offer.end())
-            for offer in _OFFERED_HOUSE.finditer(text)
-        ):
-            raise RejectedCard("conflicting_house_unit")
+            measured, lot, _ = _house_measurements(
+                text, block.end() if block else offer.end()
+            )
+            record(measured, lot)
     else:
         areas.add(area_m2(building.get("totalArea")))
-        areas.update(
-            _own_area(text, offer.end()) for offer in _OFFERED_HOUSE.finditer(text)
-        )
+
+    for offer in _OFFERED_HOUSE.finditer(text):
+        if _OTHER_UNIT.match(text, offer.end()):
+            continue
+        if blocks and offer["whole"]:
+            raise RejectedCard("conflicting_house_unit")
+        # When a block is offered, enclosing house measurements are another scope.
+        measured, lot, end = _house_measurements(text, offer.end())
+        if second := _NEXT_HOUSE.match(text, end):
+            _, _, end = _house_measurements(text, second.end())
+            if _JOINT_LOT.match(text, end):
+                raise RejectedCard("unconfirmed_house_unit")
+        if not blocks:
+            record(measured, lot)
+
     if len(areas - {None}) > 1:
         raise RejectedCard("conflicting_house_area")
+    if len(plots - {None}) > 1:
+        raise RejectedCard("conflicting_land_area")
 
 
 def check_floor(floor: int | None, floors: int | None) -> None:
@@ -352,6 +418,13 @@ def _region(components: list[dict[str, object]]) -> str:
     raise RejectedCard("invalid_region")
 
 
+def _plot_area(amount: object, *, sotka: bool) -> Decimal:
+    sign, digits, exponent = number(amount).as_tuple()
+    assert isinstance(exponent, int)
+    square_metres = Decimal((sign, digits, exponent + 2 * int(sotka)))
+    return decimal_2(square_metres, minimum=Decimal("0.01"), maximum=_LAND_M2_MAX)
+
+
 def _land_area(offer: dict[str, object]) -> Decimal | None:
     land = _optional_object(offer.get("land"))
     amount = land.get("area")
@@ -359,11 +432,7 @@ def _land_area(offer: dict[str, object]) -> Decimal | None:
         return None
     if land.get("areaUnitType") != "sotka":
         raise RejectedCard("invalid_land_unit")
-    value = number(amount)
-    sign, digits, exponent = value.as_tuple()
-    assert isinstance(exponent, int)
-    square_metres = Decimal((sign, digits, exponent + 2))
-    return decimal_2(square_metres, minimum=Decimal("0.01"), maximum=_LAND_M2_MAX)
+    return _plot_area(amount, sotka=True)
 
 
 def _price(
@@ -474,8 +543,9 @@ def normalize_cian_card(
     description = seller_description(offer.get("description"))
     if room:
         rooms, area = check_room(rooms, area, description)
+    land_area = _land_area(offer) if house else None
     if house:
-        _check_house(area, building, names, description)
+        _check_house(area, land_area, building, names, description)
 
     return {
         **key,
@@ -492,7 +562,7 @@ def normalize_cian_card(
         "rooms": rooms,
         "floor": floor,
         "floors_total": floors,
-        "land_area_m2": _land_area(offer) if house else None,
+        "land_area_m2": land_area,
         "description": description,
         "price": _price(product, data, offer, deal),
         "photos": _photos(product, offer),

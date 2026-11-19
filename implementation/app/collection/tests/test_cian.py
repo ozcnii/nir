@@ -79,9 +79,11 @@ class CianCardTests(TestCase):
                 url, offer, product = projection()
                 offer[field] = invalid
 
-                # Act / Assert
+                # Act
                 with self.assertRaisesRegex(RejectedCard, f"^{reason}$"):
                     parsed(url, offer, product)
+
+                # Assert: the contradictory active snapshot never reaches storage.
 
     def test_extra_invalid_json_ld_does_not_discard_valid_product(self) -> None:
         # Arrange
@@ -413,6 +415,8 @@ class CianCardTests(TestCase):
     ) -> None:
         for description in (
             "Продаются два дома на одном участке.",
+            "Продаётся дом 90,9 м² и второй дом 40 м² одним лотом.",
+            "Предложение недели, продаётся дом и коттедж одним лотом.",
             "СРОЧНО. Продаётся 1/2 доля дома без отдельного входа.",
             "Продаётся проект коттеджа.",
         ):
@@ -450,6 +454,32 @@ class CianCardTests(TestCase):
 
         # Assert: a difference between comparable whole-house areas rejects the input.
 
+    def test_house_compares_area_of_the_plot_in_the_same_offer(self) -> None:
+        for description, conflicted in (
+            ("Продаётся дом 90,9 м² на участке 20 соток.", True),
+            ("Продаётся дом на участке 2700 м².", False),
+            ("Продаётся дом 90,9 м² на участке 27 соток.", False),
+            ("Продаётся дом 90,9 м². Соседний дом на участке 20 соток.", False),
+        ):
+            with self.subTest(description=description):
+                # Arrange: the retained projection gives 27 sotka for this offer.
+                url, offer, product = native_case("sale_house")
+                offer["description"] = description
+
+                if conflicted:
+                    # Act
+                    with self.assertRaisesRegex(
+                        RejectedCard, "^conflicting_land_area$"
+                    ):
+                        parsed(url, offer, product)
+                    # Assert: comparable conflicting plot areas reject the card.
+                else:
+                    # Act
+                    result = parsed(url, offer, product)
+
+                    # Assert
+                    self.assertEqual(result["land_area_m2"], Decimal("2700.00"))
+
     def test_native_daily_price_is_unavailable_if_terms_say_monthly(self) -> None:
         # Arrange: the observed daily label and matching JSON-LD remain unchanged.
         url, offer, product = native_case("day_flat")
@@ -476,6 +506,18 @@ class CianCardTests(TestCase):
             (
                 2,
                 "Продаются комнаты № 2 и № 3 общей площадью 18 м².",
+                2,
+                Decimal("18.00"),
+            ),
+            (
+                None,
+                "Продаются комната № 2 и комната № 3 одним лотом, общей площадью 18 м².",
+                2,
+                Decimal("18.00"),
+            ),
+            (
+                None,
+                "Продаются комната № 2, и комната № 3 общей площадью 18 м².",
                 2,
                 Decimal("18.00"),
             ),
@@ -521,14 +563,23 @@ class CianCardTests(TestCase):
         # Assert
         self.assertEqual((result["rooms"], result["area_m2"]), (1, Decimal("9.00")))
 
-        # Arrange: replace an optional purchase with a single offer of two rooms.
-        offer["description"] = "Продаются две комнаты одним лотом."
+        for description, reason in (
+            ("Продаются две комнаты одним лотом.", "conflicting_room_count"),
+            (
+                "Продаётся комната № 2 и комната № 3 одним лотом.",
+                "conflicting_room_count",
+            ),
+            ("Хороший район, продаётся комната 9,2 м².", "conflicting_room_area"),
+        ):
+            with self.subTest(description=description):
+                # Arrange: the structural room is singular and has area 9.0.
+                offer["description"] = description
 
-        # Act
-        with self.assertRaisesRegex(RejectedCard, "^conflicting_room_count$"):
-            parsed(url, offer, product)
+                # Act
+                with self.assertRaisesRegex(RejectedCard, f"^{reason}$"):
+                    parsed(url, offer, product)
 
-        # Assert: the invalid active snapshot is rejected before storage.
+                # Assert: the contradictory active snapshot never reaches storage.
 
     def test_block_checks_its_own_area_and_ignores_enclosing_house_total(self) -> None:
         # Arrange: one published block address and an enclosing building area.
@@ -553,6 +604,19 @@ class CianCardTests(TestCase):
 
         # Assert: the offered area is not replaced with another source.
 
+    def test_block_scope_can_share_one_published_address_component(self) -> None:
+        # Arrange: both roles are explicit even within one source component.
+        url, offer, product = native_case("sale_house")
+        extend_native_address(offer, "дом 7, блок 2")
+        offer["description"] = "Продаётся только блок № 2 площадью 90,9 м²."
+
+        # Act
+        result = parsed(url, offer, product)
+
+        # Assert
+        self.assertTrue(str(result["address"]).endswith("дом 7, блок 2"))
+        self.assertEqual(result["area_m2"], Decimal("90.90"))
+
     def test_incompatible_block_identity_is_rejected(self) -> None:
         for labels, description in (
             (("блок 2", "блок 3"), "Продаётся блок № 2."),
@@ -570,6 +634,20 @@ class CianCardTests(TestCase):
                     parsed(url, offer, product)
 
                 # Assert: the inconsistent scope never becomes a whole house.
+
+    def test_marked_block_without_address_identity_does_not_become_house(self) -> None:
+        for label in ("блок", "секция №", "дом 7 блок"):
+            with self.subTest(label=label):
+                # Arrange: the source denotes block scope without its identifier.
+                url, offer, product = native_case("sale_house")
+                extend_native_address(offer, label)
+                offer["description"] = None
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, "^unconfirmed_house_unit$"):
+                    parsed(url, offer, product)
+
+                # Assert: a unit without a definite identifier is rejected.
 
     def test_native_subject_must_agree_with_observed_city_and_region_identity(
         self,

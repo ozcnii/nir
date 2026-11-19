@@ -162,6 +162,13 @@ def verify_invalid_card(
         "redirect": offer,
         "foreign_state": {**offer, "id": foreign_id, "cianId": foreign_id},
         "invalid_area": {**offer, "totalArea": "47.211"},
+        "contradictory_room_set": {
+            **offer,
+            "category": "roomSale",
+            "roomsForSaleCount": 1,
+            "roomArea": "9.0",
+            "description": "Продаётся комната № 2 и комната № 3 одним лотом.",
+        },
     }
 
     @contextmanager
@@ -187,7 +194,7 @@ def verify_invalid_card(
             page.route("**/*", serve)
             yield page
 
-    # Act: reject foreign navigation, foreign state at the same URL and bad area data.
+    # Act: reject foreign identity, malformed area and contradictory room scope.
     outcomes = []
     for case in offers:
         try:
@@ -199,7 +206,12 @@ def verify_invalid_card(
             outcomes.append(str(error))
 
     # Assert: no invalid response reaches an active write.
-    assert outcomes == ["unavailable", "unavailable", "invalid_precision"], outcomes
+    assert outcomes == [
+        "unavailable",
+        "unavailable",
+        "invalid_precision",
+        "conflicting_room_count",
+    ], outcomes
     assert (
         Ad.objects.values_list("observed_at", flat=True).get(pk=ad_id)
         == observed_before
@@ -207,7 +219,7 @@ def verify_invalid_card(
     assert PriceHistory.objects.filter(ad_id=ad_id).count() == history_before
     assert not Ad.objects.filter(source_id="cian", external_id="1234567890").exists()
     print(
-        "Cian: foreign URL/ID and malformed area leave publication and history untouched"
+        "Cian: foreign identity, area and room conflict leave publication/history intact"
     )
 
 
