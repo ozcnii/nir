@@ -18,6 +18,7 @@ import django
 from check_avito import verify_avito
 from check_cian_search import verify_cian_search
 from check_domclick import verify_domclick
+from check_regional_sources import verify_regional_sources
 from check_saved_cards import verify_saved_cards
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -402,3 +403,4 @@ if __name__ == "__main__":
                 verify_domclick()
                 verify_saved_cards()
                 verify_cian_search()
+                verify_regional_sources()

@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError
 from playwright.sync_api import Error as PlaywrightError
 
-from app.catalog.contracts import Deal
+from app.catalog.contracts import Deal, Market
 from app.catalog.locks import CollectionBusy
 from app.catalog.reference_defaults import (
     APARTMENT_TYPE_ID,
@@ -36,19 +36,21 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("url", nargs="?")
-        parser.add_argument("--source", choices=SOURCE_CODES)
+        parser.add_argument("--source", choices=SOURCE_CODES, action="append")
         parser.add_argument("--region", type=int)
         parser.add_argument("--property-type", choices=_PROPERTY_TYPES)
         parser.add_argument("--deal", choices=get_args(Deal))
+        parser.add_argument("--segment", choices=get_args(Market))
 
     def handle(
         self,
         *,
         url: str | None,
-        source: str | None,
+        source: str | list[str] | None,
         region: int | None,
         property_type: str | None,
         deal: Deal | None,
+        segment: Market | None,
         **options: object,
     ) -> None:
         stop_requested = False
@@ -62,7 +64,8 @@ class Command(BaseCommand):
         try:
             if url is not None:
                 if any(
-                    value is not None for value in (source, region, property_type, deal)
+                    value is not None
+                    for value in (source, region, property_type, deal, segment)
                 ):
                     raise CommandError("choose_card_or_collection_scope")
                 receipt = collect_card(url, lambda: stop_requested)
@@ -78,12 +81,17 @@ class Command(BaseCommand):
                 and property_type is not None
                 and deal is not None
             ):
+                if segment is not None and (
+                    property_type != "apartment" or deal != "sale"
+                ):
+                    raise CommandError("collection_segment_requires_apartment_sale")
                 result = collect_search(
-                    source,
+                    [source] if isinstance(source, str) else source,
                     region,
                     _PROPERTY_TYPES[property_type],
                     deal,
                     lambda: stop_requested,
+                    segment=segment,
                 )
             else:
                 raise CommandError("collection_scope_required")

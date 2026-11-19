@@ -14,6 +14,7 @@ from app.catalog.publications import accept_snapshot, publication_deal
 from app.catalog.references import source_enabled
 from app.collection.browser import browser_page
 from app.collection.collectors import avito, cian, domclick
+from app.collection.domclick_normalization import DailyListingQuote
 from app.collection.normalization import RejectedCard
 
 CARD_TIMEOUT_MS = 30_000
@@ -84,14 +85,26 @@ def read_card(
     source: str,
     stopped: Callable[[], bool],
     removed_deal: Deal | None,
+    *,
+    quote: DailyListingQuote | None = None,
 ) -> Snapshot | SnapshotResult:
     def capture(observed_at: datetime, deadline: float) -> Snapshot | SnapshotResult:
         if source == "avito":
             return avito.capture_card(
-                page, url, observed_at, deadline, removed_deal=removed_deal
+                page,
+                url,
+                observed_at,
+                deadline,
+                removed_deal=removed_deal,
             )
         if source == "domclick":
-            return domclick.read_card(page, url, observed_at, deadline=deadline)
+            return domclick.read_card(
+                page,
+                url,
+                observed_at,
+                deadline=deadline,
+                quote=quote,
+            )
         return cian.capture_card(page, url, observed_at, deadline)
 
     same_card = {
@@ -115,22 +128,28 @@ def read_page[Result](
     capture: Callable[[datetime, float], Result],
     *,
     accepts_redirect: Callable[[str], bool],
+    next_control: str | None = None,
 ) -> Result:
     for retry in (False, True):
         check_stop(stopped)
         observed_at = datetime.now(UTC)
         deadline = time.monotonic() + CARD_TIMEOUT_MS / 1000
         try:
-            response = page.goto(
-                url, wait_until="domcontentloaded", timeout=CARD_TIMEOUT_MS
-            )
+            if next_control is None:
+                response = page.goto(
+                    url, wait_until="domcontentloaded", timeout=CARD_TIMEOUT_MS
+                )
+                check_stop(stopped)
+                if not retry and response is not None and 500 <= response.status < 600:
+                    continue
+                if response is None:
+                    raise CollectionError("no_http_response")
+                if not response.ok:
+                    raise CollectionError(f"http_{response.status}")
+            elif not retry:
+                # A click may advance the listing before the ready state is rendered.
+                page.locator(next_control).click(timeout=CARD_TIMEOUT_MS)
             check_stop(stopped)
-            if not retry and response is not None and 500 <= response.status < 600:
-                continue
-            if response is None:
-                raise CollectionError("no_http_response")
-            if not response.ok:
-                raise CollectionError(f"http_{response.status}")
             result = capture(observed_at, deadline)
             check_stop(stopped)
             if time.monotonic() >= deadline:
