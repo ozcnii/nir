@@ -1,6 +1,7 @@
 """Resolve the unit actually offered in a recognized Avito card."""
 
 import re
+from collections.abc import Iterator
 from decimal import Decimal
 from typing import NamedTuple
 
@@ -15,6 +16,7 @@ _LAND_UNIT = r"м²|сот(?:\.|ок|ки|ка)|га"
 _AREA = re.compile(rf"(.+?)\s+({_LAND_UNIT})")
 _MEASUREMENT = r"[0-9]+(?:[.,][0-9]+)?"
 _COUNT_WORDS = {"одна": 1, "две": 2, "три": 3}
+_BUNDLE_COUNT_WORDS = {"двух": 2, "трех": 3, "трёх": 3}
 _ROOM = re.compile(
     r"(?:доля:\s*)?(?:(?P<count>[1-9][0-9]*|одна|две|три)\s+)?"
     r"(?P<unit>комнат[ауы]?)\b(?:\s+№\s*(?P<room>[1-9][0-9]*))?"
@@ -35,7 +37,7 @@ _OFFER = re.compile(
     r"|предлагается|предлагаются|предлагаю)\s+"
 )
 _CLAUSE = re.compile(
-    rf"[\r\n]+|[.!?;](?:\s+|$)|(?:[,:]\s+|(?<!\s)(?<!м²)\s+[–—]\s+)"
+    rf"[\r\n]+|[.!?;](?:\s+|$)|[,:]\s+"
     rf"(?={_OFFER.pattern}|(?:общая |жилая )?площадь\b"
     r"|участок\b|(?:эта |предлагаемая )?доля\b)"
 )
@@ -44,7 +46,8 @@ _OFFERED_ROOM_AREA = re.compile(
     rf"(?: № ?(?P<room>[1-9][0-9]*))?(?:[: ]+|[ —-]+)(?P<area>{_MEASUREMENT}) м²"
 )
 _OFFERED_BUNDLE_AREA = re.compile(
-    r"общая площадь (?:(?:продаваемых|предлагаемых|сдаваемых) комнат|набора комнат)"
+    r"общая площадь (?:набора|продаваемых|предлагаемых|сдаваемых"
+    r"|этих (?P<count>двух|тр[её]х|[1-9][0-9]*)) комнат"
     rf"\b[\s:–—-]+(?P<area>{_MEASUREMENT}) м²"
 )
 _ROOM_ALLOCATION = re.compile(
@@ -56,7 +59,10 @@ _UNALLOCATED = re.compile(
     r"(?:без выделен(?:ия|ной комнаты)|не выделен[ао])\b"
 )
 
-_AFTER_AREA_ROLE = r"(?:(?:\s*[-–—]\s*|\s+)(?P<after>общая|жилая)\b)?"
+_AFTER_AREA_ROLE = (
+    r"(?:(?:\s*[-–—]\s*|\s+)(?P<after>общая|жилая)\b(?: площадь)?"
+    r"|\s*\((?P<parenthetical>общая|жилая)(?: площадь)?\))?"
+)
 _HOUSE_TITLE = re.compile(
     rf"дом(?: (?:(?P<area_role>общей|жилой) площадью )?(?P<area>{_MEASUREMENT}) м²"
     rf"{_AFTER_AREA_ROLE})?"
@@ -65,7 +71,7 @@ _HOUSE_TITLE = re.compile(
 _HOUSE_MEASURE = re.compile(
     r"(?:(?P<role>общая|жилая) )?(?:площадь (?P<part>дома|участка)|участок)"
     r"(?:[: ]+|[ —-]+)(?:(?P<before>общая|жилая) )?"
-    rf"(?P<value>{_MEASUREMENT} (?:{_LAND_UNIT}))(?=\s|[.,;–—-]|$)"
+    rf"(?P<value>{_MEASUREMENT} (?:{_LAND_UNIT}))(?=\s|[.,;(–—-]|$)"
     rf"{_AFTER_AREA_ROLE}"
 )
 _BLOCK_NAME = r"(?:блок|секци[яю])"
@@ -81,6 +87,16 @@ _ADDRESS_BLOCK = re.compile(
     rf"{_BLOCK_NAME}\b(?=\s*(?:[0-9№,;]|$))"
 )
 _NEXT_HOUSE = re.compile(r"(?:(?:второй|ещ[её] один) )?дом\b")
+_OFFER_CORRECTION = re.compile(r"\s*[,–—-]\s*(?:точнее|а именно)(?:[,:]\s*|\s+)")
+_DASH = re.compile(r"\s+[-–—]\s+")
+_INDEPENDENT_CLAIMS = (
+    _OFFER,
+    _OFFERED_ROOM_AREA,
+    _OFFERED_BUNDLE_AREA,
+    _HOUSE_MEASURE,
+    _UNALLOCATED,
+    _ROOM_ALLOCATION,
+)
 
 
 class RoomClaim(NamedTuple):
@@ -106,14 +122,24 @@ def area_m2(value: str | None, *, land: bool = False) -> Decimal | None:
     )
 
 
-def _seller_statements(description: str) -> list[tuple[str, bool]]:
-    claims = []
-    for clause in _CLAUSE.split(description.casefold()):
-        value = " ".join(clause.split())
+def _seller_clauses(description: str) -> Iterator[str]:
+    for raw in _CLAUSE.split(description.casefold()):
+        clause = " ".join(raw.split())
+        start = 0
+        for delimiter in _DASH.finditer(clause):
+            if any(
+                claim.match(clause, delimiter.end()) for claim in _INDEPENDENT_CLAIMS
+            ):
+                yield clause[start : delimiter.start()]
+                start = delimiter.end()
+        yield clause[start:]
+
+
+def _seller_statements(description: str) -> Iterator[tuple[str, bool]]:
+    for value in _seller_clauses(description):
         offer = _OFFER.match(value)
         if value:
-            claims.append((value[offer.end() :] if offer else value, offer is not None))
-    return claims
+            yield (value[offer.end() :] if offer else value, offer is not None)
 
 
 def _room_claim(text: str) -> RoomClaim | None:
@@ -128,8 +154,13 @@ def _room_claim(text: str) -> RoomClaim | None:
         if rooms is None:
             rooms = optional_integer(count, minimum=1)
     end = match.end()
+    room = match["room"]
+    identified_members = {room} if room is not None else set()
+    areas: list[Decimal] = []
+    if match["area"] and (rooms == 1 or match["total"]):
+        areas.append(number(match["area"]))
     members = 1
-    while (link := _NEXT_MEMBER.match(text, end)) is not None:
+    while rooms == 1 and (link := _NEXT_MEMBER.match(text, end)) is not None:
         if (member := _ROOM.match(text, link.end())) is None or _OUTSIDE_OFFER.match(
             text, member.end()
         ):
@@ -140,22 +171,25 @@ def _room_claim(text: str) -> RoomClaim | None:
             "1",
         ):
             break
-        members += 1
+        member_id = member["room"]
+        if member_id is None or member_id not in identified_members:
+            members += 1
+        if member_id is not None:
+            identified_members.add(member_id)
+        if member["area"]:
+            areas.append(number(member["area"]))
         end = member.end()
-    room = match["room"]
-    number_is_explicit = count is not None
-    areas: list[Decimal] = []
-    if members > 1 and rooms == 1:
-        rooms, room, number_is_explicit = members, None, True
-    elif match["area"] and (rooms == 1 or match["total"]):
-        areas.append(number(match["area"]))
-    if rooms is not None and rooms > 1:
+    count_is_explicit = count is not None
+    if members > 1:
+        rooms, room, count_is_explicit = members, None, True
+        areas.clear()
+    if rooms is not None and (rooms > 1 or end > match.end()):
         while (total := _BUNDLE_AREA.match(text, end)) is not None and not (
             _OUTSIDE_OFFER.match(text, total.end())
         ):
             areas.append(number(total["area"]))
             end = total.end()
-    return RoomClaim(rooms, tuple(areas), room, number_is_explicit)
+    return RoomClaim(rooms, tuple(areas), room, count_is_explicit)
 
 
 def rooms_and_area(
@@ -167,6 +201,7 @@ def rooms_and_area(
     offered: list[RoomClaim] = []
     explicit_areas: list[tuple[str | None, Decimal]] = []
     bundle_areas: set[Decimal] = set()
+    bundle_counts: set[int] = set()
     denied_rooms: set[str] = set()
     allocated = (
         heading is not None
@@ -201,6 +236,12 @@ def rooms_and_area(
             measure := _OFFERED_BUNDLE_AREA.match(statement)
         ) is not None and not _OUTSIDE_OFFER.match(statement, measure.end()):
             bundle_areas.add(number(measure["area"]))
+            if reference := measure["count"]:
+                referred_count = _BUNDLE_COUNT_WORDS.get(reference)
+                if referred_count is None:
+                    referred_count = optional_integer(reference, minimum=2)
+                if referred_count is not None:
+                    bundle_counts.add(referred_count)
 
     counts = {claim.rooms for claim in offered if claim.rooms is not None}
     if (
@@ -234,6 +275,8 @@ def rooms_and_area(
                 if not scope or room is None or room in scope
             )
     else:
+        if bundle_counts - {rooms}:
+            raise RejectedCard("conflicting_room_count")
         areas.update(bundle_areas)
     if len(areas) > 1:
         raise RejectedCard("conflicting_room_area")
@@ -264,7 +307,7 @@ def check_house(
         if (
             claim["area"]
             and claim["area_role"] != "жилой"
-            and claim["after"] != "жилая"
+            and "жилая" not in (claim["after"], claim["parenthetical"])
         ):
             house_areas.add(area_m2(f"{claim['area']} м²"))
         if claim["land"]:
@@ -283,6 +326,7 @@ def check_house(
                 measured["role"],
                 measured["before"],
                 measured["after"],
+                measured["parenthetical"],
             ):
                 continue
             if measured["part"] == "дома":
@@ -292,6 +336,9 @@ def check_house(
         elif (offer or bundle) and (house := _HOUSE_TITLE.match(statement)) is not None:
             if _OUTSIDE_OFFER.match(statement, house.end()):
                 continue
+            correction = _OFFER_CORRECTION.match(statement, house.end())
+            if correction and _HOUSE_NONSINGLE.match(statement, correction.end()):
+                raise RejectedCard("unconfirmed_house_unit")
             continuation = _NEXT_MEMBER.match(statement, house.end())
             if (
                 bundle
