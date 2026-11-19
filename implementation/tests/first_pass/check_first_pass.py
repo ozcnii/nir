@@ -288,9 +288,9 @@ def verify_avito() -> None:
     item.update(
         title="Комната 12,5 м²",
         description=(
-            "Продаются комната 12,5 м² и комната 10 м² одним лотом, "
-            "общей площадью 22,5 м². В соседней квартире две комнаты № 4 и № 5. "
-            "Общая площадь этих комнат — 23 м²."
+            "Продаются комнаты № 2 и № 3 одним лотом, общей площадью 22,5 м². "
+            "Отдельно предлагаются комнаты № 4 и № 5. "
+            "Общая площадь этих предлагаемых комнат — 23 м²."
         ),
     )
     params = as_object(buyer["paramsDto"])
@@ -304,14 +304,19 @@ def verify_avito() -> None:
     bundle = collect()
 
     # Assert: the neighbor's total does not change the offered unit's total.
-    saved_bundle = Ad.objects.get(source_id="avito", external_id="7697142163")
+    bundle_ads = Ad.objects.filter(source_id="avito", external_id="7697142163")
+    saved_bundle = bundle_ads.get()
     assert bundle["outcome"] == "created"
     assert saved_bundle.property.rooms == 2
     assert saved_bundle.property.area_m2 == Decimal("22.50")
     assert Ad.objects.count() == counts[0] + 1
     assert Property.objects.count() == counts[1] + 1
 
-    bundle_fields = (saved_bundle.property_id, saved_bundle.observed_at)
+    bundle_properties = Property.objects.filter(pk=saved_bundle.property_id)
+    bundle_prices = PriceHistory.objects.filter(ad=saved_bundle).order_by("pk")
+    bundle_fields = bundle_ads.values().get()
+    property_fields = bundle_properties.values().get()
+    price_rows = list(bundle_prices.values())
     for description in (
         "Продаются комнаты № 2 и № 3 одним лотом, общей площадью 22,5 м². "
         "Общая площадь этих комнат — 23 м².",
@@ -332,14 +337,56 @@ def verify_avito() -> None:
             raise AssertionError("Conflicting room areas must not update publication")
 
         # Assert: the previously accepted bundle and history retain their data.
-        saved_bundle.refresh_from_db()
-        assert (saved_bundle.property_id, saved_bundle.observed_at) == bundle_fields
-        assert saved_bundle.property.area_m2 == Decimal("22.50")
+        assert bundle_ads.values().get() == bundle_fields
+        assert bundle_properties.values().get() == property_fields
+        assert list(bundle_prices.values()) == price_rows
         assert (
             Ad.objects.count(),
             Property.objects.count(),
             PriceHistory.objects.count(),
         ) == tuple(count + 1 for count in counts)
+
+    # Arrange: the own bundle has member sizes but no total in this repeat.
+    # The second offer refers to a different room having the same number.
+    item["description"] = (
+        "Продам комнату № 2 площадью 9 м² и комнату № 3 площадью 10 м² одним лотом. "
+        "Продаётся комната № 2 в соседней квартире. "
+        "Площадь предлагаемой комнаты № 2 — 11 м²."
+    )
+    item["price"] = 750000
+    as_object(item["formattedPrice"]).update(value=750000, formatedString="750 000 ₽")
+
+    # Act
+    updated = collect()
+
+    # Assert: the available price advances, while the known total and IDs persist.
+    assert updated == {
+        "outcome": "updated",
+        "ad_id": saved_bundle.pk,
+        "property_id": saved_bundle.property_id,
+        "price_changed": True,
+    }
+    assert bundle_properties.get().area_m2 == Decimal("22.50")
+    assert bundle_ads.get().observed_at > saved_bundle.observed_at
+    assert list(bundle_prices.values_list("price_rub", flat=True)) == [
+        Decimal("752777.00"),
+        Decimal("750000.00"),
+    ]
+    assert Ad.objects.count() == counts[0] + 1
+    assert Property.objects.count() == counts[1] + 1
+
+    # Arrange: a separate controlled key has no previous area to retain.
+    url = url.replace("7697142163", "7697142164")
+    item.update(id=7697142164, url=str(item["url"]).replace("7697142163", "7697142164"))
+
+    # Act
+    new_bundle = collect()
+
+    # Assert: the foreign member does not supply an area for the new bundle.
+    assert new_bundle["outcome"] == "created"
+    created = Ad.objects.get(source_id="avito", external_id="7697142164")
+    assert created.property_id != saved_bundle.property_id
+    assert created.property.rooms == 2 and created.property.area_m2 is None
     print(
         "Avito: terminal collection, room bundle, repeat, wrong ID and explicit close verified in PostgreSQL"
     )

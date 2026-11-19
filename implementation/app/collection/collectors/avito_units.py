@@ -3,6 +3,7 @@
 import re
 from collections.abc import Iterator
 from decimal import Decimal
+from enum import Enum, auto
 from typing import NamedTuple
 
 from app.collection.normalization import (
@@ -32,12 +33,18 @@ _BUNDLE_AREA = re.compile(
     r"(?:(?:общей|суммарной) площадью|(?:общая|суммарная) площадь)"
     rf" (?P<area>{_MEASUREMENT}) м²"
 )
+_ROLE_SEPARATOR = r"\s*(?:[,—-]\s*)?(?<!\w)"
 _OUTSIDE_OFFER = re.compile(
-    r"\s*(?:[,—-]\s*)?(?<!\w)(?:(?P<other_owner>соседская|соседей|принадлежит соседям)"
+    _ROLE_SEPARATOR + r"(?:(?P<other_owner>соседская|соседей|принадлежит соседям)"
     r"|(?P<separate>по отдельности|не одним лотом)|отдельно|не входит"
     r"|на фото|в соседней квартире)\b"
 )
+_OUTSIDE_ROOM = re.compile(
+    rf"{_OUTSIDE_OFFER.pattern}|{_ROLE_SEPARATOR}"
+    r"в (?:другой квартире|(?:соседнем|другом) доме)\b"
+)
 _BUNDLE = re.compile(r"(?<!не )\bодним лотом\b")
+_LOT_SUFFIX = re.compile(r"[\s,]+одним лотом\b")
 _OFFER = re.compile(
     r"(?:прода[её]тся|продаются|продаю|продам|сда[её]тся|сдаются|сдаю|сдам"
     r"|предлагается|предлагаются|предлагаю)\s+"
@@ -55,7 +62,7 @@ _OFFERED_ROOM_AREA = re.compile(
 _OFFERED_BUNDLE_AREA = re.compile(
     rf"(?:общая|суммарная) площадь (?:набора|(?P<own>{_OFFERED}ых)"
     rf"|(?:этих(?: (?P<count>двух|тр[её]х|[1-9][0-9]*))?|(?P<both>обеих))"
-    rf"(?: (?P<own_reference>{_OFFERED}ых))?) комнат"
+    rf"(?: {_OFFERED}ых)?) комнат"
     rf"\b[\s:–—-]+(?P<area>{_MEASUREMENT}) м²"
 )
 _ROOM_ALLOCATION = re.compile(
@@ -123,6 +130,21 @@ class RoomClaim(NamedTuple):
     explicit_count: bool
 
 
+class RoomSubject(Enum):
+    OFFERED = auto()
+    OTHER_OFFER = auto()
+    OTHER_MENTION = auto()
+    UNKNOWN = auto()
+
+
+class RoomEvidence(NamedTuple):
+    offers: list[RoomClaim]
+    member_sizes: list[re.Match[str]]
+    bundle_totals: list[re.Match[str]]
+    allocated: bool
+    denied_rooms: set[str]
+
+
 def area_m2(value: str | None, *, land: bool = False) -> Decimal | None:
     if value is None:
         return None
@@ -169,13 +191,21 @@ def _read_room_member(text: str, match: re.Match[str]) -> tuple[RoomMember, int]
     ), end.end()
 
 
+def _room_qualifier(text: str, end: int) -> re.Match[str] | None:
+    lot = _LOT_SUFFIX.match(text, end)
+    return _OUTSIDE_ROOM.match(text, lot.end() if lot else end)
+
+
 def _room_claim(text: str) -> RoomClaim | None:
     first = _ROOM.match(text)
     if first is None:
         return None
-    first_member, first_end = _read_room_member(text, first)
-    if _OUTSIDE_OFFER.match(text, first_end):
+    designation = (
+        _ROOM_DESIGNATION.match(text, first.end()) if not first["room"] else None
+    )
+    if _room_qualifier(text, (designation or first).end()):
         return None
+    first_member, first_end = _read_room_member(text, first)
     count = first["count"]
     if count is None:
         rooms = 1 if first["unit"] in ("комната", "комнату") else None
@@ -204,8 +234,10 @@ def _room_claim(text: str) -> RoomClaim | None:
         ):
             break
         next_member, next_end = _read_room_member(text, member)
-        outside = _OUTSIDE_OFFER.match(text, next_end)
+        outside = _room_qualifier(text, next_end)
         if outside is not None:
+            if _LOT_SUFFIX.match(text, next_end):
+                return None
             if outside["separate"]:
                 if rooms != 1:
                     return None
@@ -241,9 +273,9 @@ def _room_claim(text: str) -> RoomClaim | None:
         elif rooms == 1:
             areas.extend(member_scope.areas)
     if bundle or len(members) > 1:
-        while (total := _BUNDLE_AREA.match(text, end)) is not None and not (
-            _OUTSIDE_OFFER.match(text, total.end())
-        ):
+        while (total := _BUNDLE_AREA.match(text, end)) is not None:
+            if _room_qualifier(text, total.end()):
+                return None
             areas.append(number(total["area"]))
             end = total.end()
     return RoomClaim(
@@ -255,38 +287,42 @@ def _room_claim(text: str) -> RoomClaim | None:
     )
 
 
-def rooms_and_area(
-    title: str, description: str, area: Decimal | None, *, share: bool
-) -> tuple[int | None, Decimal | None]:
-    label = title.casefold()
-    heading = _room_claim(label)
-    share = share or label.startswith("доля")
+def _room_evidence(description: str, *, share: bool) -> RoomEvidence:
     offered: list[RoomClaim] = []
-    explicit_areas: list[tuple[str | None, Decimal]] = []
-    bundle_measures: list[re.Match[str]] = []
-    unbound_measures: list[re.Match[str]] = []
-    refers_to_own_bundle: bool | None = None
-    competing_room_scope = False
+    member_sizes: list[re.Match[str]] = []
+    bundle_totals: list[re.Match[str]] = []
+    leading_member_sizes: list[re.Match[str]] = []
+    leading_bundle_totals: list[re.Match[str]] = []
+    subject: RoomSubject | None = None
+    competing_subject = False
+    qualified_by_heading = False
     denied_rooms: set[str] = set()
-    allocated = (
-        heading is not None
-        and label.startswith("доля:")
-        and (bool(heading.member_areas) or heading.explicit_count)
-    )
+    allocated = False
     for statement, offer in _seller_statements(description):
-        outside_scope = (
-            _ROOM.search(statement) is not None
-            and _OUTSIDE_OFFER.search(statement) is not None
-        )
-        if outside_scope:
-            competing_room_scope = True
-            refers_to_own_bundle = False
+        member_size = _OFFERED_ROOM_AREA.match(statement)
+        bundle_total = _OFFERED_BUNDLE_AREA.match(statement)
+        measurement = member_size or bundle_total
+        qualifier = _OUTSIDE_ROOM.match(statement)
+        body = statement[qualifier.end() :].lstrip(" ,:—–-") if qualifier else statement
+        outside = qualified_by_heading or qualifier is not None
+        qualified_by_heading = qualifier is not None and not body
+        if (measurement and _room_qualifier(statement, measurement.end())) or (
+            outside and (qualified_by_heading or _ROOM.search(body))
+        ):
+            competing_subject = True
+            if offer or _OFFER.match(body) or measurement:
+                subject = RoomSubject.OTHER_OFFER
+            elif subject not in (RoomSubject.OTHER_OFFER, RoomSubject.UNKNOWN):
+                subject = RoomSubject.OTHER_MENTION
+            continue
+
         if share and _UNALLOCATED.match(statement):
             raise RejectedCard("unconfirmed_room_unit")
         if share and (room := _ROOM.match(statement)) is not None:
-            outside = _OUTSIDE_OFFER.match(statement, room.end())
-            if outside and outside["other_owner"] and room["room"]:
+            room_qualifier = _room_qualifier(statement, room.end())
+            if room_qualifier and room_qualifier["other_owner"] and room["room"]:
                 denied_rooms.add(room["room"])
+
         if share and (allocation := _ROOM_ALLOCATION.match(statement)) is not None:
             claim = _room_claim(statement[allocation.end() :])
             if allocation["not_matched"] or allocation["not_assigned"]:
@@ -296,25 +332,61 @@ def rooms_and_area(
             elif claim is not None and claim.rooms == 1:
                 offered.append(claim)
                 allocated = True
-        elif (offer or _BUNDLE.search(statement)) and (
-            claim := _room_claim(statement)
-        ) is not None:
-            offered.append(claim)
-            if not outside_scope:
-                refers_to_own_bundle = claim.bundle
-        elif (
-            measure := _OFFERED_ROOM_AREA.match(statement)
-        ) is not None and not _OUTSIDE_OFFER.match(statement, measure.end()):
-            explicit_areas.append((measure["room"], number(measure["area"])))
-        elif (
-            measure := _OFFERED_BUNDLE_AREA.match(statement)
-        ) is not None and not _OUTSIDE_OFFER.match(statement, measure.end()):
-            if measure["own"] or measure["own_reference"]:
-                refers_to_own_bundle = True
-            if refers_to_own_bundle is True:
-                bundle_measures.append(measure)
-            elif refers_to_own_bundle is None:
-                unbound_measures.append(measure)
+                subject = RoomSubject.OFFERED
+            continue
+
+        if offer or _BUNDLE.search(statement):
+            if (claim := _room_claim(statement)) is not None:
+                offered.append(claim)
+                subject = RoomSubject.OFFERED
+                continue
+            if _ROOM.match(statement) and _OUTSIDE_ROOM.search(statement):
+                competing_subject = True
+                subject = RoomSubject.OTHER_OFFER
+                continue
+
+        if member_size:
+            if subject is RoomSubject.OFFERED:
+                member_sizes.append(member_size)
+            elif subject is None:
+                leading_member_sizes.append(member_size)
+        elif bundle_total:
+            # A demonstrative stays attached to the current subject.
+            # An unqualified "offered" can distinguish an offer from a mention.
+            if (subject is RoomSubject.OFFERED and offered[-1].bundle) or (
+                subject is RoomSubject.OTHER_MENTION and bundle_total["own"]
+            ):
+                bundle_totals.append(bundle_total)
+            elif subject is None:
+                leading_bundle_totals.append(bundle_total)
+        elif _ROOM.search(statement):
+            competing_subject = True
+            if not _OUTSIDE_ROOM.search(statement):
+                subject = RoomSubject.UNKNOWN
+            elif subject not in (RoomSubject.OTHER_OFFER, RoomSubject.UNKNOWN):
+                subject = RoomSubject.OTHER_MENTION
+
+    # A leading reference can only resolve forward without a competing subject.
+    if not competing_subject:
+        member_sizes.extend(leading_member_sizes)
+        bundle_totals.extend(leading_bundle_totals)
+    return RoomEvidence(offered, member_sizes, bundle_totals, allocated, denied_rooms)
+
+
+def rooms_and_area(
+    title: str, description: str, area: Decimal | None, *, share: bool
+) -> tuple[int | None, Decimal | None]:
+    label = title.casefold()
+    heading = _room_claim(label)
+    share = share or label.startswith("доля")
+    offered, member_sizes, bundle_totals, allocated, denied_rooms = _room_evidence(
+        description, share=share
+    )
+    allocated = allocated or (
+        heading is not None
+        and label.startswith("доля:")
+        and (bool(heading.member_areas) or heading.explicit_count)
+    )
 
     bundle = any(claim.bundle for claim in offered) or (
         not offered
@@ -353,18 +425,16 @@ def rooms_and_area(
     if (rooms is not None and len(scope) > rooms) or (share and scope & denied_rooms):
         raise RejectedCard("unconfirmed_room_unit")
     areas = {amount for claim in claims for amount in claim.areas}
-    for measured_id, amount in explicit_areas:
+    for measurement in member_sizes:
+        measured_id = measurement["room"]
         if measured_id is not None and measured_id in scope:
-            member_areas[measured_id].add(amount)
+            member_areas[measured_id].add(number(measurement["area"]))
         elif rooms == 1 and (measured_id is None or not scope):
-            areas.add(amount)
+            areas.add(number(measurement["area"]))
     if any(len(measurements) > 1 for measurements in member_areas.values()):
         raise RejectedCard("conflicting_room_area")
     if bundle:
-        # A leading reference can resolve forward only without a competing scope.
-        if not competing_room_scope:
-            bundle_measures.extend(unbound_measures)
-        for measure in bundle_measures:
+        for measure in bundle_totals:
             if rooms is not None and (reference := measure["count"] or measure["both"]):
                 referred_count = _BUNDLE_COUNT_WORDS.get(reference)
                 if referred_count is None:
