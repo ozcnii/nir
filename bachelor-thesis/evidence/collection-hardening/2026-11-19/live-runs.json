@@ -1,0 +1,37 @@
+{
+  "commit": "5dff737",
+  "worktree": "vkr-stage7-acceptance",
+  "note": "Правки не закоммичены; состояние дерева на момент прогонов.",
+  "environment": {
+    "browser": "Google Chrome, headful, channel=chrome",
+    "profile": "C:\\Users\\qq\\.cache\\nir-collection\\warm (прогрет оператором)",
+    "host": "qq (Windows 11, RU-адрес)",
+    "database": "PostgreSQL в контейнере nir-access-check-db-1, порт 55432"
+  },
+  "runs": [
+    {
+      "source": "domclick",
+      "command": "collect --source domclick --region 68 --property-type apartment --deal sale",
+      "first": {"outcome": "partial", "pages": 1, "unique_cards": 11, "results": {"created": 10}, "issues": {"stopped_by_limit": 1}},
+      "repeat": {"outcome": "partial", "pages": 1, "unique_cards": 11, "results": {"unchanged": 10}, "issues": {"stopped_by_limit": 1}}
+    },
+    {
+      "source": "cian",
+      "command": "collect --source cian --region 68 --property-type apartment --deal sale",
+      "first": {"outcome": "partial", "pages": 0, "results": {}, "issues": {"source_captcha": 1}},
+      "note": "Челлендж servicepipe распознан и передан брокеру; без --captcha-broker решение не запрашивалось."
+    },
+    {
+      "source": "cian",
+      "command": "collect <карточка 333705897>",
+      "first": {"outcome": "created", "ad_id": 1},
+      "repeat": {"outcome": "unchanged"}
+    }
+  ],
+  "checks": {
+    "ruff": "чисто",
+    "mypy_strict": "чисто, 83 файла",
+    "django_tests": "133 теста, OK",
+    "compose_acceptance": "tests/compose.sh exit 0, 194 + 22 теста, OK"
+  }
+}

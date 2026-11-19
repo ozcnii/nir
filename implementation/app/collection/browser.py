@@ -1,17 +1,60 @@
 """Open a headless Chromium page for the collector."""
 
+import logging
+import os
+import tempfile
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
+from random import uniform
+from typing import Literal
+from urllib.parse import urlsplit
 
 from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Page, Response, Route, sync_playwright
+from playwright.sync_api import Page, ProxySettings, Response, Route, sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
+from app.collection.captcha import (
+    ChallengePending,
+    Solver,
+    apply_answer,
+    prepare_challenge,
+)
 from app.collection.normalization import RejectedCard, as_object
 
+LOGGER = logging.getLogger(__name__)
+
+MAX_ATTEMPTS = 2
 CARD_TIMEOUT_MS = 30_000
+# Avito resolves its own firewall check in ~6 s on a healthy address, so the
+# observation window stays just under the attempt limit instead of failing early.
+CHALLENGE_BUDGET_S = 25.0
+RETRY_PAUSE_S = 2.0
+WARM_SETTLE_MS = 3_000
+STOP_POLL_S = 0.2
+# One source can sample a few pages and cards at a human pace instead of
+# draining the whole listing in a burst. Limits and pauses are empty by default
+# so checks walk the complete listing; a live run sets its own pace.
+COLLECTION_MAX_PAGES = ""
+COLLECTION_MAX_CARDS = ""
+COLLECTION_PAGE_PAUSE = ""
+COLLECTION_CARD_PAUSE = ""
+_OBSERVE_STATUSES = frozenset({401, 403, 439})
+
+
+def default_captcha_root() -> Path:
+    """Where a run publishes challenge requests for an operator answer."""
+    return Path(tempfile.gettempdir()) / "nir-captcha"
+
+
+def default_profile_root() -> Path:
+    """Where named browser profiles keep their cookies between runs."""
+    return Path.home() / ".cache" / "nir-collection"
+
+
 TRANSPORT_ERRORS = (
     "net::ERR_CONNECTION_CLOSED",
     "net::ERR_CONNECTION_RESET",
@@ -24,6 +67,35 @@ TRANSPORT_ERRORS = (
 
 class CollectionError(RuntimeError):
     pass
+
+
+Recovery = Literal["proceed", "observe", "retry", "stop"]
+
+
+def document_recovery(status: int, *, navigation: bool) -> Recovery:
+    """Decide what one page attempt does with an observed HTTP status.
+
+    401/403/439 are intermediate: the site resolves its own check, so the
+    document is observed for a short window instead of failing at once.
+    """
+    if 200 <= status < 300:
+        return "proceed"
+    if status == 429 or 500 <= status < 600:
+        return "retry"
+    if navigation and status in _OBSERVE_STATUSES:
+        return "observe"
+    return "stop"
+
+
+def reason_recovery(reason: str) -> Recovery:
+    """Classify a rejection raised while reading a response body."""
+    if not reason.startswith("http_"):
+        return "stop"
+    try:
+        status = int(reason.removeprefix("http_"))
+    except ValueError:
+        return "stop"
+    return document_recovery(status, navigation=False)
 
 
 class CollectionStopped(Exception):
@@ -46,6 +118,85 @@ def check_stop(stopped: Callable[[], bool]) -> None:
         raise CollectionStopped
 
 
+@dataclass(frozen=True)
+class CollectionPace:
+    """How many pages and cards one source samples, and how fast."""
+
+    max_pages: int | None
+    max_cards: int | None
+    page_pause: tuple[float, float] | None
+    card_pause: tuple[float, float] | None
+
+
+def collection_pace() -> CollectionPace:
+    """Read this run's sampling limits and pauses from the environment."""
+    return CollectionPace(
+        max_pages=_read_limit("COLLECTION_MAX_PAGES", COLLECTION_MAX_PAGES),
+        max_cards=_read_limit("COLLECTION_MAX_CARDS", COLLECTION_MAX_CARDS),
+        page_pause=_read_pause("COLLECTION_PAGE_PAUSE", COLLECTION_PAGE_PAUSE),
+        card_pause=_read_pause("COLLECTION_CARD_PAUSE", COLLECTION_CARD_PAUSE),
+    )
+
+
+def _read_limit(variable: str, default: str) -> int | None:
+    text = os.environ.get(variable, default).strip()
+    if not text or text == "0":
+        return None
+    try:
+        value = int(text)
+    except ValueError as error:
+        raise CollectionError(f"invalid_{variable.lower()}") from error
+    if value < 0:
+        raise CollectionError(f"invalid_{variable.lower()}")
+    return value
+
+
+def _read_pause(variable: str, default: str) -> tuple[float, float] | None:
+    text = os.environ.get(variable, default).strip()
+    if not text:
+        return None
+    low, _, high = text.partition("-")
+    try:
+        bounds = float(low), float(high or low)
+    except ValueError as error:
+        raise CollectionError(f"invalid_{variable.lower()}") from error
+    if bounds[0] < 0 or bounds[1] < bounds[0]:
+        raise CollectionError(f"invalid_{variable.lower()}")
+    return bounds
+
+
+def wait_between(
+    pause: tuple[float, float] | None, stopped: Callable[[], bool]
+) -> None:
+    """Wait a human-like moment without ignoring a stop request."""
+    if pause is None:
+        return
+    deadline = time.monotonic() + uniform(*pause)
+    while (remaining := deadline - time.monotonic()) > 0:
+        check_stop(stopped)
+        time.sleep(min(remaining, STOP_POLL_S))
+    check_stop(stopped)
+
+
+def warm_profile(page: Page, url: str, stopped: Callable[[], bool]) -> None:
+    """Visit the site root once so a named profile starts with its own cookies."""
+    settings = browser_settings()
+    parts = urlsplit(url)
+    if settings.profile is None or not parts.scheme or not parts.netloc:
+        return
+    check_stop(stopped)
+    try:
+        page.goto(
+            f"{parts.scheme}://{parts.netloc}/",
+            wait_until="domcontentloaded",
+            timeout=CARD_TIMEOUT_MS,
+        )
+        page.wait_for_timeout(WARM_SETTLE_MS)
+    except PlaywrightError:
+        return
+    check_stop(stopped)
+
+
 def without_media(route: Route) -> None:
     if route.request.resource_type in ("image", "media"):
         route.abort()
@@ -53,20 +204,72 @@ def without_media(route: Route) -> None:
         route.fallback()
 
 
+@dataclass(frozen=True)
+class BrowserSettings:
+    """How this run reaches the sources; read from the environment per run."""
+
+    profile: str | None
+    profile_root: Path
+    channel: str
+    headless: bool
+    proxy: str | None
+
+
+def browser_settings() -> BrowserSettings:
+    """A named profile keeps the site cookies between runs."""
+    profile = os.environ.get("COLLECTION_PROFILE", "").strip() or None
+    root = os.environ.get("COLLECTION_PROFILE_ROOT", "").strip()
+    headless = os.environ.get("COLLECTION_BROWSER_HEADLESS", "1").strip()
+    return BrowserSettings(
+        profile=profile,
+        profile_root=Path(root) if root else default_profile_root(),
+        channel=os.environ.get("COLLECTION_BROWSER_CHANNEL", "").strip() or "chromium",
+        headless=headless not in ("0", "false", "False"),
+        proxy=os.environ.get("COLLECTION_PROXY", "").strip() or None,
+    )
+
+
 @contextmanager
 def browser_page() -> Iterator[Page]:
-    with (
-        sync_playwright() as playwright,
-        playwright.chromium.launch(
-            channel="chromium",
-            headless=True,
-            chromium_sandbox=True,
-            handle_sigint=False,
-            handle_sigterm=False,
-        ) as browser,
-        browser.new_context(accept_downloads=False) as context,
-    ):
-        yield context.new_page()
+    """Open the page this run reads with: a named profile or an ephemeral one."""
+    settings = browser_settings()
+    proxy: ProxySettings | None = (
+        {"server": settings.proxy} if settings.proxy is not None else None
+    )
+    with sync_playwright() as playwright:
+        if settings.profile is None:
+            with (
+                playwright.chromium.launch(
+                    channel=settings.channel,
+                    headless=settings.headless,
+                    chromium_sandbox=True,
+                    handle_sigint=False,
+                    handle_sigterm=False,
+                    proxy=proxy,
+                ) as browser,
+                browser.new_context(accept_downloads=False) as context,
+            ):
+                yield context.new_page()
+            return
+
+        directory = settings.profile_root / settings.profile
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            context = playwright.chromium.launch_persistent_context(
+                user_data_dir=str(directory),
+                channel=settings.channel,
+                headless=settings.headless,
+                accept_downloads=False,
+                handle_sigint=False,
+                handle_sigterm=False,
+                proxy=proxy,
+            )
+        except OSError as error:
+            raise CollectionError("profile_unavailable") from error
+        try:
+            yield context.pages[0] if context.pages else context.new_page()
+        finally:
+            context.close()
 
 
 @contextmanager
@@ -116,6 +319,10 @@ def read_page[Result](
     accepts_redirect: Callable[[str], bool],
     next_control: str | None = None,
     advance: Callable[[float], Result] | None = None,
+    challenge_budget: float = CHALLENGE_BUDGET_S,
+    retry_pause: float = RETRY_PAUSE_S,
+    solver: Solver | None = None,
+    captcha_root: Path | None = None,
 ) -> Result:
     responses: list[Response] = []
     if next_control is not None and advance is None:
@@ -138,11 +345,26 @@ def read_page[Result](
                 next_control,
                 advance,
                 responses,
+                challenge_budget,
+                retry_pause,
+                solver,
+                captcha_root,
             )
         finally:
             page.remove_listener("response", document_response)
     return _read_page(
-        page, url, stopped, capture, accepts_redirect, next_control, advance, responses
+        page,
+        url,
+        stopped,
+        capture,
+        accepts_redirect,
+        next_control,
+        advance,
+        responses,
+        challenge_budget,
+        retry_pause,
+        solver,
+        captcha_root,
     )
 
 
@@ -155,26 +377,59 @@ def _read_page[Result](
     next_control: str | None,
     advance: Callable[[float], Result] | None,
     responses: list[Response],
+    challenge_budget: float,
+    retry_pause: float,
+    solver: Solver | None,
+    captcha_root: Path | None,
 ) -> Result:
     direct_url = url if next_control is None else None
     clicked = False
-    for retry in (False, True):
+    attempts = 0
+    observed_status: int | None = None
+    broker_used = False
+    resume_read = False
+    while True:
+        navigation = not resume_read
+        resume_read = False
+        if navigation:
+            if attempts >= MAX_ATTEMPTS:
+                reason = (
+                    f"http_{observed_status}"
+                    if observed_status is not None
+                    else "browser_read_failed"
+                )
+                raise CollectionError(reason)
+            attempts += 1
+            observed_status = None
         check_stop(stopped)
         observed_at = datetime.now(UTC)
         deadline = time.monotonic() + CARD_TIMEOUT_MS / 1000
         try:
-            if direct_url is not None:
+            if navigation and direct_url is not None:
                 response = page.goto(
                     direct_url, wait_until="domcontentloaded", timeout=CARD_TIMEOUT_MS
                 )
                 check_stop(stopped)
-                if not retry and response is not None and 500 <= response.status < 600:
-                    continue
                 if response is None:
                     raise CollectionError("no_http_response")
-                if not response.ok:
+                recovery = document_recovery(response.status, navigation=True)
+                if recovery == "stop":
                     raise CollectionError(f"http_{response.status}")
-            elif advance is None and not clicked and next_control is not None:
+                if recovery == "retry":
+                    if attempts < MAX_ATTEMPTS:
+                        if response.status == 429:
+                            time.sleep(retry_pause)
+                        continue
+                    raise CollectionError(f"http_{response.status}")
+                if recovery == "observe":
+                    observed_status = response.status
+                    deadline = min(deadline, time.monotonic() + challenge_budget)
+            elif (
+                navigation
+                and advance is None
+                and not clicked
+                and next_control is not None
+            ):
                 control = page.locator(next_control)
                 control.click(trial=True, timeout=CARD_TIMEOUT_MS)
                 check_stop(stopped)
@@ -186,25 +441,47 @@ def _read_page[Result](
             check_stop(stopped)
             result = (
                 advance(deadline)
-                if advance is not None and direct_url is None
+                if navigation and advance is not None and direct_url is None
                 else capture(observed_at, deadline)
             )
             check_stop(stopped)
             if time.monotonic() >= deadline:
                 raise PlaywrightTimeout("Page attempt deadline elapsed")
             return result
+        except ChallengePending as pending:
+            check_stop(stopped)
+            LOGGER.warning(
+                "challenge: source=%s marker=%s status=%s",
+                pending.challenge.source,
+                pending.challenge.marker,
+                observed_status,
+            )
+            if broker_used or solver is None:
+                raise CollectionError("source_captcha") from None
+            broker_used = True
+            root = captcha_root if captcha_root is not None else default_captcha_root()
+            request = prepare_challenge(page, pending, root, without_media)
+            actions = solver(request, stopped)
+            check_stop(stopped)
+            if not apply_answer(page, request, actions):
+                raise CollectionError("source_captcha") from None
+            attempts -= 1
+            resume_read = True
+            continue
         except RejectedCard as error:
             check_stop(stopped)
             if isinstance(error, DocumentResponseError):
                 if (
-                    not retry
+                    attempts < MAX_ATTEMPTS
                     and 500 <= error.status < 600
                     and accepts_redirect(error.url)
                 ):
                     direct_url = error.url
                     continue
                 raise CollectionError(str(error)) from error
-            if not retry and str(error).startswith("http_5"):
+            if attempts < MAX_ATTEMPTS and reason_recovery(str(error)) == "retry":
+                if str(error) == "http_429":
+                    time.sleep(retry_pause)
                 continue
             raise CollectionError(str(error)) from error
         except PlaywrightError as error:
@@ -215,9 +492,10 @@ def _read_page[Result](
                 page.url
             ):
                 raise CollectionError("unexpected_redirect") from error
-            if retry or not (
+            if observed_status is not None:
+                raise CollectionError(f"http_{observed_status}") from error
+            if attempts >= MAX_ATTEMPTS or not (
                 isinstance(error, (BrowserTransportError, PlaywrightTimeout))
                 or any(code in str(error) for code in TRANSPORT_ERRORS)
             ):
                 raise CollectionError("browser_read_failed") from error
-    raise AssertionError("The final attempt returns or raises")

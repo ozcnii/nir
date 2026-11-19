@@ -18,6 +18,7 @@ from app.catalog.contracts import (
     SnapshotResult,
     is_publication_url,
 )
+from app.collection.captcha import Challenge, ChallengePending
 from app.collection.collectors.avito_fields import normalize_avito_card
 from app.collection.normalization import RejectedCard, as_object
 
@@ -128,6 +129,10 @@ def capture_card(
         raise PlaywrightTimeout("Card attempt deadline elapsed")
     handle = page.wait_for_function(
         """() => {
+            const challenge = /доступ ограничен|подозрительн|проверка безопасности/i
+                .test(document.body?.innerText?.slice(0, 4000) ?? "")
+                || Boolean(document.querySelector(
+                    'iframe[src*="geetest"], script[src*="geetest"]'));
             if (document.readyState !== "complete") return false;
 
             const route = window.__staticRouterHydrationData
@@ -144,6 +149,7 @@ def capture_card(
             return JSON.stringify({
                 url: location.href,
                 title: document.title,
+                challenge,
                 route: route && {
                     type: route.type,
                     message: route.message,
@@ -183,6 +189,8 @@ def capture_card(
         )
     finally:
         handle.dispose()
+    if data.get("challenge") is True:
+        raise ChallengePending(Challenge("avito", "drag", "geetest"))
     return parse_card(
         requested_url,
         observed_at,

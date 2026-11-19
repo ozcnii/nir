@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
 from playwright.sync_api import Page
 
@@ -17,11 +18,16 @@ from app.catalog.reference_defaults import ROOM_TYPE_ID
 from app.catalog.references import source_enabled
 from app.collection.browser import (
     CollectionError,
+    CollectionPace,
     browser_page,
     check_stop,
+    collection_pace,
     read_page,
+    wait_between,
+    warm_profile,
     without_media,
 )
+from app.collection.captcha import Solver
 from app.collection.collectors import (
     cian,
     cian_room_search,
@@ -55,7 +61,12 @@ class Direction:
     advance: (
         Callable[[Page, int, str, float, Callable[[], bool]], SearchPage] | None
     ) = None
-    pages: Callable[[Page, Callable[[], bool]], Iterator[SearchPage]] | None = None
+    pages: (
+        Callable[
+            [Page, CollectionPace, int | None, Callable[[], bool]], Iterator[SearchPage]
+        ]
+        | None
+    ) = None
 
 
 def _directions(
@@ -80,8 +91,8 @@ def _directions(
                         page, route, deadline, group_url=address
                     ),
                     pages=(
-                        lambda page, stopped: cian_room_search.walk(
-                            page, route, stopped
+                        lambda page, pace, limit, stopped: cian_room_search.walk(
+                            page, route, stopped, pace, limit
                         )
                     )
                     if deal == "day_rent" and property_type_id == ROOM_TYPE_ID
@@ -139,9 +150,12 @@ def collect_search(
     stopped: Callable[[], bool],
     *,
     segment: Market | None = None,
+    solver: Solver | None = None,
+    captcha_root: Path | None = None,
 ) -> dict[str, object]:
     if not sources:
         raise CollectionError("collection_scope_required")
+    pace = collection_pace()
     directions = {
         source: _directions(source, region_id, property_type_id, deal, segment)
         for source in dict.fromkeys(sources)
@@ -182,6 +196,7 @@ def collect_search(
             results = {}
             for source, routes in directions.items():
                 check_stop(stopped)
+                warm_profile(listing, routes[0].start, stopped)
                 results[source] = _collect_source(
                     routes,
                     listing,
@@ -191,6 +206,9 @@ def collect_search(
                     stopped,
                     store,
                     in_scope,
+                    solver,
+                    captcha_root,
+                    pace,
                 )
 
     scope = {
@@ -222,12 +240,16 @@ def _collect_source(
     stopped: Callable[[], bool],
     store: Callable[[Snapshot], SnapshotResult],
     in_scope: Callable[[Snapshot], bool],
+    solver: Solver | None,
+    captcha_root: Path | None,
+    pace: CollectionPace,
 ) -> dict[str, object]:
     results: Counter[str] = Counter()
     issues_by_stage: dict[str, Counter[str]] = defaultdict(Counter)
     skipped: dict[str, str] = {}
     seen_keys: set[str] = set()
     seen_groups: set[str] = set()
+    cards_read = 0
     source = routes[0].source
     card_key = routes[0].card_key
     stage = "listing"
@@ -242,7 +264,9 @@ def _collect_source(
         quote: DailyListingQuote | None = None,
         *,
         captured: Snapshot | SnapshotResult | None = None,
+        recheck: bool = False,
     ) -> None:
+        nonlocal cards_read
         check_stop(stopped)
         if key in seen_keys:
             return
@@ -250,6 +274,14 @@ def _collect_source(
         if card_key(url) != key:
             skip(key, "unknown_card_identity")
             return
+        # The sampling limit bounds the listing walk. The removal recheck reads
+        # a previously known set and stays paced but is not cut, or a known card
+        # beyond the limit would never confirm that it was taken down.
+        if not recheck and pace.max_cards is not None and cards_read >= pace.max_cards:
+            raise CollectionError("stopped_by_limit")
+        if captured is None:
+            wait_between(pace.card_pause, stopped)
+        cards_read += 1
         try:
             snapshot = (
                 captured
@@ -261,6 +293,8 @@ def _collect_source(
                     stopped,
                     deal if key in known else None,
                     quote=quote,
+                    solver=solver,
+                    captcha_root=captcha_root,
                 )
             )
         except CollectionError as error:
@@ -303,7 +337,14 @@ def _collect_source(
     page_count = 0
     try:
         for direction in routes:
-            for page in _walk_route(direction, listing, stopped):
+            page_limit = None if pace.max_pages is None else pace.max_pages - page_count
+            if page_limit is not None and page_limit <= 0:
+                listing_complete = False
+                issues_by_stage[stage]["stopped_by_limit"] += 1
+                break
+            for page in _walk_route(
+                direction, listing, stopped, solver, captcha_root, pace, page_limit
+            ):
                 page_count += 1
                 if page.incomplete:
                     listing_complete = False
@@ -351,7 +392,7 @@ def _collect_source(
         if listing_complete:
             stage = "known_card"
             for key, url in known.items():
-                visit(key, url)
+                visit(key, url, recheck=True)
     except CollectionError as error:
         listing_complete = False
         issues_by_stage[stage][str(error)] += 1
@@ -404,10 +445,16 @@ def _read_group(
 
 
 def _walk_route(
-    direction: Direction, listing: Page, stopped: Callable[[], bool]
+    direction: Direction,
+    listing: Page,
+    stopped: Callable[[], bool],
+    solver: Solver | None,
+    captcha_root: Path | None,
+    pace: CollectionPace,
+    page_limit: int | None,
 ) -> Iterator[SearchPage]:
     if direction.pages is not None:
-        yield from direction.pages(listing, stopped)
+        yield from direction.pages(listing, pace, page_limit, stopped)
         return
 
     seen_urls: set[str] = set()
@@ -431,6 +478,7 @@ def _walk_route(
             listing, previous_page, next_control, deadline, stopped
         )
 
+    count = 0
     while next_url is not None or next_control is not None:
         check_stop(stopped)
         address = next_url if next_url is not None else listing.url
@@ -448,6 +496,8 @@ def _walk_route(
             ),
             next_control=next_control,
             advance=advance if direction.advance is not None and next_control else None,
+            solver=solver,
+            captcha_root=captcha_root,
         )
         if previous_page is not None and page.number <= previous_page:
             raise CollectionError("pagination_cycle")
@@ -458,4 +508,10 @@ def _walk_route(
         filters = page.filters
         next_url, next_control = page.next_url, page.next_control
         previous_page = page.number
+        count += 1
         yield page
+        if next_url is None and next_control is None:
+            return
+        if page_limit is not None and count >= page_limit:
+            raise CollectionError("stopped_by_limit")
+        wait_between(pace.page_pause, stopped)

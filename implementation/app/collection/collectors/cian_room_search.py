@@ -14,10 +14,13 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from app.collection.browser import (
     BrowserTransportError,
     CollectionError,
+    CollectionPace,
     browser_post_status,
     check_stop,
     read_page,
+    wait_between,
 )
+from app.collection.captcha import Challenge, ChallengePending
 from app.collection.collectors.cian_partner import partner_key
 from app.collection.collectors.cian_search import SearchRoute
 from app.collection.listing_page import SearchPage
@@ -48,8 +51,9 @@ def _remaining(deadline: float) -> float:
 def _check_document(page: Page, route: SearchRoute) -> None:
     if page.url == route.start:
         return
-    if page.url.split("?", 1)[0].rstrip("/").endswith("/cian-captcha"):
-        raise RejectedCard("source_captcha")
+    path = page.url.split("?", 1)[0].rstrip("/")
+    if path.endswith("/cian-captcha") or "/xpvnsulc" in path:
+        raise ChallengePending(Challenge("cian", "drag", "servicepipe"))
     raise RejectedCard("unexpected_redirect")
 
 
@@ -249,7 +253,11 @@ def _room_links(
 
 
 def walk(
-    page: Page, route: SearchRoute, stopped: Callable[[], bool]
+    page: Page,
+    route: SearchRoute,
+    stopped: Callable[[], bool],
+    pace: CollectionPace,
+    page_limit: int | None,
 ) -> Iterator[SearchPage]:
     body: dict[str, object] | None = None
 
@@ -315,6 +323,9 @@ def walk(
             yield result
         if not batch.has_more:
             return
+        if page_limit is not None and number >= page_limit:
+            raise CollectionError("stopped_by_limit")
+        wait_between(pace.page_pause, stopped)
         if seen_ids.issuperset(batch.ids):
             pages_without_new_ids += 1
             if pages_without_new_ids == _MAX_PAGES_WITHOUT_NEW_IDS:

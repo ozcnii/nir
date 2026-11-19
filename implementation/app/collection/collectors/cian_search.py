@@ -15,6 +15,7 @@ from app.catalog.reference_defaults import (
     REGION_NAMES,
     ROOM_TYPE_ID,
 )
+from app.collection.captcha import Challenge, ChallengePending
 from app.collection.collectors.cian import card_key
 from app.collection.listing_page import SearchPage
 from app.collection.normalization import RejectedCard, as_object
@@ -180,7 +181,10 @@ def _projection(
     handle = page.wait_for_function(
         """({daily, previousPage}) => {
             const captcha = location.pathname === "/cian-captcha"
-                || document.title.toLowerCase().includes("captcha");
+                || location.pathname.startsWith("/xpvnsulc")
+                || document.title.toLowerCase().includes("captcha")
+                || Boolean(document.querySelector(
+                    '#js-challenge-loader'));
             if (!captcha && document.readyState !== "complete") return false;
             const entries = window._cianConfig?.["frontend-serp"];
             // Match the recorded SERP fields without searching unrelated content.
@@ -238,7 +242,7 @@ def _projection(
     finally:
         handle.dispose()
     if observed["captcha"]:
-        raise RejectedCard("source_captcha")
+        raise ChallengePending(Challenge("cian", "drag", "servicepipe"))
     return observed
 
 

@@ -3,6 +3,7 @@
 import json
 import signal
 from argparse import ArgumentParser
+from pathlib import Path
 from typing import get_args
 
 from django.core.management.base import BaseCommand, CommandError
@@ -18,6 +19,7 @@ from app.catalog.reference_defaults import (
     SOURCE_CODES,
 )
 from app.collection.browser import CollectionError, CollectionStopped
+from app.collection.captcha import CAPTCHA_WAIT_S, BrokerSolver
 from app.collection.one_card import collect_card
 from app.collection.search import collect_search
 
@@ -38,6 +40,8 @@ class Command(BaseCommand):
         parser.add_argument("--property-type", choices=_PROPERTY_TYPES)
         parser.add_argument("--deal", choices=get_args(Deal))
         parser.add_argument("--segment", choices=get_args(Market))
+        parser.add_argument("--captcha-broker", type=Path)
+        parser.add_argument("--captcha-wait", type=float, default=CAPTCHA_WAIT_S)
 
     def handle(
         self,
@@ -48,6 +52,8 @@ class Command(BaseCommand):
         property_type: str | None,
         deal: Deal | None,
         segment: Market | None,
+        captcha_broker: Path | None,
+        captcha_wait: float,
         **options: object,
     ) -> None:
         stop_requested = False
@@ -56,6 +62,11 @@ class Command(BaseCommand):
             nonlocal stop_requested
             stop_requested = True
 
+        solver = (
+            BrokerSolver(captcha_broker, wait=captcha_wait)
+            if captcha_broker is not None
+            else None
+        )
         signals = (signal.SIGINT, signal.SIGTERM)
         handlers = {signum: signal.signal(signum, request_stop) for signum in signals}
         try:
@@ -65,7 +76,12 @@ class Command(BaseCommand):
                     for value in (source, region, property_type, deal, segment)
                 ):
                     raise CommandError("choose_card_or_collection_scope")
-                receipt = collect_card(url, lambda: stop_requested)
+                receipt = collect_card(
+                    url,
+                    lambda: stop_requested,
+                    solver=solver,
+                    captcha_root=captcha_broker,
+                )
                 result: dict[str, object] = {
                     "outcome": receipt.outcome,
                     "ad_id": receipt.ad_id,
@@ -89,6 +105,8 @@ class Command(BaseCommand):
                     deal,
                     lambda: stop_requested,
                     segment=segment,
+                    solver=solver,
+                    captcha_root=captcha_broker,
                 )
             else:
                 raise CommandError("collection_scope_required")

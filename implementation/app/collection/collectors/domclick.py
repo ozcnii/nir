@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from playwright.sync_api import Page
 
 from app.catalog.contracts import Deal, Snapshot, SnapshotKey
+from app.collection.captcha import Challenge, ChallengePending
 from app.collection.collectors.domclick_state import nuxt_card, ssr_state
 from app.collection.collectors.nuxt_state import UNDEFINED
 from app.collection.collectors.page_data import wait_for_card_data
@@ -422,7 +423,7 @@ def read_card(
     )
     projected = cast(EmbeddedPage, data)
     if projected["title"].strip() == "403 | Домклик":
-        raise RejectedCard("source_captcha")
+        raise ChallengePending(Challenge("domclick", "click", "qauth"))
     return parse_card(
         requested_url,
         observed_at,

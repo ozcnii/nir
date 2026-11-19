@@ -26,6 +26,7 @@ from app.catalog.reference_defaults import (
     HOUSE_TYPE_ID,
     ROOM_TYPE_ID,
 )
+from app.collection.captcha import Challenge, ChallengePending
 from app.collection.collectors.cian_fields import normalize_cian_card
 from app.collection.collectors.cian_partner import (
     PARTNER_HOST,
@@ -297,7 +298,7 @@ def capture_card(
     while True:
         data = _wait_for_card_scripts(page, url, deadline, previous_config)
         if data["captcha"]:
-            raise RejectedCard("source_captcha")
+            raise ChallengePending(Challenge("cian", "drag", "servicepipe"))
         snapshot = _parse_observation(
             route, key, data["config"], data["products"], data["url"]
         )
@@ -320,7 +321,10 @@ def _wait_for_card_scripts(
             const shifted = trimSlash(location.pathname) !== trimSlash(expected.pathname)
                 || partner !== (location.hostname === partnerHost);
             const captcha = trimSlash(location.pathname) === "/cian-captcha"
-                || document.title.toLowerCase().includes("captcha");
+                || location.pathname.startsWith("/xpvnsulc")
+                || document.title.toLowerCase().includes("captcha")
+                || Boolean(document.querySelector(
+                    '#js-challenge-loader'));
             if (!shifted && !captcha && document.readyState !== "complete") return false;
             const scripts = Array.from(document.scripts).filter(script => !script.src);
             const config = partner

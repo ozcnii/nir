@@ -202,6 +202,17 @@ def _photo_urls(values: list[object]) -> KnownPhotos | Unavailable:
 
 def _native_address(data: dict[str, object]) -> tuple[int, str | None, bool]:
     parents = [_record(value) for value in _array(data.get("parents"))]
+    if not parents:
+        # DOMCLICK-NEWBUILD-ADDRESS: new-build cards publish only a locality in
+        # the address, there is no outward parent chain to walk.
+        locality = _record(data.get("locality"))
+        subject = _text(locality.get("name"), problem="invalid_region")
+        display = _text(data.get("name"), problem="invalid_address")
+        if display:
+            display = ", ".join(
+                name.strip() for name in display.split(",") if name.strip() != "Россия"
+            )
+        return _region(subject), _address(subject, display), False
     subjects = [
         part.get("name")
         for part in parents
@@ -306,6 +317,11 @@ def normalize_new_flat_card(
     subjects = {
         _REGIONS[part.casefold()] for part in parts if part.casefold() in _REGIONS
     }
+    # DOMCLICK-NEWBUILD-LOCALITY: the new-build address names its subject in the
+    # structured locality instead of the display line.
+    locality_name = _text(_record(address.get("locality")).get("name"))
+    if locality_name and locality_name.casefold() in _REGIONS:
+        subjects.add(_REGIONS[locality_name.casefold()])
     # The header's default geo does not establish the flat's region. Only
     # accept a region result attached to the same published address GUID.
     address_guid = address.get("guid")

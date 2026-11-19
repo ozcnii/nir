@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
 
 from playwright.sync_api import Page
 
@@ -14,13 +15,21 @@ from app.collection.browser import (
     browser_page,
     check_stop,
     read_page,
+    warm_profile,
     without_media,
 )
+from app.collection.captcha import Solver
 from app.collection.collectors import avito, cian, domclick
 from app.collection.domclick_normalization import DailyListingQuote
 
 
-def collect_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
+def collect_card(
+    url: str,
+    stopped: Callable[[], bool],
+    *,
+    solver: Solver | None = None,
+    captcha_root: Path | None = None,
+) -> SnapshotResult:
     if (key := avito.card_key(url)) is not None:
         source = "avito"
     elif cian.card_key(url) is not None:
@@ -37,8 +46,17 @@ def collect_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
         check_stop(stopped)
         removed_deal = publication_deal(source, key) if key is not None else None
         with browser_page() as page:
+            warm_profile(page, url, stopped)
             page.route("**/*", without_media)
-            snapshot = read_card(page, url, source, stopped, removed_deal)
+            snapshot = read_card(
+                page,
+                url,
+                source,
+                stopped,
+                removed_deal,
+                solver=solver,
+                captcha_root=captcha_root,
+            )
 
         check_stop(stopped)
         receipt = (
@@ -59,6 +77,8 @@ def read_card(
     removed_deal: Deal | None,
     *,
     quote: DailyListingQuote | None = None,
+    solver: Solver | None = None,
+    captcha_root: Path | None = None,
 ) -> Snapshot | SnapshotResult:
     same_card = {
         "avito": avito.same_card,
@@ -73,6 +93,8 @@ def read_card(
             page, url, source, observed_at, deadline, removed_deal, quote=quote
         ),
         accepts_redirect=lambda loaded: same_card(url, loaded),
+        solver=solver,
+        captcha_root=captcha_root,
     )
 
 
