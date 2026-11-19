@@ -1,0 +1,24 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Каталог недвижимости{% endblock title %}</title>
+    <link rel="stylesheet" href="{% static 'catalog/catalog.css' %}">
+    {% block scripts %}
+    {% endblock scripts %}
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="shell header-content">
+        <a class="site-title" href="{% url 'catalog' %}">Каталог недвижимости</a>
+        <a href="{% url 'admin:index' %}">Управление</a>
+      </div>
+    </header>
+    <main class="shell">
+      {% block content %}
+      {% endblock content %}
+    </main>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+{% extends "catalog/base.html" %}
+{% load static %}
+{% block title %}
+  {{ title }} — Каталог недвижимости
+{% endblock title %}
+{% block scripts %}
+  <script src="{% static 'catalog/catalog.js' %}" defer></script>
+{% endblock scripts %}
+{% block content %}
+  <nav class="property-nav" aria-label="Действия с объектом">
+    <a href="{{ catalog_url }}">
+      {% if from_catalog %}
+        Назад к результатам
+      {% else %}
+        В каталог
+      {% endif %}
+    </a>
+    <a href="{{ json_url }}">JSON</a>
+  </nav>
+  <h1>{{ title }}</h1>
+  <p class="address">
+    {% if details.property.address %}
+      {{ details.property.address }} ·
+    {% else %}
+      Адрес не указан ·
+    {% endif %}
+    {{ details.property.region.name }}
+  </p>
+  {% include "catalog/property_facts.html" with item=details.property %}
+  {% if active_offers %}
+    <section class="publication-section" aria-labelledby="active-offers">
+      <h2 id="active-offers">Активные объявления</h2>
+      {% for item in active_offers %}
+        {% include "catalog/publication.html" with item=item %}
+      {% endfor %}
+    </section>
+  {% elif removed_offers %}
+    <p class="message">Все сохранённые объявления сняты</p>
+  {% else %}
+    <p class="message">Сохранённых объявлений пока нет</p>
+  {% endif %}
+  {% if removed_offers %}
+    <details class="publication-section">
+      <summary>Снятые объявления ({{ removed_offers|length }})</summary>
+      {% for item in removed_offers %}
+        {% include "catalog/publication.html" with item=item %}
+      {% endfor %}
+    </details>
+  {% endif %}
+{% endblock content %}
