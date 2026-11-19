@@ -62,7 +62,7 @@ def collect_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
         if not source_enabled(source):
             raise CollectionError(f"{source}_is_disabled")
         _check_stop(stopped)
-        removed_deal = publication_deal(source, key) if source == "avito" else None
+        removed_deal = publication_deal(source, key) if key is not None else None
         with browser_page() as page:
             page.route("**/*", _without_media)
             snapshot = _read_card(page, url, source, stopped, removed_deal)

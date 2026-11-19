@@ -17,6 +17,7 @@ from unittest.mock import patch
 import django
 from check_avito import verify_avito
 from check_domclick import verify_domclick
+from check_saved_cards import verify_saved_cards
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
@@ -398,3 +399,4 @@ if __name__ == "__main__":
                 verify_room_area_owner()
                 verify_avito()
                 verify_domclick()
+                verify_saved_cards()
