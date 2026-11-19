@@ -160,6 +160,7 @@ class HouseMatchingTests(TestCase):
             "Самара, Тольятти, СНТ Луч, улица Садовая, дом 7",
             "Самара, СНТ Луч, улица Садовая, Тольятти, дом 7",
             "?, СНТ Луч, улица Садовая, дом 7",
+            "деревня Старая, г. Самара, улица Садовая, дом 7",
             HOUSE.replace("Самарская область", "Саратовская обл."),
             HOUSE.replace("Самарская область", "Неизвестная область"),
         )
@@ -607,8 +608,13 @@ class HouseMatchingTests(TestCase):
     def test_repeat_does_not_guess_correspondence_between_nested_settlements(
         self,
     ) -> None:
-        street = "ул. Садовая, дом 7, блок 2"
+        whole = "ул. Садовая, дом 7"
+        street = f"{whole}, блок 2"
         tail = f"СНТ Луч, {street}"
+        complete_place = f"г. Самара, посёлок Новый, СНТ Луч, {whole}"
+        unknown_inside = f"г. Самара, ?, деревня Старая, СНТ Луч, {whole}"
+        reversed_city = f"деревня Старая, г. Самара, {whole}"
+        two_rural_places = f"деревня Старая, посёлок Новый, {whole}"
         for key, original, incoming in (
             (
                 "missing-anchor",
@@ -627,6 +633,11 @@ class HouseMatchingTests(TestCase):
                 f"деревня Новый, {tail}",
             ),
             ("unrecognized-name", f"г. Самара, {tail}", "?, СНТ Луч, ул. Садовая"),
+            ("unknown-inside", complete_place, unknown_inside),
+            ("known-incoming", unknown_inside, complete_place),
+            ("blank-inside", complete_place, unknown_inside.replace("?", "")),
+            ("reversed-city", reversed_city, two_rural_places),
+            ("reversed-incoming", two_rural_places, reversed_city),
         ):
             with self.subTest(key=key):
                 # Arrange
@@ -640,15 +651,65 @@ class HouseMatchingTests(TestCase):
 
                 # Act
                 result = accept_snapshot(repeat)
+                new_publication = accept_snapshot(
+                    snapshot(key, incoming, source="domclick")
+                )
 
                 # Assert
                 self.assertEqual(result.outcome, "updated")
                 self.assertEqual(result.property_id, first.property_id)
+                self.assertNotEqual(new_publication.property_id, first.property_id)
                 assert first.ad_id is not None
                 ad = Ad.objects.get(pk=first.ad_id)
                 self.assertEqual(ad.property.address, original)
                 self.assertEqual(ad.observed_at, repeat["observed_at"])
                 self.assertEqual(PriceHistory.objects.filter(ad=ad).count(), 2)
+
+    def test_repeat_retains_local_address_evidence_despite_unknown_outer_parts(
+        self,
+    ) -> None:
+        tail = "СНТ Луч, ул. Садовая, дом 7"
+        known = f"г. Самара, посёлок Новый, {tail}"
+        changed = f"?, г. Самара, деревня Старая, {tail}"
+        for key, original, incoming, alias in (
+            ("clean-original", known, changed, f"?, г. Самара, пос. Новый, {tail}"),
+            ("partial-original", changed, known, changed.removeprefix("?, ")),
+        ):
+            with self.subTest(key=key):
+                # Arrange
+                first = accept_snapshot(snapshot(key, original))
+                later = TIME + timedelta(minutes=1)
+                ad_count = Ad.objects.count()
+                property_count = Property.objects.count()
+                repeated = snapshot(key, incoming, time=later, price=Decimal(400))
+                repeated["photos"] = {"status": "known", "urls": []}
+
+                # Act
+                conflict = accept_snapshot(repeated)
+                equivalent = accept_snapshot(
+                    snapshot(key, alias, time=later, price=Decimal(250))
+                )
+
+                # Assert
+                self.assertEqual(conflict.outcome, "conflict")
+                self.assertEqual(equivalent.outcome, "updated")
+                self.assertEqual(equivalent.property_id, first.property_id)
+                self.assertEqual(Ad.objects.count(), ad_count)
+                self.assertEqual(Property.objects.count(), property_count)
+                assert first.ad_id is not None
+                ad = Ad.objects.get(pk=first.ad_id)
+                self.assertEqual(ad.observed_at, later)
+                self.assertEqual(ad.property_id, first.property_id)
+                self.assertEqual(ad.property.address, original)
+                self.assertEqual(ad.photos, ["https://example.test/first.jpg"])
+                self.assertEqual(
+                    set(
+                        PriceHistory.objects.filter(ad=ad).values_list(
+                            "price_rub", flat=True
+                        )
+                    ),
+                    {Decimal(100), Decimal(250)},
+                )
 
     def test_repeat_does_not_assign_type_from_repeated_settlement_name(self) -> None:
         # Arrange

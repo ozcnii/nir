@@ -94,6 +94,7 @@ _HOUSE_TERRITORIES = {
 _ENCLOSING_DISTRICT = "enclosing district"
 _LOCAL_DISTRICT = "local district"
 _DISTRICT_SCOPES = {_ENCLOSING_DISTRICT, _LOCAL_DISTRICT}
+_PLACE_LANDMARKS = {"street", "территория", *_HOUSE_TERRITORIES.values()}
 HOUSE_BUILDING_TAGS = {"дом", "строение", "таунхаус"}
 
 
@@ -361,6 +362,8 @@ def _house_geography(
     complete = True
     for part in location:
         geography.append(None)
+        if not part:
+            continue
         if part == street:
             geography[-1] = ("street", part)
             after_street = True
@@ -379,6 +382,8 @@ def _house_geography(
             if named is not None:
                 name, kind = named
                 if kind is not None:
+                    if kind == "город" and typed.keys() - {"город"}:
+                        complete = False
                     typed.setdefault(kind, set()).add(name)
                     geography[-1] = (kind, name)
                     continue
@@ -409,11 +414,20 @@ def _house_geography(
     settlements = {
         kind: next(iter(names)) for kind, names in typed.items() if len(names) == 1
     }
+    known_areas = {
+        kind: next(iter(names)) for kind, names in areas.items() if len(names) == 1
+    }
+    established = set(settlements.items()) | set(known_areas.items())
+    address_geography = geography
+    if street is not None:
+        street_fact = ("street", street)
+        established.add(street_fact)
+        address_geography = geography[: geography.index(street_fact) + 1]
     return (
         settlements,
-        {kind: next(iter(names)) for kind, names in areas.items() if len(names) == 1},
+        known_areas,
         _leading_settlement(geography, settlements.get("город"), consistent),
-        _settlements_by_neighbors(geography, settlements) if consistent else {},
+        _settlements_by_neighbors(address_geography, established),
         consistent,
     )
 
@@ -432,20 +446,31 @@ def _leading_settlement(
 
 
 def _settlements_by_neighbors(
-    geography: list[LocationFact | None], settlements: dict[str, str]
+    geography: list[LocationFact | None], established: set[LocationFact]
 ) -> SettlementsByNeighbors:
-    """Locate an explicit settlement between two unambiguous geographic facts."""
+    """Read locally proven parent/settlement/landmark triples for repeat checks."""
     occurrences = Counter(geography)
     return {
-        (outer, inner): place
-        for outer, place, inner in zip(
+        (parent, landmark): place
+        for parent, place, landmark in zip(
             geography, geography[1:], geography[2:], strict=False
         )
-        if outer is not None
+        if parent is not None
         and place is not None
-        and inner is not None
-        and settlements.get(place[0]) == place[1]
-        and all(occurrences[fact] == 1 for fact in (outer, place, inner))
+        and landmark is not None
+        and all(
+            fact in established and occurrences[fact] == 1
+            for fact in (parent, place, landmark)
+        )
+        and place[0] in _SETTLEMENT_TYPES
+        and (
+            parent[0] == _ENCLOSING_DISTRICT
+            or (parent[0] == "город" and place[0] != "город")
+        )
+        and (
+            landmark[0] in _PLACE_LANDMARKS
+            or (landmark[0] == _LOCAL_DISTRICT and place[0] == "город")
+        )
     }
 
 
@@ -455,7 +480,6 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
         return None
     parts = [_component(_plain(part)) for part in value.split(",")]
     valid = all(parts)
-    parts = [part for part in parts if part]
     if parts[:1] == ["россия"]:
         parts.pop(0)
     expected_subject = _HOUSE_SUBJECT_IDS.get(_plain(region))
@@ -463,6 +487,9 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
     location: list[str] = []
     identifiers: dict[str, list[str]] = {}
     for raw_part in parts:
+        if not raw_part:
+            location.append("")
+            continue
         part, labels = _house_component(raw_part)
         subject = (
             _house_subject(
@@ -475,6 +502,8 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
         )
         if subject is not None:
             subjects.add(_HOUSE_SUBJECT_IDS.get(subject, subject))
+            if location:
+                location.append("")
         elif part:
             area = _house_area_component(part)
             building = None if area else _building_component(part)
@@ -496,6 +525,8 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
                 ):
                     valid = False
                 if not number or prefix:
+                    if identifiers:
+                        location.append("")
                     location.append(area or street or part)
 
         for label, identifier in labels:
@@ -543,7 +574,7 @@ def parse_house_address(value: str | None, region: str) -> HouseAddress | None:
             else "redundant"
         )
     return HouseAddress(
-        location=tuple(location),
+        location=tuple(part for part in location if part),
         settlements=settlements,
         areas=areas,
         leading_settlement=leading_settlement,
