@@ -38,6 +38,10 @@ def _room_address_patch(previous: Address, incoming: Address) -> str | None:
         or unit[1] is None
         or not previous.details.keys() <= incoming.details.keys()
         or details_conflict(previous, incoming)
+        or (
+            previous.enclosing_district is not None
+            and incoming.enclosing_district is None
+        )
         or (previous.district is not None and incoming.district is None)
         or (previous.settlement_kind is not None and incoming.settlement_kind is None)
     ):

@@ -170,6 +170,9 @@ class MatchingTests(TestCase):
             (f"{territory} дом 7 дом 9, квартира 26", False),
             ("Самара, улица Полевая дом 7 дом 9, квартира 25", True),
             ("Самара, улица Солнечная дом №7;д. №9, квартира 26", False),
+            (f"{territory}, дом 9, квартира 25, комната 2, дом 7", False),
+            (f"{territory}, дом 9, квартира 25, дом 7, комната 2", False),
+            (f"{territory}, дом 9, квартира 25, участок 7", True),
         )
 
         for address, conflict in cases:
@@ -186,6 +189,47 @@ class MatchingTests(TestCase):
                 # Assert
                 expected: dict[str, object] | None = None if conflict else {}
                 self.assertEqual((strict_saved, partial_saved), (expected, expected))
+
+    def test_room_repeat_preserves_known_districts_with_incomplete_unit(self) -> None:
+        region = "Самарская область"
+        locality = "село Красный Яр, Советский район, улица Советская, дом 7"
+        saved_address = f"Красноярский район, {locality}, квартира 25, комната 2"
+        untyped_street = saved_address.replace("Советский район, улица ", "")
+        previous: PropertyFacts = {
+            "address": saved_address,
+            "latitude": None,
+            "longitude": None,
+            "area_m2": None,
+            "rooms": 1,
+            "floor": None,
+            "floors_total": None,
+            "land_area_m2": None,
+        }
+        cases = (
+            (saved_address, "Красноярский", "Приволжский", True),
+            (saved_address, "Советский", "Кировский", True),
+            (saved_address, "Красноярский район, ", "", False),
+            (saved_address, "Советский район, ", "", False),
+            (saved_address, "Красноярский район", "район Красноярский", False),
+            (untyped_street, "Красноярский", "Приволжский", True),
+            (untyped_street, "Красноярский", "Красноярский", False),
+        )
+
+        for old, expected_text, replacement, conflict in cases:
+            address = old.replace(expected_text, replacement)
+            with self.subTest(address=address):
+                # Arrange
+                incomplete_address = address.replace("комната 2", "комната ?")
+
+                # Act
+                result = repeated_room_patch(
+                    {**previous, "address": old},
+                    {**previous, "address": incomplete_address},
+                    region,
+                )
+
+                # Assert
+                self.assertEqual(result, None if conflict else {})
 
     def test_layout_requires_asserted_dimensions_of_distinct_rooms(self) -> None:
         for text in (

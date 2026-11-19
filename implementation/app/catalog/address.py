@@ -8,6 +8,8 @@ from dataclasses import dataclass
 class PartialAddress:
     settlement: str | None
     settlement_kind: str | None
+    enclosing_district: str | None
+    district: str | None
     street: str | None
     number: str | None
     details: dict[str, tuple[str, str]]
@@ -38,33 +40,33 @@ class Address:
         return self.locality[-1]
 
     @property
-    def location(self) -> tuple[tuple[str, ...], str, str]:
-        return (self.locality, self.street, self.number)
+    def enclosing_district(self) -> str | None:
+        if len(self.locality) > 1:
+            return self.locality[0].removeprefix("район ")
+        return None
 
 
 def location_conflicts(
     left: Address | PartialAddress, right: Address | PartialAddress
 ) -> bool:
-    fields: tuple[tuple[str | None, str | None], ...]
-    if isinstance(left, Address) and isinstance(right, Address):
-        if left.location != right.location:
-            return True
-        fields = ((left.district, right.district),)
-    else:
-        fields = (
+    return any(
+        first is not None and second is not None and first != second
+        for first, second in (
             (left.settlement, right.settlement),
+            (left.settlement_kind, right.settlement_kind),
+            (left.enclosing_district, right.enclosing_district),
+            (left.district, right.district),
             (left.street, right.street),
             (left.number, right.number),
         )
-    return any(
-        first is not None and second is not None and first != second
-        for first, second in (*fields, (left.settlement_kind, right.settlement_kind))
     )
 
 
 def same_house(left: Address, right: Address) -> bool:
-    return left.building_parts == right.building_parts and not location_conflicts(
-        left, right
+    return (
+        left.locality == right.locality
+        and left.building_parts == right.building_parts
+        and not location_conflicts(left, right)
     )
 
 
@@ -82,8 +84,10 @@ def details_conflict(
 
 
 def address_conflicts(previous: Address, incoming: Address) -> bool:
-    return location_conflicts(previous, incoming) or details_conflict(
-        previous, incoming
+    return (
+        previous.locality != incoming.locality
+        or location_conflicts(previous, incoming)
+        or details_conflict(previous, incoming)
     )
 
 

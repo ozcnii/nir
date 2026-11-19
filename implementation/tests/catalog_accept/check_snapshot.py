@@ -348,6 +348,60 @@ class SnapshotTests(TestCase):
         )
         self.assertEqual(after_move_history, history)
 
+    def test_room_repeat_retains_district_and_ambiguous_house(self) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        # Arrange
+        address = (
+            "Красноярский район, село Красный Яр, улица Советская, "
+            "дом 7, корпус 2, квартира 25, комната 2"
+        )
+        source: ActiveSnapshot = {
+            **card("room-district"),
+            "property_type_id": ROOM_TYPE_ID,
+            "address": address,
+            "area_m2": Decimal("12"),
+        }
+        changed_district: ActiveSnapshot = {
+            **later(source, 1),
+            "address": address.replace("Красноярский", "Приволжский").replace(
+                "комната 2", "комната ?"
+            ),
+            "price": price("6000000"),
+            "photos": {"status": "known", "urls": []},
+        }
+        ambiguous_building: ActiveSnapshot = {
+            **later(source, 2),
+            "address": f"{address.replace('дом 7', 'дом 9')}, дом 7",
+            "price": price("7000000"),
+        }
+        with as_app():
+            first = self.accept(source)
+            assert first.ad_id is not None
+            ad = Ad.objects.filter(pk=first.ad_id)
+            history = PriceHistory.objects.filter(ad_id=first.ad_id).order_by("id")
+
+            # Act
+            conflict = self.accept(changed_district)
+            after_conflict = ad.values_list(
+                "property_id", "property__address", "observed_at", "photos"
+            ).get()
+            compatible = self.accept(ambiguous_building)
+            after_compatible = ad.values_list(
+                "property_id", "property__address", "observed_at", "photos"
+            ).get()
+            prices = list(history.values_list("price_rub", flat=True))
+
+        # Assert
+        self.assertEqual(conflict.outcome, "conflict")
+        self.assertEqual(after_conflict, (first.property_id, address, START, [PHOTO]))
+        self.assertEqual(compatible.outcome, "updated")
+        self.assertEqual(
+            after_compatible,
+            (first.property_id, address, ambiguous_building["observed_at"], [PHOTO]),
+        )
+        self.assertEqual(prices, [Decimal("8000000"), Decimal("7000000")])
+
     def test_matching_apartment_numbers_and_unique_candidate(self) -> None:
         # Arrange: one exact A match and two contradictory existing room counts.
         address = "Самарская область, Самара, ул. Гагарина, 17а, кв. 25"

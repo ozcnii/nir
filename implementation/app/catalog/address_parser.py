@@ -197,6 +197,14 @@ def _settlement_name(component: str, role: str) -> tuple[str, str | None] | None
     return " ".join(words), kind
 
 
+def _district_name(component: str) -> str | None:
+    if not _ADDRESS_TOKEN.fullmatch(component):
+        return None
+    words = component.split()
+    name = words[1:] if words[0].strip(".") in _DISTRICTS else words[:-1]
+    return " ".join(name) or None
+
+
 def _typed_street(component: str, role: str) -> str | None:
     if role != "street" or not _ADDRESS_TOKEN.fullmatch(component):
         return None
@@ -212,18 +220,26 @@ def _room_address(
     components: list[str],
     details: dict[str, tuple[str, str]],
     *,
+    detail_offset: int,
     complete_details: bool,
 ) -> Address | PartialAddress:
     streets: dict[int, str] = {}
     localities: list[tuple[int, str, str]] = []
+    districts: dict[int, str] = {}
     numbers: list[tuple[int, str, str]] = []
     ambiguous_number = False
     labels: list[str] = []
     roles: list[str] = []
     for i, label in enumerate(components):
         role = _address_role(label, room=True)
-        street = _typed_street(label, role)
         building = _room_building(label)
+        if i >= detail_offset:
+            # A house appearing after unit qualifiers competes with the address
+            # core, but cannot establish a new chain with those qualifiers.
+            if building is not None and building[2] and role != "parcel":
+                ambiguous_number = True
+            continue
+        street = _typed_street(label, role)
         if building is not None:
             prefix, found_number, explicit = building
             prefix_role = _address_role(prefix, room=True)
@@ -243,7 +259,7 @@ def _room_address(
             elif not prefix and numbers and numbers[-1][0] == i - 1:
                 # A second number in the same position makes the first ambiguous.
                 scope = "full"
-            elif i == len(components) - 1 and (
+            elif i == detail_offset - 1 and (
                 prefix_role == "name" or (not prefix and roles and roles[-1] == "name")
             ):
                 scope = "full"
@@ -262,6 +278,8 @@ def _room_address(
             streets[i] = street
         if role in ("settlement", "name"):
             localities.append((i, label, role))
+        if role == "district" and (district := _district_name(label)) is not None:
+            districts[i] = district
 
     number = None
     street_index = next(iter(streets)) if len(streets) == 1 else None
@@ -269,25 +287,42 @@ def _room_address(
         details = {}
     elif numbers:
         index, found, scope = numbers[0]
-        if complete_details and index == len(components) - 1:
+        if index == detail_offset - 1:
             full = _complete_address(parts, first, labels, roles, found, details)
             if full is not None:
-                return full
+                if complete_details:
+                    return full
+                return PartialAddress(
+                    settlement=full.settlement,
+                    settlement_kind=full.settlement_kind,
+                    enclosing_district=full.enclosing_district,
+                    district=full.district,
+                    street=full.street,
+                    number=full.number,
+                    details=full.details,
+                )
         if scope == "explicit" or (scope == "street" and street_index is not None):
             number = found
 
-    settlement = kind = None
+    settlement = kind = enclosing_district = city_district = None
     if len(localities) == 1:
         i, label, role = localities[0]
         # An untyped name is evidence only in the locality position before a typed street.
         if role == "settlement" or (street_index is not None and i < street_index):
             settlement, kind = _settlement_name(label, role) or (None, None)
+        if settlement is not None:
+            enclosing = [name for index, name in districts.items() if index < i]
+            inner = [name for index, name in districts.items() if index > i]
+            enclosing_district = enclosing[0] if len(enclosing) == 1 else None
+            city_district = inner[0] if len(inner) == 1 else None
     return PartialAddress(
-        settlement,
-        kind,
-        streets[street_index] if street_index is not None else None,
-        number,
-        details,
+        settlement=settlement,
+        settlement_kind=kind,
+        enclosing_district=enclosing_district,
+        district=city_district,
+        street=streets[street_index] if street_index is not None else None,
+        number=number,
+        details=details,
     )
 
 
@@ -318,15 +353,16 @@ def _read_address(
         parts, normalized, room=room
     )
     first = int(region is not None and normalized[0] == _plain(region))
-    components = normalized[first:detail_start]
     if room:
         return _room_address(
             parts,
             first,
-            components,
+            normalized[first:],
             details,
+            detail_offset=detail_start - first,
             complete_details=complete_details and region is not None,
         )
+    components = normalized[first:detail_start]
     if not complete_details or region is None or not components:
         return None
     building = _building_component(components[-1])
@@ -382,12 +418,8 @@ def _complete_address(
     district = district_text = None
     if districts:
         index = districts[0]
-        label = locality[index].split()
-        if label[0].strip(".") in _DISTRICTS:
-            name = " ".join(label[1:])
-        else:
-            name = " ".join(label[:-1])
-        if not name:
+        name = _district_name(locality[index])
+        if name is None:
             return None
         if index > settlement_index:
             # An explicitly displayed city district may be omitted on one site.
