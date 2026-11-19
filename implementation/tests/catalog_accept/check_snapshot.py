@@ -381,10 +381,28 @@ class SnapshotTests(TestCase):
             ).replace("комната 2", "комната ?"),
         }
         changed_region: ActiveSnapshot = {**later(changed_street, 4), "region_id": 69}
+        repeated_claim_conflicts: tuple[ActiveSnapshot, ...] = tuple(
+            {**later(changed_district, 5), "address": address.replace(old, new)}
+            for old, new in (
+                ("комната 2", "комната 3, комн. 3"),
+                ("квартира 25", "квартира 26, кв. 26"),
+                (
+                    "Красноярский район",
+                    "Приволжский район, Приволжский р-н",
+                ),
+            )
+        )
         ambiguous_building: ActiveSnapshot = {
-            **later(source, 5),
+            **later(source, 6),
             "address": f"{address.replace('дом 7', 'дом 9')}, дом 7",
             "price": price("7000000"),
+        }
+        ambiguous_street: ActiveSnapshot = {
+            **later(ambiguous_building, 7),
+            "address": address.replace(
+                "Советская, дом 7", "Кировская дом 7 и Советская дом 7"
+            ),
+            "price": price("7500000"),
         }
         with as_app():
             first = self.accept(source)
@@ -400,12 +418,14 @@ class SnapshotTests(TestCase):
                     changed_house,
                     changed_street,
                     changed_region,
+                    *repeated_claim_conflicts,
                 )
             ]
             after_conflict = ad.values_list(
                 "property_id", "property__address", "observed_at", "photos"
             ).get()
             compatible = self.accept(ambiguous_building)
+            compatible_street = self.accept(ambiguous_street)
             after_compatible = ad.values_list(
                 "property_id", "property__address", "observed_at", "photos"
             ).get()
@@ -414,15 +434,18 @@ class SnapshotTests(TestCase):
         # Assert
         self.assertEqual(
             [conflict.outcome for conflict in conflicts],
-            ["conflict"] * 4,
+            ["conflict"] * 7,
         )
         self.assertEqual(after_conflict, (first.property_id, address, START, [PHOTO]))
         self.assertEqual(compatible.outcome, "updated")
+        self.assertEqual(compatible_street.outcome, "updated")
         self.assertEqual(
             after_compatible,
-            (first.property_id, address, ambiguous_building["observed_at"], [PHOTO]),
+            (first.property_id, address, ambiguous_street["observed_at"], [PHOTO]),
         )
-        self.assertEqual(prices, [Decimal("8000000"), Decimal("7000000")])
+        self.assertEqual(
+            prices, [Decimal("8000000"), Decimal("7000000"), Decimal("7500000")]
+        )
 
     def test_matching_apartment_numbers_and_unique_candidate(self) -> None:
         # Arrange: one exact A match and two contradictory existing room counts.

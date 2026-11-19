@@ -89,6 +89,10 @@ class MatchingTests(TestCase):
             for address in incomplete
         ]
         repeated_number = parse_address(f"{valid[0]}, {tail}, дом 7", region, room=True)
+        redundant_chain = [
+            parse_address(f"{valid[0]}, {tail}, {label}", region, room=True)
+            for label in ("кв. 25", "комн. 2")
+        ]
 
         # Assert
         self.assertEqual(
@@ -101,6 +105,7 @@ class MatchingTests(TestCase):
         )
         self.assertEqual(results, [None] * len(incomplete))
         self.assertIsNone(repeated_number)
+        self.assertEqual(redundant_chain, [None, None])
 
     def test_room_repeat_compares_only_known_fields_in_incomplete_addresses(
         self,
@@ -125,8 +130,12 @@ class MatchingTests(TestCase):
             (f"{territory}, дом 9, квартира 25", True),
             (f"{territory} д. 9, квартира 25", True),
             (f"{territory}, дом 7, корп. 4", True),
+            (f"{territory}, дом 7, корпус 4, корп. 4", True),
             (f"{territory}, дом 7, стр. б", True),
             (f"{territory}, дом 7, квартира 25, комната 3", True),
+            (f"{territory}, дом 7, квартира 25, комната 3, комн. 3", True),
+            (f"{territory}, дом 7, квартира 26, кв. 26, комната 2", True),
+            (f"{territory}, дом 7, кв. 25,, комната 3, комн. 3", False),
             (f"{territory}, дом 7, комната дома 2", True),
             (f"{territory}, дом 7, квартира 25", False),
             (f"{territory}, дом 7, комната 3", False),
@@ -177,6 +186,11 @@ class MatchingTests(TestCase):
             (f"{territory}, дом 9, квартира 25, комната 2, дом 9", True),
             (f"{territory}, дом 9, дом 9, квартира 25, комната 2", True),
             (f"{territory} дом 9 дом 9, квартира 25, комната 2", True),
+            (
+                "Самара, Полевая дом 7 и Солнечная дом 7, квартира 25, комната 2",
+                False,
+            ),
+            ("Самара, ул. Полевая, Полевая улица, дом 7, кв. 25", True),
             (f"{territory}, 9, квартира 25, комната 2, дом 9", True),
             (f"{territory}, дом 7, квартира 25, комната 2, дом 7", False),
             (f"{territory}, дом 9, квартира 25, участок 7", True),
@@ -218,6 +232,20 @@ class MatchingTests(TestCase):
         cases = (
             (saved_address, saved_address.replace("Красноярский", "Приволжский"), True),
             (saved_address, saved_address.replace("Советский", "Кировский"), True),
+            (
+                saved_address,
+                saved_address.replace(
+                    "Красноярский район", "Приволжский район, Приволжский р-н"
+                ),
+                True,
+            ),
+            (
+                saved_address,
+                saved_address.replace(
+                    "Красноярский район", "Приволжский район, Красноярский р-н"
+                ),
+                False,
+            ),
             (saved_address, saved_address.replace("Красноярский район, ", ""), False),
             (saved_address, saved_address.replace("Советский район, ", ""), False),
             (

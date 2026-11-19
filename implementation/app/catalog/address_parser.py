@@ -2,6 +2,7 @@
 
 import re
 import unicodedata
+from itertools import pairwise
 
 from app.catalog.address import STREET_TYPES, Address, PartialAddress
 
@@ -113,9 +114,10 @@ def _address_details(
 ) -> tuple[int, dict[str, tuple[str, str]], bool]:
     start = len(parts)
     details: dict[str, tuple[str, str]] = {}
-    seen: set[str] = set()
-    sections: dict[str, int] = {}
+    unresolved: set[str] = set()
+    sections: dict[str, set[int]] = {}
     section = 0
+    complete = True
     for i, part in enumerate(normalized):
         match = _TAG.fullmatch(part)
         if match is None:
@@ -129,30 +131,35 @@ def _address_details(
         if name is None:
             section += 1
             continue
+        previous = details.get(name)
         if (
-            name in seen
-            or number is None
+            number is None
+            or name in unresolved
             or (name in _ROOM_TAGS and not room)
             or (name not in ("корпус", "строение") and not number[0].isdigit())
+            or (previous is not None and (not room or previous[0] != number))
         ):
             details.pop(name, None)
+            unresolved.add(name)
             section += 1
         else:
-            details[name] = number, parts[i]
-            sections[name] = section
-        seen.add(name)
+            # Repeated evidence preserves the value, but cannot complete a chain.
+            complete = complete and previous is None
+            details.setdefault(name, (number, parts[i]))
+            sections.setdefault(name, set()).add(section)
 
     if room:
         # An interruption cannot confirm that the room belongs to an earlier apartment.
         if (
-            sections.get("квартира") != sections.get("комната")
+            sections.get("квартира", set()).isdisjoint(sections.get("комната", set()))
             or "квартира" not in details
         ):
             details.pop("комната", None)
+        seen = unresolved | sections.keys()
         if "комната дома" in seen and seen.intersection(("квартира", "комната")):
             details.pop("комната дома", None)
             section += 1
-    return start, details, section == 0
+    return start, details, complete and section == 0
 
 
 def _building_component(component: str) -> tuple[str, str, bool] | None:
@@ -169,6 +176,12 @@ def _room_building(component: str) -> tuple[str, str | None, bool, bool] | None:
         return (*building, True) if building is not None else None
     first = matches[0]
     prefix = component[: first.start()].rstrip()
+    if any(
+        component[left.end() : right.start()].strip(" ;")
+        for left, right in pairwise(matches)
+    ):
+        # Equal numbers cannot corroborate one house across intervening context.
+        return "", None, True, False
     known = matches[-1].end() == len(component) and all(
         match[1] == first[1] for match in matches
     )
@@ -205,6 +218,10 @@ def _typed_street(component: str, role: str) -> str | None:
     return canonical_street(component)
 
 
+def _unique[T](choices: set[T]) -> T | None:
+    return next(iter(choices)) if len(choices) == 1 else None
+
+
 def _room_address(
     parts: tuple[str, ...],
     first: int,
@@ -215,7 +232,7 @@ def _room_address(
     complete_details: bool,
 ) -> Address | PartialAddress:
     streets: dict[int, str] = {}
-    localities: list[tuple[int, str, str]] = []
+    localities: list[tuple[int, str, str, tuple[str, str | None] | None]] = []
     districts: dict[int, str] = {}
     numbers: list[tuple[int, str, str]] = []
     late_numbers: set[str] = set()
@@ -274,20 +291,21 @@ def _room_address(
         if street is not None:
             streets[i] = street
         if role in ("settlement", "name"):
-            localities.append((i, label, role))
+            localities.append((i, label, role, _settlement_name(label, role)))
         if role == "district" and (district := _district_name(label)) is not None:
             districts[i] = district
 
     # A sole name in the street position can be compared even if the full
     # chain is invalid. Without a typed place, require the simple address order.
-    if not streets and numbers and len(localities) == 2:
-        place, (index, label, role) = localities
+    if not streets and numbers and len(localities) >= 2:
+        index, label, _, last = localities[-1]
+        place = _unique({known for _, _, _, known in localities[:-1]})
         if (
-            role == "name"
-            and _ADDRESS_TOKEN.fullmatch(label)
+            last == (label, None)
+            and place is not None
             and numbers[0][0] - index in (0, 1)
             and (
-                place[2] == "settlement"
+                place[1] is not None
                 or all(role in ("name", "district") for role in roles)
             )
         ):
@@ -295,7 +313,7 @@ def _room_address(
             localities.pop()
 
     number = None
-    street_index = next(iter(streets)) if len(streets) == 1 else None
+    street = _unique(set(streets.values()))
     possible_numbers = {found for _, found, _ in numbers} | late_numbers
     if ambiguous_number or len(possible_numbers) > 1:
         details = {}
@@ -313,31 +331,35 @@ def _room_address(
                 return full
         if found in late_numbers or any(
             scope == "explicit"
-            or (street_index is not None and index - street_index in (0, 1))
+            or (street is not None and (index in streets or index - 1 in streets))
             for index, _, scope in numbers
         ):
             number = found
 
     settlement = kind = enclosing_district = city_district = None
     explicit_localities = [entry for entry in localities if entry[2] == "settlement"]
-    if len(explicit_localities) == 1 and explicit_localities[0] == localities[0]:
+    if explicit_localities and explicit_localities[0] == localities[0]:
         localities = explicit_localities
-    if len(localities) == 1:
-        i, label, role = localities[0]
+    known_place = _unique({known for _, _, _, known in localities})
+    if known_place is not None:
+        first_place, last_place = localities[0][0], localities[-1][0]
         # An untyped settlement needs a resolved street later in the chain.
-        if role == "settlement" or (street_index is not None and i < street_index):
-            settlement, kind = _settlement_name(label, role) or (None, None)
-        if settlement is not None:
-            enclosing = [name for index, name in districts.items() if index < i]
-            inner = [name for index, name in districts.items() if index > i]
-            enclosing_district = enclosing[0] if len(enclosing) == 1 else None
-            city_district = inner[0] if len(inner) == 1 else None
+        if known_place[1] is not None or (
+            street is not None and last_place < min(streets)
+        ):
+            settlement, kind = known_place
+            enclosing_district = _unique(
+                {name for index, name in districts.items() if index < first_place}
+            )
+            city_district = _unique(
+                {name for index, name in districts.items() if index > last_place}
+            )
     return PartialAddress(
         settlement=settlement,
         settlement_kind=kind,
         enclosing_district=enclosing_district,
         district=city_district,
-        street=streets[street_index] if street_index is not None else None,
+        street=street,
         number=number,
         details=details,
     )
