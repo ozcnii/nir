@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.db import DatabaseError, connection, models
 from django.http import QueryDict
-from django.test import Client, TransactionTestCase
+from django.test import Client, TransactionTestCase, override_settings
 from playwright.sync_api import Page, sync_playwright
 
 from app.catalog.catalog_filters import BIGINT_MAX, CatalogFilters
@@ -132,6 +132,8 @@ def check_api_catalog(page: Page, origin: str, ids: tuple[int, int]) -> None:
     assert removed_response.json()["ads"][0]["is_active"] is False
 
 
+# Keep Django's test media handler away from API paths.
+@override_settings(MEDIA_URL="/media/")
 class CatalogApiTests(StaticLiveServerTestCase):
     def test_api_matches_public_html_and_keeps_complete_detail(self) -> None:
         # Arrange
