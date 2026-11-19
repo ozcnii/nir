@@ -76,6 +76,17 @@ def _component(value: str) -> str:
     return _PREFIXES.get(head, head) + space + tail
 
 
+def _street_type(word: str) -> str | None:
+    kind = _PREFIXES.get(word, word).strip(".")
+    return kind if kind in _STREET_TYPES else None
+
+
+def canonical_street(street: str) -> str:
+    name, _, suffix = street.rpartition(" ")
+    kind = _street_type(suffix)
+    return f"{kind} {name}" if name and kind else street
+
+
 def _address_role(component: str) -> str:
     words = component.split()
     terms = {word.strip(".") for word in words}
@@ -84,7 +95,7 @@ def _address_role(component: str) -> str:
         return "territory"
     if ends & _SETTLEMENT_TYPES:
         return "settlement"
-    if ends.intersection(_STREET_TYPES):
+    if _street_type(words[0]) or _street_type(words[-1]):
         return "street"
     if ends & _DISTRICTS:
         return "district"
@@ -95,36 +106,52 @@ def _address_role(component: str) -> str:
     return "name"
 
 
+def _address_details(
+    parts: list[str], *, room: bool
+) -> tuple[int, dict[str, tuple[str, str]]] | None:
+    start = len(parts)
+    details: dict[str, tuple[str, str]] = {}
+    for i, part in enumerate(parts):
+        match = _TAG.fullmatch(_plain(part))
+        if match is None:
+            if details:
+                return None
+            continue
+        name, number = _TAGS[match[1]], match[2]
+        if (
+            name in details
+            or (name in _ROOM_TAGS and not room)
+            or (name not in ("корпус", "строение") and not number[0].isdigit())
+        ):
+            return None
+        details[name] = number, part
+        start = min(start, i)
+    return start, details
+
+
+def published_room_details(value: str | None) -> dict[str, tuple[str, str]]:
+    """Read explicit qualifiers independently of the geographic address."""
+    if not value:
+        return {}
+    parsed = _address_details([part.strip() for part in value.split(",")], room=True)
+    return parsed[1] if parsed is not None else {}
+
+
 def parse_address(
     value: str | None, region: str, *, room: bool = False
 ) -> Address | None:
     if not value:
         return None
     parts = [item.strip() for item in value.split(",")]
-    normalized = [_component(_plain(item)) for item in parts]
-    if not all(normalized):
+    if not all(parts):
         return None
-    first = int(normalized[0] == _plain(region))
-    if len(parts) - first < 2:
+    parsed = _address_details(parts, room=room)
+    if parsed is None:
         return None
-    detail_start = len(parts)
-    details: dict[str, tuple[str, str]] = {}
-    for index, part in enumerate(normalized[first:], first):
-        match = _TAG.fullmatch(part)
-        if match:
-            name, number = _TAGS[match[1]], match[2]
-            if (
-                name in details
-                or (name in _ROOM_TAGS and not room)
-                or (name not in ("корпус", "строение") and not number[0].isdigit())
-            ):
-                return None
-            details[name] = number, parts[index]
-            detail_start = min(detail_start, index)
-        elif detail_start != len(parts):
-            return None
-
-    core = normalized[first:detail_start]
+    detail_start, details = parsed
+    core = [_component(_plain(item)) for item in parts[:detail_start]]
+    first = int(bool(core) and core[0] == _plain(region))
+    core = core[first:]
     if len(core) < 2:
         return None
     house = _HOUSE.fullmatch(core[-1])
@@ -179,12 +206,9 @@ def parse_address(
             district, district_text = name, parts[first + index]
         else:
             settlement = (f"район {name}", *settlement)
-    tail = street.rsplit(" ", 1)
-    if len(tail) == 2 and tail[1] in _STREET_TYPES:
-        street = f"{tail[1]} {tail[0]}"
     return Address(
         settlement,
-        street,
+        canonical_street(street),
         district,
         number,
         details,

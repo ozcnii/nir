@@ -276,7 +276,11 @@ class SnapshotTests(TestCase):
         }
         moved: ActiveSnapshot = {
             **later(full, 5),
-            "address": f"{address}, комната 3",
+            "address": f"{address}, комната 3".replace(
+                "Самара,", "Самара, микрорайон Солнечный,"
+            ),
+            "price": conflict["price"],
+            "photos": conflict["photos"],
         }
         with as_app():
             # Act
@@ -302,6 +306,14 @@ class SnapshotTests(TestCase):
             )
             confirmed = self.accept(full)
             changed_unit = self.accept(moved)
+            after_move = Ad.objects.values_list(
+                "property_id", "property__address", "observed_at", "photos"
+            ).get(pk=first.ad_id)
+            after_move_history = list(
+                PriceHistory.objects.filter(ad_id=first.ad_id).values_list(
+                    "price_rub", flat=True
+                )
+            )
 
         # Assert
         self.assertEqual(first.property_id, next_result.property_id)
@@ -314,6 +326,11 @@ class SnapshotTests(TestCase):
         self.assertNotEqual(independent.property_id, first.property_id)
         self.assertEqual(confirmed.outcome, "updated")
         self.assertEqual(changed_unit.outcome, "conflict")
+        self.assertEqual(
+            after_move,
+            (first.property_id, full["address"], full["observed_at"], [PHOTO]),
+        )
+        self.assertEqual(after_move_history, history)
 
     def test_matching_apartment_numbers_and_unique_candidate(self) -> None:
         # Arrange: one exact A match and two contradictory existing room counts.

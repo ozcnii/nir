@@ -9,24 +9,26 @@ from app.catalog.address import (
     details_conflict,
     same_house,
 )
-from app.catalog.address_parser import parse_address
+from app.catalog.address_parser import parse_address, published_room_details
 from app.catalog.contracts import ActiveSnapshot, PropertyFacts
 from app.catalog.matching import Candidate, Match, property_patch
 
 
-def _unit(address: Address) -> tuple[str | None, str] | None:
-    apartment = address.detail("квартира")
-    room = address.detail("комната")
-    standalone = address.detail("комната дома")
+def _unit(details: dict[str, tuple[str, str]]) -> tuple[str | None, str] | None:
+    apartment = details.get("квартира")
+    room = details.get("комната")
+    standalone = details.get("комната дома")
     if standalone is not None:
-        return (None, standalone) if apartment is None and room is None else None
-    return (apartment, room) if apartment is not None and room is not None else None
+        return (None, standalone[0]) if apartment is None and room is None else None
+    return (
+        (apartment[0], room[0]) if apartment is not None and room is not None else None
+    )
 
 
 def _room_address_patch(previous: Address, incoming: Address) -> str | None:
     """Keep a published chain when the next snapshot lacks known qualifiers."""
     if (
-        _unit(incoming) is None
+        _unit(incoming.details) is None
         or not previous.details.keys() <= incoming.details.keys()
         or details_conflict(previous, incoming)
         or (previous.district is not None and incoming.district is None)
@@ -59,7 +61,7 @@ def choose_room(
     candidates: Iterable[Candidate],
     region: str,
 ) -> Match | None:
-    unit = _unit(address)
+    unit = _unit(address.details)
     if incoming["rooms"] != 1 or unit is None:
         return None
     choices = []
@@ -70,7 +72,7 @@ def choose_room(
         other = parse_address(facts["address"], region, room=True)
         if (
             other is not None
-            and _unit(other) == unit
+            and _unit(other.details) == unit
             and same_house(other, address)
             and not details_conflict(other, address)
         ):
@@ -97,8 +99,12 @@ def repeated_room_patch(
     address = incoming["address"] if saved["address"] is None else None
     old = parse_address(saved["address"], region, room=True) if region else None
     new = parse_address(incoming["address"], region, room=True) if region else None
+    old_details = old.details if old else published_room_details(saved["address"])
+    new_details = new.details if new else published_room_details(incoming["address"])
+    old_unit, new_unit = _unit(old_details), _unit(new_details)
+    if old_unit is not None and new_unit is not None and old_unit != new_unit:
+        return None
     if old is not None and new is not None:
-        old_unit, new_unit = _unit(old), _unit(new)
         different_scope = any(
             one.detail("квартира") is not None
             and other.detail("комната дома") is not None
@@ -106,8 +112,6 @@ def repeated_room_patch(
         )
         ignore = "комната" if old_unit is None or new_unit is None else None
         if different_scope or address_conflicts(old, new, ignore=ignore):
-            return None
-        if old_unit is not None and new_unit is not None and old_unit != new_unit:
             return None
         address = _room_address_patch(old, new)
     return property_patch(saved, incoming, address)

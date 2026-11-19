@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from app.catalog.address_parser import parse_address
+from app.catalog.address_parser import parse_address, published_room_details
 from app.catalog.seller_description import matching_description
 
 
@@ -38,6 +38,53 @@ class MatchingTests(TestCase):
         # Assert
         assert result is not None
         self.assertEqual(result.detail("квартира"), "25/1")
+
+    def test_street_suffix_uses_the_canonical_street_type(self) -> None:
+        # Arrange
+        region = "Самарская область"
+        addresses = (
+            "Самара, улица Солнечная, 7",
+            "Самара, Солнечная улица, 7",
+            "Самара, Солнечная ул., 7",
+            "Самара, Солнечная ул. 7",
+            "Самара, ул. Солнечная, 7",
+        )
+
+        # Act
+        results = [parse_address(address, region) for address in addresses]
+        misplaced_street = parse_address("Солнечная ул., Песочная ул., 7", region)
+
+        # Assert
+        self.assertEqual(
+            [result.street for result in results if result is not None],
+            ["улица солнечная"] * len(addresses),
+        )
+        self.assertIsNone(misplaced_street)
+
+    def test_room_qualifiers_need_an_explicit_unambiguous_address_tail(self) -> None:
+        # Arrange
+        address = "Самара, микрорайон Солнечный, улица Солнечная, дом 7"
+        tails = (
+            "кв. 25, комн. № 2",
+            "комната дома 25",
+            "квартира 25, комната 2, квартира 26",
+            "квартира 25, другое здание, комната 2",
+            "квартира 25, комната А",
+        )
+
+        # Act
+        result = parse_address(f"{address}, {tails[0]}", "Самарская область", room=True)
+        qualifiers = [published_room_details(f"{address}, {tail}") for tail in tails]
+
+        # Assert
+        self.assertIsNone(result)
+        self.assertEqual(
+            [
+                {name: number for name, (number, _) in details.items()}
+                for details in qualifiers
+            ],
+            [{"квартира": "25", "комната": "2"}, {"комната дома": "25"}, {}, {}, {}],
+        )
 
     def test_layout_requires_asserted_dimensions_of_distinct_rooms(self) -> None:
         for text in (
