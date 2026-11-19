@@ -914,6 +914,48 @@ class CianCardTests(TestCase):
 
                     # Assert: both measurements of the restored own room participate.
 
+    def test_named_area_follows_the_established_offer_across_neutral_text(self) -> None:
+        own = (
+            "Продаются комната № 2 площадью 9 м² и комната № 3 площадью 13,5 м² "
+            "одним лотом, общей площадью 22,5 м²."
+        )
+        foreign = "В соседней квартире: продаётся комната № 2 площадью 12 м²."
+        for own_last, offers in ((True, (foreign, own)), (False, (own, foreign))):
+            for reference, equal, different, named in (
+                ("Площадь предлагаемой комнаты № 2", "9", "11", True),
+                ("Общая площадь предлагаемых комнат", "22,5", "23", True),
+                ("Общая площадь этих комнат", "22,5", "23", False),
+            ):
+                for area in (equal, different):
+                    with self.subTest(
+                        own_last=own_last, reference=reference, area=area
+                    ):
+                        # Arrange: neutral text adds no facts about the measured unit.
+                        url, offer, product = projection()
+                        offer.update(
+                            category="roomSale",
+                            roomsForSaleCount=2,
+                            description=(
+                                f"{' '.join(offers)} Показ в субботу. "
+                                f"{reference} — {area} м²."
+                            ),
+                        )
+
+                        if own_last and named and area == different:
+                            # Act
+                            with self.assertRaisesRegex(
+                                RejectedCard, "^conflicting_room_area$"
+                            ):
+                                parsed(url, offer, product)
+
+                            # Assert: the restored offer makes its named claim comparable.
+                        else:
+                            # Act
+                            result = parsed(url, offer, product)
+
+                            # Assert: a foreign or unbound claim has no effect.
+                            self.assertEqual(result["area_m2"], Decimal("22.50"))
+
     def test_explicit_own_total_survives_neutral_text_without_a_count(self) -> None:
         total = "Общая площадь предлагаемых комнат — 22,5 м²."
         neutral = "Показ в субботу."

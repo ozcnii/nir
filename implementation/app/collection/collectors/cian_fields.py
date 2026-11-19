@@ -309,29 +309,36 @@ def _room_count(value: str) -> int | None:
     return _ROOM_COUNTS.get(value)
 
 
-def _adjacent_room_claims(
+def _named_room_claim(claim: re.Match[str]) -> bool:
+    return claim["member"] is not None or claim["direct"] is not None
+
+
+def _owned_room_claims(
     text: str,
     offers: list[tuple[int, int, bool]],
     claims: list[re.Match[str]],
-) -> Iterator[int]:
-    facts = [*offers, *((claim.start(), claim.end(), None) for claim in claims)]
-    pending: list[int] = []
+) -> Iterator[re.Match[str]]:
+    facts: list[tuple[int, int, bool | re.Match[str]]] = [*offers]
+    facts.extend((claim.start(), claim.end(), claim) for claim in claims)
+    pending: list[re.Match[str]] = []
     own_offer: bool | None = None
-    linked = False
+    adjacent = False
     previous_end = 0
-    for start, end, owner in sorted(facts, key=lambda fact: fact[0]):
+    for start, end, fact in sorted(facts, key=lambda item: item[0]):
+        # Unparsed text breaks anaphora. Only an identified offer changes ownership.
         if text[previous_end:start].strip(" \t\r\n.!?;"):
-            linked = False
-            pending.clear()
-        if owner is not None:
-            if owner:
+            adjacent = False
+            pending = [claim for claim in pending if _named_room_claim(claim)]
+        if isinstance(fact, bool):
+            if fact:
                 yield from pending
-            own_offer = linked = owner
+            own_offer = fact
+            adjacent = True
             pending.clear()
-        elif linked:
-            yield start
+        elif own_offer and (adjacent or _named_room_claim(fact)):
+            yield fact
         elif own_offer is not False:
-            pending.append(start)
+            pending.append(fact)
         previous_end = end
 
 
@@ -356,13 +363,8 @@ def _collect_related_room_areas(
             claim["member"] in areas for areas in member_areas.values()
         ):
             claims.append(claim)
-    linked = set(_adjacent_room_claims(text, offers, claims))
-    has_competitor = any(not own for _, _, own in offers)
-    for claim in claims:
+    for claim in _owned_room_claims(text, offers, claims):
         number = claim["member"]
-        names_offer = number is not None or claim["direct"] is not None
-        if claim.start() not in linked and (has_competitor or not names_offer):
-            continue
         if number is not None:
             candidates = [
                 areas[number] for areas in member_areas.values() if number in areas
