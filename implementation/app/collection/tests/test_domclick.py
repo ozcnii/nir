@@ -1040,14 +1040,15 @@ class DomclickTests(TestCase):
         # Arrange: numeric fields from the card observation and published JS
         # selectors. The address-region binding is controlled, not a live copy.
         url = "https://samara.domclick.ru/card/sale__new_flat__2072470551"
+        address = {
+            "guid": "controlled-address-key",
+            "shortDisplayName": "Гвардейский переулок, 7а",
+            "locality": {"name": "Самара"},
+            "position": {"lat": 53.22549, "lon": 50.23738},
+        }
         data = {
             "id": 2072470551,
-            "address": {
-                "guid": "controlled-address-key",
-                "shortDisplayName": "Гвардейский переулок, 7а",
-                "locality": {"name": "Самара"},
-                "position": {"lat": 53.22549, "lon": 50.23738},
-            },
+            "address": address,
             "objectInfo": {"area": 54.3, "rooms": 2, "floorNumber": 2},
             "building": {"floors": 17},
             "flatInfo": {"flatNumber": "121"},
@@ -1102,6 +1103,16 @@ class DomclickTests(TestCase):
 
         # Assert
         self.assertEqual(str(rejected.exception), "invalid_region")
+
+        # Arrange: a subject is named in the card's own structured address.
+        address["locality"] = {"name": "Самарская область"}
+
+        # Act
+        result = parse_card(url, OBSERVED, [ssr({"shell": shell})], [], loaded_url=url)
+
+        # Assert
+        assert result["state"] == "active"
+        self.assertEqual(result["region_id"], 68)
 
     def test_partner_decodes_refs_and_returns_the_confirmed_flat(self) -> None:
         # Arrange

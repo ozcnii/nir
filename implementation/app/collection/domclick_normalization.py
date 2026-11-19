@@ -306,6 +306,11 @@ def normalize_new_flat_card(
     subjects = {
         _REGIONS[part.casefold()] for part in parts if part.casefold() in _REGIONS
     }
+    # DOMCLICK-NEWBUILD-LOCALITY: the new-build address names its subject in the
+    # structured locality instead of the display line.
+    locality = _text(_record(address.get("locality")).get("name"))
+    if locality and locality.casefold() in _REGIONS:
+        subjects.add(_REGIONS[locality.casefold()])
     # The header's default geo does not establish the flat's region. Only
     # accept a region result attached to the same published address GUID.
     address_guid = address.get("guid")
@@ -324,7 +329,6 @@ def normalize_new_flat_card(
     flat = _record(data.get("flatInfo"))
     building = _record(data.get("building"))
     floor, levels = _floors(info.get("floorNumber"), building.get("floors"))
-    locality = _text(_record(address.get("locality")).get("name"))
     album = _record(data.get("media")).get("photos")
     photos: KnownPhotos | Unavailable = {"status": "unavailable"}
     if album == []:
