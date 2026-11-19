@@ -30,7 +30,8 @@ _TAGS = {
     "комната дома": "комната дома",
 }
 _ROOM_TAGS = {"комната", "комната дома"}
-_TAG = re.compile(rf"({'|'.join(_TAGS)})\.?\s*(?:№\s*)?({_NUMBER}|[а-я])")
+_DETAIL_MARKERS = sorted(_TAGS, key=len, reverse=True)
+_TAG = re.compile(rf"({'|'.join(_DETAIL_MARKERS)})\.?\s*(?:№\s*)?({_NUMBER}|[а-я])")
 _STREET_TYPES = (
     "улица",
     "проспект",
@@ -59,7 +60,9 @@ _TERRITORIES = {
     "территория",
     "поселение",
 }
-_HOUSE = re.compile(rf"(?<!\S)(?:(дом|д\.)\s*(?:№\s*)?)?({_NUMBER})\Z")
+_HOUSE_MARKER = r"(?:дом|д\.)\s*(?:№\s*)?"
+_HOUSE = re.compile(rf"(?<!\S)({_HOUSE_MARKER})?({_NUMBER})\Z")
+_EXPLICIT_HOUSE = re.compile(rf"(?<![\w/-]){_HOUSE_MARKER}({_NUMBER})(?![\w/-])")
 _ADDRESS_TOKEN = re.compile(r"[а-я][а-я0-9 .’'-]*")
 _ADDRESS_FORMAT = str.maketrans("ё–—", "е--")
 
@@ -109,32 +112,58 @@ def _address_role(component: str, *, room: bool = False) -> str:
     return "name"
 
 
+def _detail_name(part: str) -> str | None:
+    for tag in _DETAIL_MARKERS:
+        if part.startswith(tag) and not part[len(tag) : len(tag) + 1].isalpha():
+            return _TAGS[tag]
+    return None
+
+
 def _address_details(
     parts: tuple[str, ...], normalized: list[str], *, room: bool
 ) -> tuple[int, dict[str, tuple[str, str]], bool]:
     start = len(parts)
     details: dict[str, tuple[str, str]] = {}
+    seen: set[str] = set()
+    sections: dict[str, int] = {}
+    section = 0
     for i, part in enumerate(normalized):
         match = _TAG.fullmatch(part)
         if match is None:
-            if details:
-                return start, {}, False
-            if room and any(
-                part.startswith(tag) and not part[len(tag) : len(tag) + 1].isalpha()
-                for tag in _TAGS
-            ):
-                return i, {}, False
+            name = _detail_name(part) if room else None
+            number = None
+        else:
+            name, number = _TAGS[match[1]], match[2]
+        if name is None and start == len(parts):
             continue
         start = min(start, i)
-        name, number = _TAGS[match[1]], match[2]
+        if name is None:
+            section += 1
+            continue
         if (
-            name in details
+            name in seen
+            or number is None
             or (name in _ROOM_TAGS and not room)
             or (name not in ("корпус", "строение") and not number[0].isdigit())
         ):
-            return start, {}, False
-        details[name] = number, parts[i]
-    return start, details, True
+            details.pop(name, None)
+            section += 1
+        else:
+            details[name] = number, parts[i]
+            sections[name] = section
+        seen.add(name)
+
+    if room:
+        # An interruption cannot confirm that the room belongs to an earlier apartment.
+        if (
+            sections.get("квартира") != sections.get("комната")
+            or "квартира" not in details
+        ):
+            details.pop("комната", None)
+        if "комната дома" in seen and seen.intersection(("квартира", "комната")):
+            details.pop("комната дома", None)
+            section += 1
+    return start, details, section == 0
 
 
 def _building_component(component: str) -> tuple[str, str, bool] | None:
@@ -142,6 +171,17 @@ def _building_component(component: str) -> tuple[str, str, bool] | None:
     if match is None:
         return None
     return component[: match.start()].rstrip(), match[2], match[1] is not None
+
+
+def _room_building(component: str) -> tuple[str, str | None, bool] | None:
+    matches = list(_EXPLICIT_HOUSE.finditer(component))
+    if not matches:
+        return _building_component(component)
+    first = matches[0]
+    prefix = component[: first.start()].rstrip()
+    if len(matches) == 1 and first.end() == len(component):
+        return prefix, first[1], True
+    return prefix, None, True
 
 
 def _settlement_name(component: str, role: str) -> tuple[str, str | None] | None:
@@ -177,12 +217,13 @@ def _room_address(
     streets: dict[int, str] = {}
     localities: list[tuple[int, str, str]] = []
     numbers: list[tuple[int, str, str]] = []
+    ambiguous_number = False
     labels: list[str] = []
     roles: list[str] = []
     for i, label in enumerate(components):
         role = _address_role(label, room=True)
         street = _typed_street(label, role)
-        building = _building_component(label)
+        building = _room_building(label)
         if building is not None:
             prefix, found_number, explicit = building
             prefix_role = _address_role(prefix, room=True)
@@ -190,6 +231,11 @@ def _room_address(
             scope = None
             if role == "parcel" or prefix_role == "parcel":
                 role, street = "parcel", None
+            elif found_number is None:
+                ambiguous_number = True
+                label, role, street = prefix, prefix_role, inline_street
+                if not prefix:
+                    continue
             elif explicit:
                 scope = "explicit"
             elif inline_street is not None or (not prefix and i - 1 in streets):
@@ -202,7 +248,7 @@ def _room_address(
             ):
                 scope = "full"
 
-            if scope is not None:
+            if scope is not None and found_number is not None:
                 numbers.append((i, found_number, scope))
                 if not prefix:
                     continue
@@ -219,7 +265,9 @@ def _room_address(
 
     number = None
     street_index = next(iter(streets)) if len(streets) == 1 else None
-    if len(numbers) == 1:
+    if ambiguous_number or len(numbers) > 1:
+        details = {}
+    elif numbers:
         index, found, scope = numbers[0]
         if complete_details and index == len(components) - 1:
             full = _complete_address(parts, first, labels, roles, found, details)
@@ -227,8 +275,6 @@ def _room_address(
                 return full
         if scope == "explicit" or (scope == "street" and street_index is not None):
             number = found
-    elif len(numbers) > 1:
-        details = {}
 
     settlement = kind = None
     if len(localities) == 1:
