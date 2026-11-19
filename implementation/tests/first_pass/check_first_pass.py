@@ -287,7 +287,10 @@ def verify_avito() -> None:
     item = as_object(buyer["item"])
     item.update(
         title="Комната 12,5 м²",
-        description="Продаются комната 12,5 м², комната 10 м², общей площадью 22,5 м².",
+        description=(
+            "Продаются комната 12,5 м² и комната 10 м² одним лотом, "
+            "общей площадью 22,5 м²."
+        ),
     )
     params = as_object(buyer["paramsDto"])
     params["items"] = [

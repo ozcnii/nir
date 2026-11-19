@@ -289,7 +289,7 @@ def normalize_avito_card(
     if family == _ROOM:
         rooms, area = rooms_and_area(title, description or "", area, share=share)
     elif family == _HOUSE:
-        check_house(title, description or "", area, land, share=share)
+        check_house(title, description or "", area, land, share=share, address=address)
         rooms = optional_integer(room_count, minimum=1)
     elif family == _FLAT and room_count == "Студия":
         rooms = 0

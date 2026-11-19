@@ -599,6 +599,18 @@ class AvitoCardTests(TestCase):
                 "22.50",
             ),
             (
+                "Продаются комната № 2 и комната № 3 одним лотом, "
+                "общей площадью 22,5 м².",
+                2,
+                "22.50",
+            ),
+            (
+                "Продаются две комнаты одним лотом. "
+                "Общая площадь предлагаемых комнат 22,5 м².",
+                2,
+                "22.50",
+            ),
+            (
                 "Удобный район. Продаются две комнаты общей площадью 22,5 м².",
                 2,
                 "22.50",
@@ -650,7 +662,7 @@ class AvitoCardTests(TestCase):
             (
                 "room",
                 "Доля: комната № 2 12,5 м²",
-                "Рядом школа, площадь предлагаемой комнаты № 2 9,2 м².",
+                "Рядом школа — площадь предлагаемой комнаты № 2 9,2 м².",
                 "conflicting_room_area",
             ),
             (
@@ -701,6 +713,12 @@ class AvitoCardTests(TestCase):
                 "Рядом лес. Общая площадь дома 62 м².",
                 "conflicting_house_measurement",
             ),
+            (
+                "house",
+                None,
+                "Рядом лес. Продаётся только блок № 2 этого дома.",
+                "unconfirmed_house_unit",
+            ),
         )
         for family, title, description, reason in cases:
             with self.subTest(description=description):
@@ -717,6 +735,46 @@ class AvitoCardTests(TestCase):
                 # Assert
                 self.assertEqual(str(raised.exception), reason)
 
+    def test_house_does_not_promote_an_addressed_block_to_whole_house(self) -> None:
+        # Arrange
+        card = projection("house")
+        item = item_for(card)
+        item["address"] = f"{item['address']}, дом 7 блок 2"
+        item["description"] = "Рядом лес."
+
+        with self.assertRaises(RejectedCard) as rejected:
+            # Act
+            parsed(card)
+
+        # Assert
+        self.assertEqual(str(rejected.exception), "unconfirmed_house_unit")
+
+    def test_room_bundle_rejects_conflicting_quoted_totals(self) -> None:
+        cases = (
+            "Продаются две комнаты общей площадью 22,5 м². "
+            "Общая площадь предлагаемых комнат 23 м².",
+            "Продаются две комнаты общей площадью 22,5 м² и общей площадью 23 м².",
+        )
+        for description in cases:
+            with self.subTest(description=description):
+                # Arrange
+                card = projection("room")
+                item_for(card).update(title="Комната 12,5 м²", description=description)
+                card["title"] = "Комната 12,5 м² на продажу"
+                params = as_object(as_object(card["route"]["buyerItem"])["paramsDto"])
+                params["items"] = [
+                    row
+                    for row in cast(list[dict[str, object]], params["items"])
+                    if row["title"] != "Условия продажи"
+                ]
+
+                with self.assertRaises(RejectedCard) as rejected:
+                    # Act
+                    parsed(card)
+
+                # Assert
+                self.assertEqual(str(rejected.exception), "conflicting_room_area")
+
     def test_house_ignores_living_measurement_and_unrelated_second_building(
         self,
     ) -> None:
@@ -724,8 +782,11 @@ class AvitoCardTests(TestCase):
         card = projection("house")
         item_for(card)["description"] = (
             "Продаётся дом 59,2 м² на участке 6 соток, жилая площадь дома 38 м². "
-            "Площадь дома: 38 м² жилая. "
-            "Второй дом на участке остаётся у владельца."
+            "Площадь дома 38 м² — жилая; общая площадь дома 59,2 м². "
+            "Площадь дома 38 м² — жилая площадь. "
+            "Предлагается дом 38 м² — жилая площадь. "
+            "Второй дом на участке остаётся у владельца. "
+            "Жилой блок остаётся у соседей."
         )
 
         # Act
