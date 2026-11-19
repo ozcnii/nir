@@ -119,7 +119,7 @@ def _state(scripts: Iterable[str], key: str) -> dict[str, object] | None:
     """Select one ready native state. None means the offer may still be loading."""
     matching = []
     removed_markers = []
-    foreign_id = False
+    has_offer_id = False
     ready_foreign = False
     decoder = json.JSONDecoder(parse_float=Decimal)
     for script in scripts:
@@ -140,24 +140,25 @@ def _state(scripts: Iterable[str], key: str) -> dict[str, object] | None:
             identifier = offer.get("id")
             status = offer.get("status")
             secondary_id = offer.get("cianId", identifier)
+            if identifier is None and secondary_id is None:
+                if status == "deleted":
+                    removed_markers.append(data)
+                continue
+            has_offer_id = True
             if (
-                type(identifier) is int
-                and str(identifier) == key
-                and status is not None
+                type(identifier) is not int
+                or type(secondary_id) is not int
+                or secondary_id != identifier
+                or status is None
             ):
+                continue
+            if str(identifier) == key:
                 matching.append(data)
-            elif identifier is None and secondary_id is None and status == "deleted":
-                removed_markers.append(data)
-            elif identifier is not None or secondary_id is not None:
-                foreign_id = True
-                ready_foreign |= (
-                    type(identifier) is int
-                    and secondary_id == identifier
-                    and status is not None
-                )
+            else:
+                ready_foreign = True
     if matching:
         return matching[0] if len(matching) == 1 else {}
-    if removed_markers and not foreign_id:
+    if removed_markers and not has_offer_id:
         return removed_markers[0] if len(removed_markers) == 1 else {}
     return {} if ready_foreign else None
 
@@ -241,7 +242,6 @@ def _parse_observation(
     offer = as_object(data.get("offer"))
     identifier = offer.get("id")
     status = offer.get("status")
-    secondary_id = offer.get("cianId", identifier)
     category = offer.get("category")
     direction = _DIRECTIONS.get(category) if isinstance(category, str) else None
     # A removed native sale can lose its active fields after publication ends.
@@ -249,7 +249,6 @@ def _parse_observation(
     if (
         status == "deleted"
         and identifier is None
-        and secondary_id is None
         and route.deal == "sale"
         and offer.get("offerType") in (None, route.kind)
         and offer.get("dealType") in (None, route.deal)
@@ -266,10 +265,7 @@ def _parse_observation(
         return {**key, "state": "removed", "url": loaded_url, "deal_type": "sale"}
     if (
         status not in ("published", "deleted")
-        or type(identifier) is not int
-        or str(identifier) != route.external_id
-        or type(secondary_id) is not int
-        or secondary_id != identifier
+        or identifier is None
         or offer.get("offerType") != route.kind
         or offer.get("dealType") != route.deal
     ):

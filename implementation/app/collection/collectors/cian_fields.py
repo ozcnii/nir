@@ -24,8 +24,13 @@ HOUSE_TYPE_ID = 3
 _REGION_IDS = {name.casefold(): identifier for identifier, name in REGIONS}
 _CIAN_REGION_LEVEL = 2
 _CIAN_CITY_LEVEL = 1
-# A city-only fallback is permitted for an independently verified place.
-_CIAN_CITY_REGIONS = {(4966, "Самара"): "Самарская область"}
+# Observed relationships in native Cian address states and the oblast catalog.
+_CIAN_SUBJECTS = {4608: "Самарская область", 4609: "Саратовская область"}
+_CIAN_CITIES = {
+    4966: ("Самара", 4608),
+    4969: ("Саратов", 4609),
+    5066: ("Энгельс", 4609),
+}
 _M2_MAX = Decimal("1e10")
 _LAND_M2_MAX = Decimal("1e12")
 _PRICE_MAX = Decimal("1e14")
@@ -142,9 +147,18 @@ _AREA = (
     r"(?P<area>[0-9]+(?:[.,][0-9]+)?)\s*(?:м[²2]|кв\.\s*м)"
     r"(?=[\s,.;!?]|$)"
 )
-_OFFERED_ROOM = re.compile(
-    _OFFER + r"(?:одна\s+)?комнат[ау][:\s]+(?:площадью\s+)?" + _AREA,
+_ROOM_COUNTS = {"одна": 1, "одну": 1, "две": 2, "три": 3, "четыре": 4}
+_OFFERED_ROOMS = re.compile(
+    _OFFER
+    + rf"(?:(?P<count>[1-9][0-9]{{0,4}}|{'|'.join(_ROOM_COUNTS)}|несколько)\s+)?"
+    + r"(?P<unit>комнат[ауы]?)\b",
     re.IGNORECASE,
+)
+_NUMBERED_ROOMS = re.compile(r"\s*№\s*[1-9][0-9]*(?:\s*(?:,|и)\s*№\s*[1-9][0-9]*)*")
+_ROOM_NUMBER = re.compile(r"\s*№\s*([1-9][0-9]*)")
+_OWN_AREA = re.compile(r"[,\s:]+(?:(?:общей\s+)?площадью\s+)?" + _AREA, re.IGNORECASE)
+_SET_AREA = re.compile(
+    r"[,\s:]+(?:общей|суммарной)\s+площадью\s+" + _AREA, re.IGNORECASE
 )
 _OTHER_UNIT = re.compile(r"\s+(?:в|из)\s+(?:соседн|друг)\w+", re.IGNORECASE)
 _ROOM_SHARE = re.compile(
@@ -168,42 +182,91 @@ _HOUSE_SET_OR_PROJECT = re.compile(
 )
 _HOUSE_PART = re.compile(
     _OFFER + r"(?:(?:[0-9]+/[0-9]+\s+)?(?:дол[яю]|половин[ау]|часть)\s+"
-    r"(?:в\s+)?(?:дом[ае]|коттедж[ае])|(?:жилой\s+)?блок|секция|таунхаус)\b",
+    r"(?:в\s+)?(?:дом[ае]|коттедж[ае])|(?:жилой\s+)?блок|секци[яю]|таунхаус)\b",
     re.IGNORECASE,
 )
-_ADDRESSABLE_BLOCK = re.compile(
-    r"(?:блок|секция|таунхаус)\s+(?:№\s*)?[0-9][0-9a-я/.-]*\b",
-    re.IGNORECASE,
+_BLOCK_LABEL = (
+    r"(?P<kind>блок|секци[яю]|таунхаус)\s+(?:№\s*)?(?P<number>[0-9][0-9a-я/.-]*)\b"
 )
-_OFFERED_HOUSE_AREA = re.compile(
-    _OFFER + r"(?:дом|коттедж)[,\s]+(?:(?:общей\s+)?площадью\s+)?" + _AREA,
-    re.IGNORECASE,
+_ADDRESSABLE_BLOCK = re.compile(_BLOCK_LABEL, re.IGNORECASE)
+_OFFERED_BLOCK = re.compile(_OFFER + r"(?:жилой\s+)?" + _BLOCK_LABEL, re.IGNORECASE)
+_OFFERED_HOUSE = re.compile(
+    _OFFER + r"(?:(?P<whole>весь|целый)\s+)?(?:дом|коттедж)\b", re.IGNORECASE
 )
+
+
+def _own_area(text: str, start: int, *, bundle: bool = False) -> Decimal | None:
+    pattern = _SET_AREA if bundle else _OWN_AREA
+    match = pattern.match(text, start)
+    if match is None or _OTHER_UNIT.match(text, match.end()):
+        return None
+    return area_m2(match["area"])
 
 
 def check_room(
     rooms: int | None, area: Decimal | None, description: str | None
 ) -> tuple[int | None, Decimal | None]:
     text = description or ""
-    scoped_share = _SPECIFIC_ROOM_SHARE.search(text) is not None
+    counts = {rooms} if rooms is not None else set()
+    if _SPECIFIC_ROOM_SHARE.search(text):
+        counts.add(1)
     for share in _ROOM_SHARE.finditer(text):
         if not _ALLOCATION.match(text, share.end()):
             raise RejectedCard("unconfirmed_room_unit")
-        scoped_share = True
-    measured = {
-        area_m2(match["area"])
-        for match in _OFFERED_ROOM.finditer(text)
-        if not _OTHER_UNIT.match(text, match.end())
-    }
-    if not measured and not scoped_share:
-        return rooms, area
-    if rooms not in (None, 1):
+        counts.add(1)
+
+    single_areas: set[Decimal] = set()
+    set_areas: set[Decimal] = set()
+    multiple = False
+    for offer in _OFFERED_ROOMS.finditer(text):
+        raw_count = (offer["count"] or "").casefold()
+        singular = offer["unit"].casefold() in ("комната", "комнату")
+        bundle = not singular or raw_count not in ("", "1", "одна", "одну")
+        end = offer.end()
+        numbered = (_NUMBERED_ROOMS if bundle else _ROOM_NUMBER).match(text, end)
+        room_numbers = set()
+        if numbered:
+            room_numbers = set(_ROOM_NUMBER.findall(numbered[0]))
+            end = numbered.end()
+        measurement = (_SET_AREA if bundle else _OWN_AREA).match(text, end)
+        if _OTHER_UNIT.match(text, end) or (
+            measurement and _OTHER_UNIT.match(text, measurement.end())
+        ):
+            continue
+
+        if raw_count.isdecimal():
+            count = optional_integer(raw_count, minimum=1)
+            if count is not None:
+                counts.add(count)
+        elif raw_count in _ROOM_COUNTS:
+            counts.add(_ROOM_COUNTS[raw_count])
+        elif not bundle:
+            counts.add(1)
+        else:
+            multiple = True
+        if len(room_numbers) > 1:
+            counts.add(len(room_numbers))
+        if measurement and (measured := area_m2(measurement["area"])):
+            (set_areas if bundle else single_areas).add(measured)
+
+    if len(counts) > 1 or (multiple and 1 in counts):
         raise RejectedCard("conflicting_room_count")
+    offered_count = next(iter(counts), None)
+    if multiple or (offered_count is not None and offered_count > 1):
+        # The singular roomArea source field has no proven set scope.
+        if len(set_areas) > 1:
+            raise RejectedCard("conflicting_room_area")
+        return offered_count, next(iter(set_areas), None)
     if area is not None:
-        measured.add(area)
-    if len(measured) > 1:
+        single_areas.add(area)
+    if len(single_areas) > 1:
         raise RejectedCard("conflicting_room_area")
-    return 1, next(iter(measured), None)
+    return offered_count, next(iter(single_areas), None)
+
+
+def _block(match: re.Match[str]) -> tuple[str, str]:
+    kind = match["kind"].casefold()
+    return ("секция" if kind == "секцию" else kind, match["number"].casefold())
 
 
 def _check_house(
@@ -213,21 +276,36 @@ def _check_house(
     description: str | None,
 ) -> None:
     text = description or ""
-    scoped_block = any(_ADDRESSABLE_BLOCK.fullmatch(part) for part in names)
-    if _HOUSE_SET_OR_PROJECT.search(text) or (
-        _HOUSE_PART.search(text) and not scoped_block
-    ):
-        raise RejectedCard("unconfirmed_house_unit")
-    # A block can be described together with its enclosing building. Compare the
-    # top-level area and building area only for ordinary full-house offers.
-    if scoped_block:
-        return
-    areas = {
-        area_m2(match["area"])
-        for match in _OFFERED_HOUSE_AREA.finditer(text)
-        if not _OTHER_UNIT.match(text, match.end())
+    blocks = {
+        _block(match) for part in names if (match := _ADDRESSABLE_BLOCK.fullmatch(part))
     }
-    areas.update((area, area_m2(building.get("totalArea"))))
+    if len(blocks) > 1:
+        raise RejectedCard("conflicting_house_unit")
+    if _HOUSE_SET_OR_PROJECT.search(text) or (_HOUSE_PART.search(text) and not blocks):
+        raise RejectedCard("unconfirmed_house_unit")
+
+    areas = {area}
+    if blocks:
+        for offer in _OFFERED_BLOCK.finditer(text):
+            if _OTHER_UNIT.match(text, offer.end()):
+                continue
+            if _block(offer) not in blocks:
+                raise RejectedCard("conflicting_house_unit")
+            areas.add(_own_area(text, offer.end()))
+        # The surrounding building can carry a different total area.
+        for offer in _HOUSE_PART.finditer(text):
+            if not _OFFERED_BLOCK.match(text, offer.start()):
+                areas.add(_own_area(text, offer.end()))
+        if any(
+            offer["whole"] and not _OTHER_UNIT.match(text, offer.end())
+            for offer in _OFFERED_HOUSE.finditer(text)
+        ):
+            raise RejectedCard("conflicting_house_unit")
+    else:
+        areas.add(area_m2(building.get("totalArea")))
+        areas.update(
+            _own_area(text, offer.end()) for offer in _OFFERED_HOUSE.finditer(text)
+        )
     if len(areas - {None}) > 1:
         raise RejectedCard("conflicting_house_area")
 
@@ -238,23 +316,40 @@ def check_floor(floor: int | None, floors: int | None) -> None:
 
 
 def _region(components: list[dict[str, object]]) -> str:
-    locations = [part for part in components if part.get("type") == "location"]
-    subjects = [
-        part for part in locations if part.get("locationTypeId") == _CIAN_REGION_LEVEL
-    ]
-    if len(subjects) == 1:
-        return address_component(subjects[0].get("fullName"))
-    if not subjects:
-        for place in locations:
-            identifier = place.get("id")
-            name = place.get("fullName")
-            if (
-                place.get("locationTypeId") == _CIAN_CITY_LEVEL
-                and type(identifier) is int
-                and isinstance(name, str)
-                and (region := _CIAN_CITY_REGIONS.get((identifier, name)))
+    subjects = []
+    city_subjects = set()
+    for part in components:
+        if part.get("type") != "location":
+            continue
+        kind = part.get("locationTypeId")
+        identifier = part.get("id")
+        if kind == _CIAN_REGION_LEVEL:
+            name = address_component(part.get("fullName"))
+            if isinstance(identifier, int) and (
+                expected := _CIAN_SUBJECTS.get(identifier)
             ):
-                return region
+                if expected.casefold() != name.casefold():
+                    raise RejectedCard("conflicting_region")
+            subjects.append(name)
+        if (
+            kind == _CIAN_CITY_LEVEL
+            and isinstance(identifier, int)
+            and (known := _CIAN_CITIES.get(identifier))
+        ):
+            city, subject_id = known
+            if address_component(part.get("fullName")).casefold() != city.casefold():
+                raise RejectedCard("conflicting_region")
+            city_subjects.add(_CIAN_SUBJECTS[subject_id])
+    if len(subjects) > 1 or len(city_subjects) > 1:
+        raise RejectedCard("invalid_region")
+    city_subject = next(iter(city_subjects), None)
+    if subjects:
+        subject = subjects[0]
+        if city_subject and subject.casefold() != city_subject.casefold():
+            raise RejectedCard("conflicting_region")
+        return subject
+    if city_subject:
+        return city_subject
     raise RejectedCard("invalid_region")
 
 

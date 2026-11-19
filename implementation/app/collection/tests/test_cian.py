@@ -469,6 +469,146 @@ class CianCardTests(TestCase):
         self.assertEqual(snapshot["deal_type"], "day_rent")
         self.assertEqual(snapshot["price"], {"status": "unavailable"})
 
+    def test_bundle_scope_does_not_use_singular_room_area(self) -> None:
+        for published, description, expected_count, expected_area in (
+            (None, "Продаются две комнаты.", 2, None),
+            (2, None, 2, None),
+            (
+                2,
+                "Продаются комнаты № 2 и № 3 общей площадью 18 м².",
+                2,
+                Decimal("18.00"),
+            ),
+            (
+                None,
+                "Продаются несколько комнат суммарной площадью 21 м².",
+                None,
+                Decimal("21.00"),
+            ),
+        ):
+            with self.subTest(published=published, description=description):
+                # Arrange: the singular roomArea field has no proven bundle scope.
+                url, offer, product = projection()
+                offer.update(
+                    category="roomSale",
+                    roomsForSaleCount=published,
+                    roomArea="9.0",
+                    description=description,
+                )
+
+                # Act
+                result = parsed(url, offer, product)
+
+                # Assert
+                self.assertEqual(result["rooms"], expected_count)
+                self.assertEqual(result["area_m2"], expected_area)
+
+    def test_bundle_rejects_structural_count_conflict_but_ignores_optional_offer(
+        self,
+    ) -> None:
+        # Arrange: one known room and a separately available neighbor.
+        url, offer, product = projection()
+        offer.update(
+            category="roomSale",
+            roomsForSaleCount=1,
+            roomArea="9.0",
+            description="Продаётся комната 9,0 м². Отдельно можно купить ещё комнату.",
+        )
+
+        # Act
+        result = parsed(url, offer, product)
+
+        # Assert
+        self.assertEqual((result["rooms"], result["area_m2"]), (1, Decimal("9.00")))
+
+        # Arrange: replace an optional purchase with a single offer of two rooms.
+        offer["description"] = "Продаются две комнаты одним лотом."
+
+        # Act
+        with self.assertRaisesRegex(RejectedCard, "^conflicting_room_count$"):
+            parsed(url, offer, product)
+
+        # Assert: the invalid active snapshot is rejected before storage.
+
+    def test_block_checks_its_own_area_and_ignores_enclosing_house_total(self) -> None:
+        # Arrange: one published block address and an enclosing building area.
+        url, offer, product = native_case("sale_house")
+        extend_native_address(offer, "дом 7", "блок 2")
+        cast(dict[str, object], offer["building"])["totalArea"] = "170.0"
+        offer["description"] = "Продаётся блок № 2 площадью 90,9 м²."
+
+        # Act
+        result = parsed(url, offer, product)
+
+        # Assert
+        self.assertEqual(result["area_m2"], Decimal("90.90"))
+        self.assertTrue(str(result["address"]).endswith("дом 7, блок 2"))
+
+        # Arrange: conflict refers to the same block.
+        offer["description"] = "Продаётся блок № 2 площадью 100 м²."
+
+        # Act
+        with self.assertRaisesRegex(RejectedCard, "^conflicting_house_area$"):
+            parsed(url, offer, product)
+
+        # Assert: the offered area is not replaced with another source.
+
+    def test_incompatible_block_identity_is_rejected(self) -> None:
+        for labels, description in (
+            (("блок 2", "блок 3"), "Продаётся блок № 2."),
+            (("блок 2",), "Продаётся блок № 3 площадью 90,9 м²."),
+            (("блок 2",), "Продаётся весь дом."),
+        ):
+            with self.subTest(labels=labels, description=description):
+                # Arrange
+                url, offer, product = native_case("sale_house")
+                extend_native_address(offer, "дом 7", *labels)
+                offer["description"] = description
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, "^conflicting_house_unit$"):
+                    parsed(url, offer, product)
+
+                # Assert: the inconsistent scope never becomes a whole house.
+
+    def test_native_subject_must_agree_with_observed_city_and_region_identity(
+        self,
+    ) -> None:
+        for region_id, city, city_id in (
+            (4609, "Самара", 4966),
+            (4609, "Саратов", 4966),
+            (4608, "Саратов", 4969),
+        ):
+            with self.subTest(region_id=region_id, city=city, city_id=city_id):
+                # Arrange: all names and numeric codes come from recorded entities.
+                url, offer, product = projection()
+                cast(dict[str, object], offer["geo"])["address"] = [
+                    {
+                        "type": "location",
+                        "id": region_id,
+                        "locationTypeId": 2,
+                        "fullName": "Саратовская область",
+                    },
+                    {
+                        "type": "location",
+                        "id": city_id,
+                        "locationTypeId": 1,
+                        "fullName": city,
+                    },
+                ]
+
+                # Act
+                with self.assertRaisesRegex(RejectedCard, "^conflicting_region$"):
+                    parsed(url, offer, product)
+
+                # Assert: the inconsistent pairing cannot enter the catalog.
+
+
+def extend_native_address(offer: dict[str, object], *components: str) -> None:
+    geo = cast(dict[str, object], offer["geo"])
+    address = cast(list[dict[str, object]], geo["address"])
+    address.extend({"type": "house", "fullName": name} for name in components)
+
 
 def native_case(name: str) -> tuple[str, dict[str, object], dict[str, object]]:
     path = FIXTURE.with_name("cian-native-directions.json")

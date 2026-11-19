@@ -58,12 +58,15 @@ def verify(stop_on_signal: bool) -> None:
 
     # Arrange: serve the saved HTML under its original URL entirely inside Playwright.
     published = json.dumps(projection_html(offer, product)).replace("<", r"\u003c")
-    stale_offer = {**offer, "id": cast(int, offer["id"]) - 1}
+    foreign_id = cast(int, offer["id"]) - 1
+    stale_offer = {**offer, "id": foreign_id}
+    stale_cian_id = {**offer, "cianId": foreign_id}
     html = (
         "<script>window._cianConfig = {};"
         "window._cianConfig['frontend-offer-card'] = [].concat("
         '[{"key":"defaultState","value":{}}]);</script>'
         f"<script>{script(stale_offer)}</script>"
+        f"<script>{script(stale_cian_id)}</script>"
         f"<script>setTimeout(() => {{"
         f"document.body.insertAdjacentHTML('beforeend', {published});"
         f"}}, 700);</script>"
