@@ -3,7 +3,6 @@
 from typing import cast
 
 from django import forms
-from django.core.exceptions import ValidationError
 from django.core.paginator import EmptyPage
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
@@ -17,7 +16,7 @@ from app.catalog.catalog_labels import (
     PRICE_UNITS,
     property_title,
 )
-from app.catalog.catalog_queries import catalog_page, catalog_results
+from app.catalog.catalog_queries import read_catalog
 from app.catalog.models import DealType, Property, Region
 from app.catalog.property_details import PropertyOffer, property_details
 from app.catalog.reference_defaults import (
@@ -63,11 +62,9 @@ def catalog(request: HttpRequest) -> HttpResponse:
     }
     if not errors:
         try:
-            page = catalog_page(form)
+            page, results = read_catalog(form)
         except EmptyPage:
-            form.add_error(
-                "page", ValidationError("Такой страницы уже нет.", code="out_of_range")
-            )
+            form.mark_missing_page()
         else:
             canonical = form.canonical_query(page=page.number)
             property_query = form.canonical_query(page=page.number, from_catalog=True)
@@ -97,7 +94,7 @@ def catalog(request: HttpRequest) -> HttpResponse:
                     ),
                     "url": f"{reverse('property_detail', args=[result.property.pk])}?{property_query}",
                 }
-                for result in catalog_results(page, form)
+                for result in results
             ]
             return render(
                 request,
@@ -106,7 +103,7 @@ def catalog(request: HttpRequest) -> HttpResponse:
                     **context,
                     "cards": cards,
                     "count": page.paginator.count,
-                    "json_url": f"/api/properties/?{canonical}",
+                    "json_url": f"{reverse('api_property_list')}?{canonical}",
                     "page": page,
                     "previous_url": f"{path}?{form.canonical_query(page=page.previous_page_number())}"
                     if page.has_previous()
@@ -192,7 +189,7 @@ def property_detail(request: HttpRequest, property_id: int) -> HttpResponse:
             "title": property_title(details.property),
             "from_catalog": filters is not None,
             "catalog_url": catalog_url,
-            "json_url": f"/api/properties/{details.property.pk}/",
+            "json_url": reverse("api_property_detail", args=[details.property.pk]),
             "room_type_id": ROOM_TYPE_ID,
             "house_type_id": HOUSE_TYPE_ID,
             "active_offers": active_offers,

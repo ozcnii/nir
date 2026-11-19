@@ -7,6 +7,7 @@ from django.db.models import Exists, OuterRef, QuerySet, Subquery
 
 from app.catalog.catalog_filters import CatalogFilters
 from app.catalog.models import Ad, MarketSegment, PriceHistory, Property
+from app.catalog.read_snapshot import read_snapshot
 from app.catalog.reference_defaults import (
     APARTMENT_TYPE_ID,
     HOUSE_TYPE_ID,
@@ -73,7 +74,7 @@ def matching_offers(filters: CatalogFilters) -> QuerySet[Ad]:
     return ads
 
 
-def catalog_page(filters: CatalogFilters) -> Page[Property]:
+def _catalog_page(filters: CatalogFilters) -> Page[Property]:
     number: str = filters.cleaned_data["page"]
     # Beyond the range of property IDs there can be no such page.
     if len(number) > 19:
@@ -87,7 +88,7 @@ def catalog_page(filters: CatalogFilters) -> Page[Property]:
     return Paginator(properties, PAGE_SIZE).page(number)
 
 
-def catalog_results(
+def _catalog_results(
     page: Page[Property], filters: CatalogFilters
 ) -> list[CatalogResult]:
     properties = list(page)
@@ -106,3 +107,10 @@ def catalog_results(
     for ad in ads:
         by_property[ad.property_id].append(CatalogOffer(ad, latest_prices.get(ad.pk)))
     return [CatalogResult(item, by_property[item.pk]) for item in properties]
+
+
+def read_catalog(filters: CatalogFilters) -> tuple[Page[Property], list[CatalogResult]]:
+    """Read the page count, properties, matching offers and prices together."""
+    with read_snapshot():
+        page = _catalog_page(filters)
+        return page, _catalog_results(page, filters)
