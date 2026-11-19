@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 import django
 from check_avito import verify_avito
-from check_cian_search import verify_cian_search
+from check_cian_search import verify_cian_daily_scope_drift, verify_cian_search
 from check_domclick import verify_domclick
 from check_regional_sources import verify_daily_document_retry, verify_regional_sources
 from check_saved_cards import verify_saved_cards
@@ -403,5 +403,6 @@ if __name__ == "__main__":
                 verify_domclick()
                 verify_saved_cards()
                 verify_cian_search()
+                verify_cian_daily_scope_drift()
                 verify_regional_sources()
                 verify_daily_document_retry()

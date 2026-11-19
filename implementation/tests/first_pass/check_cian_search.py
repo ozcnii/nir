@@ -247,3 +247,100 @@ def verify_cian_search() -> None:
     print(
         "Cian scope: Chromium waited for late state; pagination, known keys and stop verified"
     )
+
+
+def verify_cian_daily_scope_drift() -> None:
+    from app.catalog.models import Ad, PriceHistory
+
+    # Arrange: replay the observed case of a broader list at the same URL.
+    regional = f"{HOST}/snyat-komnatu-posutochno-samarskaya-oblast/"
+    first_card = f"{HOST}/rent/flat/331646643/"
+    foreign_ids = (325511826, 300832086)
+    known = Ad.objects.get(source_id="cian", external_id="295679032")
+    observed_at = known.observed_at
+    prices = PriceHistory.objects.filter(ad=known)
+    price_ids = list(prices.values_list("pk", flat=True))
+    requests: list[str] = []
+    base_query = {
+        "_type": "flatrent",
+        "engine_version": {"type": "term", "value": 2},
+        "for_day": {"type": "term", "value": "1"},
+    }
+    pages = json.dumps(
+        [
+            {
+                "query": {
+                    **base_query,
+                    "region": {"type": "terms", "value": [4608]},
+                    "room": {"type": "terms", "value": [0]},
+                },
+                "list": {"page": 1, "status": "success", "hasMore": True, "current": 1},
+                "offers": [{"id": 331646643}],
+            },
+            {
+                "query": base_query,
+                "list": {"page": 2, "status": "success", "hasMore": True, "current": 2},
+                "offers": [{"id": key} for key in foreign_ids],
+            },
+        ]
+    )
+    foreign_links = "".join(
+        f'<a href="/rent/flat/{key}/">Квартира</a>' for key in foreign_ids
+    )
+    html = f"""
+      <h1>Снять посуточно комнату в Самарской области</h1>
+      <main><a href="{first_card}">Комната</a></main><button>Дальше</button>
+      <script>
+        const pages = {pages};
+        window._cianConfig = {{"frontend-serp":[{{key:"defaultState",value:pages[0]}}]}};
+        document.querySelector("button").onclick = () => {{
+          document.querySelector("h1").textContent = "Снять посуточно квартиру в России";
+          document.querySelector("main").innerHTML = {json.dumps(foreign_links)};
+          window._cianConfig["frontend-serp"][0].value = pages[1];
+        }};
+      </script>
+    """
+
+    def respond(route: Route) -> None:
+        url = route.request.url
+        requests.append(url)
+        route.fulfill(
+            status=200 if url == regional else 404,
+            content_type="text/html; charset=utf-8",
+            body=html if url == regional else "Unavailable",
+        )
+
+    @contextmanager
+    def routed_browser() -> Iterator[Page]:
+        with browser_page() as page:
+            page.context.route("**/*", respond)
+            yield page
+
+    # Act
+    output = StringIO()
+    with patch("app.collection.search.browser_page", routed_browser):
+        call_command(
+            "collect",
+            "--source",
+            "cian",
+            "--region",
+            str(SAMARA_REGION_ID),
+            "--property-type",
+            "room",
+            "--deal",
+            "day_rent",
+            stdout=output,
+        )
+
+    # Assert: the second page and stored known cards stay outside this run's writes.
+    summary = json.loads(output.getvalue())
+    assert summary["listing_complete"] is False and summary["pages"] == 1
+    assert summary["issues"] == {"http_404": 1, "listing_scope_changed": 1}
+    assert requests == [regional, first_card], requests
+    assert not Ad.objects.filter(
+        source_id="cian", external_id__in=map(str, foreign_ids)
+    ).exists()
+    known.refresh_from_db()
+    assert known.is_active and known.observed_at == observed_at
+    assert list(prices.values_list("pk", flat=True)) == price_ids
+    print("Cian daily: changed filters at the same URL did not write to PostgreSQL")
