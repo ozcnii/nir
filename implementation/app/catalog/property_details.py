@@ -2,11 +2,10 @@
 
 from dataclasses import dataclass
 
-from django.db import connection, transaction
-
 from app.catalog.catalog_filters import BIGINT_MAX, CatalogFilters
 from app.catalog.catalog_queries import matching_offers
 from app.catalog.models import Ad, PriceHistory, Property
+from app.catalog.read_snapshot import read_snapshot
 
 
 @dataclass(frozen=True)
@@ -32,9 +31,7 @@ def property_details(
     """Eagerly read the object and offers before releasing the database snapshot."""
     if not 1 <= property_id <= BIGINT_MAX:
         return None
-    with transaction.atomic(durable=True):
-        with connection.cursor() as cursor:
-            cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+    with read_snapshot():
         item = (
             Property.objects.select_related("region", "property_type")
             .filter(pk=property_id)

@@ -187,6 +187,11 @@ class CatalogFilters(forms.Form):
                     )
         return values
 
+    def mark_missing_page(self) -> None:
+        self.add_error(
+            "page", ValidationError("Такой страницы уже нет.", code="out_of_range")
+        )
+
     def field_errors(self) -> dict[str, list[FieldError]]:
         errors: dict[str, list[FieldError]] = {
             field: [

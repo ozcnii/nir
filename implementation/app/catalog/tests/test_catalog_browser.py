@@ -236,7 +236,7 @@ class CatalogBrowserTests(StaticLiveServerTestCase):
         # Act
         empty = self.client.get("/catalog/")
         with patch(
-            "app.catalog.views.catalog_page",
+            "app.catalog.views.read_catalog",
             side_effect=DatabaseError("private connection details"),
         ):
             failed = self.client.get("/catalog/")
