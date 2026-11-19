@@ -16,41 +16,50 @@ _OFFER = rf"(?:{_CLAUSE}|(?<=,)\s*){_DEAL}\s+"
 _AMOUNT = r"[0-9]+(?:[.,][0-9]+)?"
 _SQUARE_METRE_UNIT = r"(?:м[²2]|кв\.\s*м)(?!\w)"
 _SQUARE_METRES = rf"(?P<area>{_AMOUNT})\s*{_SQUARE_METRE_UNIT}"
+_ROOM_MEASURE_PREFIX = r"\s+(?:(?:общей )?площадью\s+)?"
 _ROOM_SIZE = re.compile(
-    rf"(?:{_OFFER}|{_CLAUSE})(?:одна |одну |уютная )?комнат[ау]"
+    rf"(?:{_OFFER}|{_CLAUSE})(?:1 |одна |одну |уютная )?комнат[ау]"
     r"(?: №?\s*[0-9]+)?(?: в квартире №?\s*[0-9]+)?"
-    r"(?: площадью)?[ :]+" + _SQUARE_METRES,
+    r"(?: (?:общей )?площадью)?[ :]+" + _SQUARE_METRES,
     re.IGNORECASE,
 )
 _NON_OFFERED_UNIT = re.compile(
-    r"\s*(?:,\s*)?(?:(?:в|из|у)\s+(?:сосед|друг)\w*|отдельно|не входит)\b",
+    r"\s*(?:[,:—–-]\s*)?(?:(?:в|из|у)\s+(?:сосед|друг)\w*"
+    r"|(?:можно\s+(?:купить|приобрести)\s+)?(?:отдельно|по отдельности)"
+    r"|не (?:входит|одним лотом))\b",
     re.IGNORECASE,
 )
 _COUNTS = {"одна": 1, "одну": 1, "две": 2, "три": 3, "четыре": 4}
 _ROOM_COUNT = rf"(?:[0-9]{{1,5}}|{'|'.join(_COUNTS)}|несколько)"
-_COUNTED_ROOMS = re.compile(
-    _OFFER + rf"({_ROOM_COUNT})\s+комнат[ауые]?\b",
+_ROOM_ID = r"№\s*([1-9][0-9]{0,4})(?!\d)"
+_ROOM_MEMBER = rf"{_ROOM_ID}(?:{_ROOM_MEASURE_PREFIX}{_AMOUNT}\s*{_SQUARE_METRE_UNIT})?"
+_ROOM_OFFER = re.compile(
+    _OFFER + rf"(?:(?:единый\s+)?лот\s+из\s+)?(?:(?P<count>{_ROOM_COUNT})\s+)?"
+    rf"комнат[ауые]?\b(?:\s*[:,]?\s*(?P<members>{_ROOM_MEMBER}"
+    rf"(?:\s*(?:,\s*(?:и\s+)?|\s+и\s+)(?:комнат[ауые]\s+)?{_ROOM_MEMBER})*))?",
     re.IGNORECASE,
 )
-_ROOM_ID = r"№\s*[1-9][0-9]{0,4}"
-_ROOM_MEMBER = rf"{_ROOM_ID}(?:\s+(?:площадью\s+)?{_AMOUNT}\s*{_SQUARE_METRE_UNIT})?"
-_ROOM_LIST = re.compile(
-    _OFFER
-    + rf"(?:(?:единый\s+)?лот\s+из\s+)?(?:{_ROOM_COUNT}\s+)?комнат[ауые]?\s*[:,]?\s*"
-    rf"(?P<rooms>{_ROOM_MEMBER}(?:\s*(?:,\s*(?:и\s+)?|\s+и\s+)"
-    rf"(?:комнат[ауые]\s+)?{_ROOM_MEMBER})+)",
-    re.IGNORECASE,
-)
+_ROOM_MEMBER_ID = re.compile(_ROOM_ID)
+_ROOM_MEMBER_SIZE = re.compile(_ROOM_MEASURE_PREFIX + _SQUARE_METRES, re.IGNORECASE)
 _ROOM_SET_AREA = re.compile(
     r"\s*,?\s*(?:одним лотом(?:,\s*|\s+))?"
     r"(?:(?:общей|суммарной) площадью|(?:общая|суммарная) площадь)"
     r"\s*[:—-]?\s*" + _SQUARE_METRES,
     re.IGNORECASE,
 )
+_REFERENT_COUNTS = {
+    "обеих": 2,
+    "двух": 2,
+    "трёх": 3,
+    "трех": 3,
+    "четырёх": 4,
+    "четырех": 4,
+}
+_SET_REFERENT_COUNT = rf"(?:{'|'.join(_REFERENT_COUNTS)}|[0-9]{{1,5}})"
 _ROOM_SET_AREA_CLAUSE = re.compile(
     _CLAUSE + r"(?:общая|суммарная) площадь "
-    r"(?:набора комнат|(?:(?:этих(?:\s+(?:двух|тр[её]х|четыр[её]х|[0-9]{1,5}))?"
-    r"|предлагаемых|продаваемых|сдаваемых)\s+)?комнат)"
+    rf"(?:набора комнат|(?:(?:этих(?:\s+(?P<count>{_SET_REFERENT_COUNT}))?"
+    r"|(?P<pair>обеих)|предлагаемых|продаваемых|сдаваемых)\s+)?комнат)"
     r"\s*[:—-]?\s*" + _SQUARE_METRES,
     re.IGNORECASE,
 )
@@ -76,8 +85,8 @@ _CLAUSE_END = re.compile(r"[.!?;](?=\s|$)|\n")
 _BUILDING_NUMBER = r"\d+[а-яa-z]?(?:[/.-]\d+[а-яa-z]?)*"
 _BLOCK_SCOPE = r"блок|секци[яю]"
 _BLOCK_MARKER = re.compile(
-    rf"(?:^|, |(?=\bдом\s+))(?:дом\s+)?(?:№\s*)?(?:{_BUILDING_NUMBER}\s+)?"
-    rf"(?:{_BLOCK_SCOPE})\b",
+    rf"(?:^|,\s*|(?=\bдом\s+))(?:дом\s+)?(?:№\s*)?"
+    rf"(?:{_BUILDING_NUMBER}(?:\s+|\s*[-–—]\s*))?(?:{_BLOCK_SCOPE})\b",
 )
 _EXCLUSIVE_OFFER = r"(?:(?:только|лишь)\s+)?"
 _INDEPENDENT_BLOCK = re.compile(
@@ -140,12 +149,14 @@ _PLOT_MEASUREMENT = (
     rf"(?P<land_area>{_AMOUNT})\s*(?P<land_unit>сот(?:ок|к[аи])|м[²2]|га)(?!\w)"
 )
 _LAND_SIZE = re.compile(
-    _CLAUSE + r"площадь (?:земельного )?участка\s*[:—-]?\s*" + _PLOT_MEASUREMENT,
+    _CLAUSE + r"площадь (?:(?:этого|предлагаемого|продаваемого|сдаваемого) )?"
+    r"(?:земельного )?участка\s*[:—-]?\s*" + _PLOT_MEASUREMENT,
     re.IGNORECASE,
 )
 _BUILDING_OFFER = re.compile(
     _OFFER + _EXCLUSIVE_OFFER + rf"(?:{_HOUSE_UNIT}(?:\s+№\s*{_BUILDING_NUMBER})?"
-    rf"(?:{_BUILDING_MEASUREMENT}{_AMOUNT}\s*{_SQUARE_METRE_UNIT})?\s*,\s*точнее\s+)?"
+    rf"(?:{_BUILDING_MEASUREMENT}{_AMOUNT}\s*{_SQUARE_METRE_UNIT})?"
+    r"\s*(?:[,—–-]\s*)?\bточнее\b\s*(?:[,:—–-]\s*)?)?"
     rf"(?:(?P<block>{_BLOCK_SCOPE})\b"
     rf"(?:\s+(?:№\s*)?(?P<block_id>{_BUILDING_NUMBER})(?![\w/]|[.,-][0-9]|\s*{_SQUARE_METRE_UNIT}))?"
     rf"|{_HOUSE_UNIT}(?:\s+№\s*(?P<house_id>{_BUILDING_NUMBER})(?![\w/]))?)"
@@ -189,27 +200,51 @@ def check_room(
     counts = set() if rooms is None else {rooms}
     multiple = False
     offer_ends: list[int] = []
-    for match in _COUNTED_ROOMS.finditer(text):
-        count = match[1].casefold()
-        if _NON_OFFERED_UNIT.match(text, match.end()):
+    detached: set[int] = set()
+    member_sets: set[frozenset[str]] = set()
+    member_areas: dict[str, set[Decimal]] = {}
+    area_claims = {claim.start(): claim for claim in _ROOM_SIZE.finditer(text)}
+    for match in _ROOM_OFFER.finditer(text):
+        # Determine ownership after the described list or measure, not after
+        # the room noun: a qualifier belongs to the quantified offer.
+        end = match.end()
+        if (unit_area := area_claims.get(match.start())) is not None:
+            end = max(end, unit_area.end())
+        if (total := _ROOM_SET_AREA.match(text, end)) is not None:
+            end = total.end()
+        if _NON_OFFERED_UNIT.match(text, end):
+            detached.add(match.start())
+            continue
+        count = match["count"]
+        members = match["members"]
+        if count is None and members is None:
             continue
         offer_ends.append(match.end())
-        if count == "несколько":
-            multiple = True
-        elif count in _COUNTS:
-            counts.add(_COUNTS[count])
-        elif (published_count := optional_integer(count, minimum=1)) is not None:
-            counts.add(published_count)
-    for match in _ROOM_LIST.finditer(text):
-        if _NON_OFFERED_UNIT.match(text, match.end()):
-            continue
-        identifiers = re.findall(_ROOM_ID, match["rooms"])
-        if len(set("".join(label.split()) for label in identifiers)) != len(
-            identifiers
-        ):
-            raise RejectedCard("conflicting_room_count")
-        counts.add(len(identifiers))
-        offer_ends.append(match.end())
+        if count is not None:
+            token = count.casefold()
+            if token == "несколько":
+                multiple = True
+            else:
+                count_value = _COUNTS.get(token)
+                if count_value is None:
+                    count_value = optional_integer(token, minimum=1)
+                if count_value is not None:
+                    counts.add(count_value)
+        if members is not None:
+            numbered = list(_ROOM_MEMBER_ID.finditer(members))
+            identifiers = set()
+            for identifier in numbered:
+                name = identifier[1]
+                identifiers.add(name)
+                if (
+                    size := _ROOM_MEMBER_SIZE.match(members, identifier.end())
+                ) is not None:
+                    member_areas.setdefault(name, set()).add(number(size["area"]))
+            # One published member of an explicitly counted set does not
+            # prove that the remaining members are absent.
+            if len(numbered) > 1 or count is None:
+                member_sets.add(frozenset(identifiers))
+                counts.add(len(identifiers))
     shares = list(_OFFERED_SHARE.finditer(text))
     if shares and any(
         not _NON_OFFERED_UNIT.match(text, denial.end())
@@ -228,11 +263,28 @@ def check_room(
         ):
             raise RejectedCard("unconfirmed_room_unit")
         counts.add(1)
-    if len(counts) > 1 or (multiple and counts == {1}) or 0 in counts:
+    if (
+        len(counts) > 1
+        or len(member_sets) > 1
+        or (multiple and counts == {1})
+        or 0 in counts
+    ):
         raise RejectedCard("conflicting_room_count")
+    if any(len(sizes) > 1 for sizes in member_areas.values()):
+        raise RejectedCard("conflicting_room_area")
     detected = next(iter(counts), None)
     if multiple or (detected is not None and detected > 1):
-        totals = _published_areas(_ROOM_SET_AREA_CLAUSE, text)
+        totals = set()
+        for claim in _ROOM_SET_AREA_CLAUSE.finditer(text):
+            referent = claim["pair"] or claim["count"]
+            if referent is not None and detected is not None:
+                count_value = _REFERENT_COUNTS.get(referent.casefold())
+                if count_value is None:
+                    count_value = int(referent)
+                if count_value != detected:
+                    continue
+            if not _NON_OFFERED_UNIT.match(text, claim.end()):
+                totals.add(number(claim["area"]))
         for end in offer_ends:
             while (total := _ROOM_SET_AREA.match(text, end)) is not None:
                 if not _NON_OFFERED_UNIT.match(text, total.end()):
@@ -247,7 +299,13 @@ def check_room(
             if total_area is not None
             else None
         )
-    areas = _published_areas(_ROOM_SIZE, text)
+    areas = {
+        number(claim["area"])
+        for claim in area_claims.values()
+        if claim.start() not in detached
+        and not _NON_OFFERED_UNIT.match(text, claim.end())
+    }
+    areas.update(size for sizes in member_areas.values() for size in sizes)
     if areas and area is not None:
         areas.add(area)
     if len(areas) > 1:
@@ -280,22 +338,13 @@ def check_house(
         not block and (markers or _OFFERED_HOUSE_PART.search(text))
     ):
         raise RejectedCard("unconfirmed_house_block")
-    # Whole-building measurements do not describe a separately offered section.
-    areas = _published_areas(_BLOCK_SIZE if block else _HOUSE_SIZE, text)
-    if area is not None:
-        areas.add(area)
-    plots = {
-        _plot_square_metres(claim)
-        for claim in _LAND_SIZE.finditer(text)
-        if not _NON_OFFERED_UNIT.match(text, claim.end())
-    }
-    if land_area is not None:
-        plots.add(land_area)
-
     house = _HOUSE_ADDRESS.search(published)
-    for claim in _BUILDING_OFFER.finditer(text):
-        if _NON_OFFERED_UNIT.match(text, claim.end()):
-            continue
+    offers = [
+        claim
+        for claim in _BUILDING_OFFER.finditer(text)
+        if not _NON_OFFERED_UNIT.match(text, claim.end())
+    ]
+    for claim in offers:
         offers_block = claim["block"] is not None
         if offers_block and not block:
             raise RejectedCard("unconfirmed_house_block")
@@ -308,11 +357,21 @@ def check_house(
             and identifier.casefold() != known["identifier"].casefold()
         ):
             raise RejectedCard("conflicting_house_unit")
-        if offers_block == bool(block):
-            if claim["area"]:
-                areas.add(number(claim["area"]))
-            if claim["land_area"]:
-                plots.add(_plot_square_metres(claim))
+
+    # Whole-building measurements do not describe a separately offered section.
+    scoped = [claim for claim in offers if (claim["block"] is not None) == bool(block)]
+    areas = _published_areas(_BLOCK_SIZE if block else _HOUSE_SIZE, text)
+    areas.update(number(claim["area"]) for claim in scoped if claim["area"])
+    if area is not None:
+        areas.add(area)
+    plots = {
+        _plot_square_metres(claim)
+        for claim in _LAND_SIZE.finditer(text)
+        if not _NON_OFFERED_UNIT.match(text, claim.end())
+    }
+    plots.update(_plot_square_metres(claim) for claim in scoped if claim["land_area"])
+    if land_area is not None:
+        plots.add(land_area)
 
     plot = _PLOT_ADDRESS.search(published)
     if plot and any(

@@ -194,6 +194,12 @@ def verify_domclick() -> None:
                 "площадью 10 м² одним лотом."
             ),
         }
+        inconsistent_member = {
+            **room_set,
+            "description": (
+                "Продам комнату № 2 площадью 9,2 м² и комнату № 2 площадью 10 м²."
+            ),
+        }
         for next_projection, reason in (
             (
                 {**projection, "id": 2071752357, "priceInfo": {"price": 1}},
@@ -202,6 +208,14 @@ def verify_domclick() -> None:
             (
                 {**projection, "objectInfo": room_set, "priceInfo": {"price": 42}},
                 "conflicting_room_count",
+            ),
+            (
+                {
+                    **projection,
+                    "objectInfo": inconsistent_member,
+                    "priceInfo": {"price": 43},
+                },
+                "conflicting_room_area",
             ),
         ):
             current = next_projection
@@ -219,7 +233,11 @@ def verify_domclick() -> None:
     current_ad = ads.get()
     assert current_ad.id == saved.id
     assert current_ad.observed_at == saved.observed_at
-    assert PriceHistory.objects.filter(ad=saved).count() == 1
+    assert current_ad.property.area_m2 == Decimal("9.20")
+    assert current_ad.photos == saved.photos
+    assert list(
+        PriceHistory.objects.filter(ad=saved).values_list("price_rub", flat=True)
+    ) == [Decimal("1400000.00")]
     assert Property.objects.count() == initial_count + 1
     print(
         "Domclick: terminal collection, repeat and rejected snapshot no-write verified"
