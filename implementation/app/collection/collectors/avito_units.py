@@ -117,6 +117,7 @@ class RoomMember(NamedTuple):
 
 class RoomClaim(NamedTuple):
     rooms: int | None
+    bundle: bool
     areas: tuple[Decimal, ...]
     member_areas: dict[str, set[Decimal]]
     explicit_count: bool
@@ -223,9 +224,11 @@ def _room_claim(text: str) -> RoomClaim | None:
         if rooms not in (None, 1, distinct_members):
             raise RejectedCard("conflicting_room_count")
         rooms = distinct_members
+    # An uncounted plural offer establishes the scope of a total.
+    bundle = rooms != 1
     areas: list[Decimal] = []
     total_after_names = (
-        rooms != 1
+        bundle
         and members[-1].marked_total
         and len(members[-1].areas) == 1
         and not any(member.areas for member in members[:-1])
@@ -237,7 +240,7 @@ def _room_claim(text: str) -> RoomClaim | None:
             identified[member_scope.identifier].update(member_scope.areas)
         elif rooms == 1:
             areas.extend(member_scope.areas)
-    if rooms is not None and (rooms > 1 or len(members) > 1):
+    if bundle or len(members) > 1:
         while (total := _BUNDLE_AREA.match(text, end)) is not None and not (
             _OUTSIDE_OFFER.match(text, total.end())
         ):
@@ -245,6 +248,7 @@ def _room_claim(text: str) -> RoomClaim | None:
             end = total.end()
     return RoomClaim(
         rooms,
+        bundle,
         tuple(areas),
         identified,
         count is not None or len(members) > 1,
@@ -302,14 +306,25 @@ def rooms_and_area(
                 if referred_count is not None:
                     bundle_counts.add(referred_count)
 
+    bundle = any(claim.bundle for claim in offered) or (
+        not offered
+        and heading is not None
+        and heading.bundle
+        and bool(
+            heading.explicit_count
+            or heading.areas
+            or heading.member_areas
+            or _BUNDLE.search(label)
+        )
+    )
     counts = {claim.rooms for claim in offered if claim.rooms is not None}
     if (
         heading is not None
         and heading.rooms is not None
-        and (not counts or heading.explicit_count)
+        and (heading.explicit_count or (not counts and heading.bundle == bundle))
     ):
         counts.add(heading.rooms)
-    if len(counts) > 1:
+    if len(counts) > 1 or (bundle and counts == {1}):
         raise RejectedCard("conflicting_room_count")
     rooms = next(iter(counts), None)
     if share and (rooms != 1 or not allocated):
@@ -318,7 +333,7 @@ def rooms_and_area(
     claims = [
         claim
         for claim in [heading, *offered]
-        if claim is not None and claim.rooms == rooms
+        if claim is not None and claim.bundle == bundle
     ]
     member_areas: dict[str, set[Decimal]] = {}
     for claim in claims:
@@ -335,7 +350,11 @@ def rooms_and_area(
             areas.add(amount)
     if any(len(measurements) > 1 for measurements in member_areas.values()):
         raise RejectedCard("conflicting_room_area")
-    if rooms in (None, 1):
+    if bundle:
+        if rooms is not None and bundle_counts - {rooms}:
+            raise RejectedCard("conflicting_room_count")
+        areas.update(bundle_areas)
+    else:
         if area is not None:
             areas.add(area)
         if rooms == 1:
@@ -344,10 +363,6 @@ def rooms_and_area(
                 for measurements in member_areas.values()
                 for amount in measurements
             )
-    else:
-        if bundle_counts - {rooms}:
-            raise RejectedCard("conflicting_room_count")
-        areas.update(bundle_areas)
     if len(areas) > 1:
         raise RejectedCard("conflicting_room_area")
     normalized = next(iter(areas), None)
