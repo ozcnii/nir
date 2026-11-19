@@ -2,6 +2,7 @@
 
 import re
 import unicodedata
+from collections.abc import Iterable
 from itertools import pairwise
 
 from app.catalog.address import STREET_TYPES, Address, PartialAddress
@@ -157,7 +158,9 @@ def _address_details(
             details.pop("комната", None)
         seen = unresolved | sections.keys()
         if "комната дома" in seen and seen.intersection(("квартира", "комната")):
-            details.pop("комната дома", None)
+            # Neither address scope is established when both are published.
+            for name in ("квартира", *_ROOM_TAGS):
+                details.pop(name, None)
             section += 1
     return start, details, complete and section == 0
 
@@ -220,6 +223,22 @@ def _typed_street(component: str, role: str) -> str | None:
 
 def _unique[T](choices: set[T]) -> T | None:
     return next(iter(choices)) if len(choices) == 1 else None
+
+
+def _known_settlement(
+    evidence: Iterable[tuple[str, str | None] | None],
+) -> tuple[str, str | None] | None:
+    names: set[str] = set()
+    kinds: set[str] = set()
+    for known in evidence:
+        if known is None:
+            return None
+        name, kind = known
+        names.add(name)
+        if kind is not None:
+            kinds.add(kind)
+    settlement = _unique(names)
+    return (settlement, _unique(kinds)) if settlement is not None else None
 
 
 def _room_address(
@@ -299,7 +318,7 @@ def _room_address(
     # chain is invalid. Without a typed place, require the simple address order.
     if not streets and numbers and len(localities) >= 2:
         index, label, _, last = localities[-1]
-        place = _unique({known for _, _, _, known in localities[:-1]})
+        place = _known_settlement(known for _, _, _, known in localities[:-1])
         if (
             last == (label, None)
             and place is not None
@@ -337,23 +356,24 @@ def _room_address(
             number = found
 
     settlement = kind = enclosing_district = city_district = None
-    explicit_localities = [entry for entry in localities if entry[2] == "settlement"]
-    if explicit_localities and explicit_localities[0] == localities[0]:
-        localities = explicit_localities
-    known_place = _unique({known for _, _, _, known in localities})
+    # An untyped settlement needs a resolved street later in the chain.
+    street_index = min(streets) if street is not None else None
+    localities = [
+        entry
+        for entry in localities
+        if entry[2] == "settlement"
+        or (street_index is not None and entry[0] < street_index)
+    ]
+    known_place = _known_settlement(known for _, _, _, known in localities)
     if known_place is not None:
+        settlement, kind = known_place
         first_place, last_place = localities[0][0], localities[-1][0]
-        # An untyped settlement needs a resolved street later in the chain.
-        if known_place[1] is not None or (
-            street is not None and last_place < min(streets)
-        ):
-            settlement, kind = known_place
-            enclosing_district = _unique(
-                {name for index, name in districts.items() if index < first_place}
-            )
-            city_district = _unique(
-                {name for index, name in districts.items() if index > last_place}
-            )
+        enclosing_district = _unique(
+            {name for index, name in districts.items() if index < first_place}
+        )
+        city_district = _unique(
+            {name for index, name in districts.items() if index > last_place}
+        )
     return PartialAddress(
         settlement=settlement,
         settlement_kind=kind,

@@ -143,6 +143,8 @@ class SnapshotTests(TestCase):
         ambiguous_addresses = (
             "Самара, участок 9, квартира 25, комната 2",
             "Самара, улица Солнечная дом 7 дом 9, квартира 25, комната 2",
+            f"г. Самара, {address}",
+            f"{address}, комната дома 2",
         )
         with as_app():
             # Act
@@ -446,6 +448,63 @@ class SnapshotTests(TestCase):
         self.assertEqual(
             prices, [Decimal("8000000"), Decimal("7000000"), Decimal("7500000")]
         )
+
+    def test_room_repeat_keeps_confirmed_facts_despite_ambiguous_address(self) -> None:
+        from app.catalog.models import Ad, PriceHistory
+
+        # Arrange
+        street_and_house = "улица Советская, дом 7"
+        address = f"г. Новокуйбышевск, {street_and_house}, комната дома 2"
+        source: ActiveSnapshot = {
+            **card("room-published-scope"),
+            "property_type_id": ROOM_TYPE_ID,
+            "address": address,
+        }
+        changed_city = (
+            "Самара, г. Самара",
+            "г. Самара, Самара",
+        )
+        unclear_scope: ActiveSnapshot = {
+            **later(source, 3),
+            "address": f"Новокуйбышевск, {address}, квартира 25, комната 2",
+            "price": price("7500000"),
+        }
+        with as_app():
+            first = self.accept(source)
+            assert first.ad_id is not None
+            ad = Ad.objects.filter(pk=first.ad_id).values_list(
+                "property_id", "property__address", "observed_at", "photos"
+            )
+            history = PriceHistory.objects.filter(ad_id=first.ad_id).order_by("id")
+
+            # Act
+            conflicts = [
+                self.accept(
+                    {
+                        **later(source, index),
+                        "address": f"{city}, {street_and_house}, комната дома ?",
+                        "price": price("6000000"),
+                        "photos": {"status": "known", "urls": []},
+                    }
+                )
+                for index, city in enumerate(changed_city, 1)
+            ]
+            after_conflicts = ad.get()
+            prices_after_conflicts = list(history.values_list("price_rub", flat=True))
+            compatible = self.accept(unclear_scope)
+            after_repeat = ad.get()
+            prices_after_repeat = list(history.values_list("price_rub", flat=True))
+
+        # Assert
+        self.assertEqual([result.outcome for result in conflicts], ["conflict"] * 2)
+        self.assertEqual(after_conflicts, (first.property_id, address, START, [PHOTO]))
+        self.assertEqual(prices_after_conflicts, [Decimal("8000000")])
+        self.assertEqual(compatible.outcome, "updated")
+        self.assertEqual(
+            after_repeat,
+            (first.property_id, address, unclear_scope["observed_at"], [PHOTO]),
+        )
+        self.assertEqual(prices_after_repeat, [Decimal("8000000"), Decimal("7500000")])
 
     def test_matching_apartment_numbers_and_unique_candidate(self) -> None:
         # Arrange: one exact A match and two contradictory existing room counts.

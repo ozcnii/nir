@@ -297,6 +297,66 @@ class MatchingTests(TestCase):
                 # Assert
                 self.assertEqual(result, None if conflict else {})
 
+    def test_room_repeat_compares_independently_established_address_facts(self) -> None:
+        # Arrange
+        region = "Самарская область"
+        unit = "Советская, дом 7, квартира 25, комната 2"
+        standalone = "г. Самара, улица Советская, дом 7, комната дома 2"
+        mixed_scope = standalone + ", квартира 25, комната 2"
+        cases = (
+            (f"г. Новокуйбышевск, {unit}", f"Самара, г. Самара, {unit}", True),
+            (f"г. Новокуйбышевск, {unit}", f"г. Самара, Самара, {unit}", True),
+            (f"г. Самара, {unit}", f"Самара, г. Самара, {unit}", False),
+            (f"г. Самара, {unit}", f"Самара, село Самара, {unit}", True),
+            (
+                f"г. Самара, {unit}",
+                f"город Самара, село Самара, {unit}",
+                False,
+            ),
+            (
+                f"г. Новокуйбышевск, улица {unit}",
+                f"г. Самара, Тольятти, улица {unit}",
+                False,
+            ),
+            (
+                f"г. Новокуйбышевск, улица {unit}",
+                f"Тольятти, г. Самара, улица {unit}",
+                False,
+            ),
+            (
+                f"г. Новокуйбышевск, {unit}",
+                f"Самара, г. Самара, Советский район, {unit}".replace(
+                    "комната 2", "комната ?"
+                ),
+                True,
+            ),
+            (standalone, mixed_scope, False),
+            (standalone, mixed_scope.replace("Самара", "Новокуйбышевск"), True),
+        )
+        previous: PropertyFacts = {
+            "address": None,
+            "latitude": None,
+            "longitude": None,
+            "area_m2": None,
+            "rooms": 1,
+            "floor": None,
+            "floors_total": None,
+            "land_area_m2": None,
+        }
+
+        for old, incoming, conflict in cases:
+            with self.subTest(incoming=incoming):
+                # Act
+                patch = repeated_room_patch(
+                    {**previous, "address": old},
+                    {**previous, "address": incoming},
+                    region,
+                )
+
+                # Assert
+                self.assertEqual(patch, None if conflict else {})
+                self.assertIsNone(parse_address(incoming, region, room=True))
+
     def test_layout_requires_asserted_dimensions_of_distinct_rooms(self) -> None:
         for text in (
             "кухня 28 м² и спальня 24 м² не предусмотрены",
