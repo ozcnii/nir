@@ -37,10 +37,9 @@ docker compose exec app python -m app.manage createsuperuser
 
 ## Сбор
 
-Сбор одной карточки запускается отдельной командой Django. Адаптер Циан
-распознаёт подтверждённые маршруты продажи и аренды и суточный маршрут
-`cian.sutochno.ru/detail/<ID>`. Живой доступ к отдельной карточке зависит
-от ответа площадки. Сценарий запуска:
+Сбор одной карточки запускается отдельной командой Django. Поддержаны
+проверенные маршруты Циан и [Авито](app/collection/collectors/avito.md).
+Пример запуска для Циан:
 
 ```sh
 docker compose run --rm app python -m app.manage collect 'https://samara.cian.ru/sale/flat/330631159/'

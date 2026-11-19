@@ -7,32 +7,32 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Literal, TypedDict, cast
+from typing import TypedDict, cast
 from urllib.parse import urlsplit
 
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from app.catalog.contracts import (
-    ActiveSnapshot,
     Deal,
     Market,
+    Snapshot,
     SnapshotKey,
+    UnavailableSnapshot,
     is_publication_url,
 )
-from app.catalog.reference_defaults import APARTMENT_TYPE_ID
-from app.collection.collectors.cian_fields import (
+from app.catalog.reference_defaults import (
+    APARTMENT_TYPE_ID,
     HOUSE_TYPE_ID,
     ROOM_TYPE_ID,
-    RejectedCard,
-    as_object,
-    normalize_cian_card,
 )
+from app.collection.collectors.cian_fields import normalize_cian_card
 from app.collection.collectors.cian_partner import (
     PARTNER_HOST,
     parse_partner,
     partner_key,
 )
+from app.collection.normalization import RejectedCard, as_object
 
 _NATIVE_HOSTS = {
     "cian.ru",
@@ -100,19 +100,6 @@ _DIRECTIONS = {
     "dailyRoomRent": _Direction("day_rent", ROOM_TYPE_ID),
     "dailyHouseRent": _Direction("day_rent", HOUSE_TYPE_ID),
 }
-
-
-class _UnavailableCard(SnapshotKey):
-    state: Literal["unavailable"]
-
-
-class _RemovedCard(SnapshotKey):
-    state: Literal["removed"]
-    url: str
-    deal_type: Deal
-
-
-CianSnapshot = ActiveSnapshot | _RemovedCard | _UnavailableCard
 
 
 def _state(scripts: Iterable[str], key: str) -> dict[str, object] | None:
@@ -211,7 +198,7 @@ def parse_card(
     product_scripts: Iterable[str],
     *,
     loaded_url: str,
-) -> CianSnapshot:
+) -> Snapshot:
     route, key = _identity(requested_url, observed_at)
     return _parse_observation(
         route, key, config_scripts, product_scripts, loaded_url
@@ -224,8 +211,8 @@ def _parse_observation(
     config_scripts: Iterable[str],
     product_scripts: Iterable[str],
     loaded_url: str,
-) -> CianSnapshot | None:
-    unavailable: _UnavailableCard = {**key, "state": "unavailable"}
+) -> Snapshot | None:
+    unavailable: UnavailableSnapshot = {**key, "state": "unavailable"}
     if _route(loaded_url) != route:
         return unavailable
     if route.kind == "partner":
@@ -304,7 +291,7 @@ class _EmbeddedPage(TypedDict):
 
 def capture_card(
     page: Page, url: str, observed_at: datetime, deadline: float
-) -> CianSnapshot:
+) -> Snapshot:
     route, key = _identity(url, observed_at)
     previous_config: list[str] = []
     while True:

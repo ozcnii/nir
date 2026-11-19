@@ -1,0 +1,464 @@
+{
+  "new_build": {
+    "url": "https://www.avito.ru/samara/kvartiry/2-k._kvartira_481_m_1112_et._3638106726",
+    "title": "2-к. квартира, 48,1 м², 11/12 эт.",
+    "route": {
+      "buyerItem": {
+        "item": {
+          "id": 3638106726,
+          "url": "/samara/kvartiry/2-k._kvartira_481_m_1112_et._3638106726",
+          "location": {
+            "slug": "samara"
+          },
+          "locationId": 653040,
+          "address": "ул. Галактионовская/Чкалова/Самарская/Маяковского, стр. 3",
+          "geo": {
+            "coords": {
+              "lat": 53.20398,
+              "lng": 50.1184,
+              "zoom": 16
+            }
+          },
+          "isActive": true,
+          "price": 14766700,
+          "formattedPrice": {
+            "currencySign": "₽",
+            "isHasValue": true,
+            "value": 14766700,
+            "formatedString": "14 766 700 ₽",
+            "postfix": ""
+          },
+          "imageUrls": [
+            {
+              "1280x960": "https://50.img.avito.st/image/1/1.tBgZ5ra4GPEvUZr8ffSNclxHGvenR5rnL0oa86lPEPuv.4mkBW7qSK6VoyYTbYeShnaKYQNeBne7-LOCtQPMo9qQ"
+            },
+            {
+              "1280x960": "https://30.img.avito.st/image/1/1.zw2gLba4Y-SWmuHpsmbyGeSMYeIejOHyloFh5hCEa-4W.En7RTRZLjj1Ic4uLvUtblyFeQHbGXqqzmOtEPgmAMrk?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://c60.img.avito.st/image/1/1.379Pd7a4c1Z5wPFbfQjp1QrWcVDx1vFAedtxVP_ee1z5.52SQ8OfzWCtU24phIxE2ilrLjb3Fug1M3dhyk_H2ndA"
+            },
+            {
+              "1280x960": "https://10.img.avito.st/image/1/1.OtsQJLa4ljImkxQ_aFAOz1SFlDSuhRQkJoiUMKCNnjim.VsDEvg4antOYboMA956HOrfTF11QDeBhDp2Zhkmgf_g?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://40.img.avito.st/image/1/1.MQMELLa4neoymx_najwodiKMn-y6jR_8MoCf6LSFleCy.6lWkwkb_b7HnwvOVcvo8UqaRxQl_0ukn1dFpXMl-xIE"
+            }
+          ]
+        },
+        "paramsDto": {
+          "items": [
+            {
+              "title": "Количество комнат",
+              "description": "2"
+            },
+            {
+              "title": "Общая площадь",
+              "description": "48.1 м²"
+            },
+            {
+              "title": "Этаж",
+              "description": "11 из 12"
+            }
+          ]
+        },
+        "ga": [
+          {},
+          {
+            "type": "Новостройка",
+            "status": "Квартира",
+            "offer_type": "Продам"
+          }
+        ]
+      }
+    }
+  },
+  "house": {
+    "url": "https://www.avito.ru/samara/doma_dachi_kottedzhi/dom_592_m_na_uchastke_6_sot._8457143068",
+    "title": "Дом 59,2 м² на участке 6 сот. на продажу",
+    "route": {
+      "buyerItem": {
+        "item": {
+          "id": 8457143068,
+          "url": "/samara/doma_dachi_kottedzhi/dom_592_m_na_uchastke_6_sot._8457143068",
+          "title": "Дом 59,2 м² на участке 6 сот.",
+          "address": "Самарская обл., Волжский р-н, сельское поселение Черноречье, пос. Чапаевка, КП Бавария парк",
+          "geo": {
+            "coords": {
+              "lat": 53.178563,
+              "lng": 50.427189,
+              "zoom": 16
+            }
+          },
+          "isActive": true,
+          "price": 6250000,
+          "formattedPrice": {
+            "currencySign": "₽",
+            "isHasValue": true,
+            "value": 6250000,
+            "formatedString": "6 250 000 ₽",
+            "postfix": ""
+          },
+          "imageUrls": [
+            {
+              "1280x960": "https://10.img.avito.st/image/1/1.RpfT_ba46n7lSmhz09hS5tVd6HhtXGho5VHofGNU4nRl.ZB2NzQ-vlqMXBv-YCGn89fsDm8pzH-2qWeNALPtl8Fg?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://c70.img.avito.st/image/1/1.6l3iara4RrTU3cS5ulHpLeTKRLJcy8Si1MZEtlLDTr5U.vT6ecY_LATBCvC1bNr2b6Z4h6Ibw6nER76PEfvw-wyE"
+            },
+            {
+              "1280x960": "https://c60.img.avito.st/image/1/1.fOoju7a40AMVDFIOV-4rmiUb0gWdGlIVFRfSAZMS2AmV.8sxQRN5a4an7DPCmPSBAz_6sFzYr4ih9Vqj_MTLFSuU"
+            },
+            {
+              "1280x960": "https://40.img.avito.st/image/1/1.8DLhdba4XNvXwt7WjU7tQ-fVXt1f1N7N19le2VHcVNFX.53oVQj6ol0NSvTiV9Jy2BIn2pamk2TEGsEdlweUZkXo"
+            },
+            {
+              "1280x960": "https://c90.img.avito.st/image/1/1.XyEPIba488g5lnHFPXBeUAmB8c6xgHHeOY3xyr-I-8K5.Ob2Y0mRUgstnDgqEjvXyPISFzqQtaNKOTpiXvxxyyYQ"
+            },
+            {
+              "1280x960": "https://30.img.avito.st/image/1/1.edkvNra41TAZgVc9UUsHrimW1zaRl1cmGZrXMp-f3TqZ.VYOmRM3--4gm4cy9MBJTQGJi8-q_d7zbm10CXV0GJYI?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://c80.img.avito.st/image/1/1.FfCcwba4uRmqdjsUupkQgJphux8iYDsPqm27GyxosRMq.464FxXpRKwWBQcoZ8uGFacs-zluirgv2y37833IDL-0"
+            },
+            {
+              "1280x960": "https://30.img.avito.st/image/1/1.qr_alba4BlbsIoRbgs_7z9w1BFBkNIRA7DkEVGo8Dlxs.xxb0aXZIf9bgwowg_r_mgxeVpsGfSsEaRlooTtXjv6U?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://20.img.avito.st/image/1/1.5o7V6La4SmfjX8hqlZOb_NNISGFrSchx40RIZWVBQm1j.wMCzr-bRUMXxrfflkZn28UarvfLULOQIcBpixXF2Xgo?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://40.img.avito.st/image/1/1.5H90Ara4SJZCtcqbMHWGCHKiSpDKo8qAQq5KlMSrQJzC._IKJxaADzhvStBfI9gcpxNu3hWUni67YBPGPcVN0kTc"
+            },
+            {
+              "1280x960": "https://30.img.avito.st/image/1/1.Ar_cZba4rlbq0ixb1AFQz9rFrFBixCxA6smsVGzMplxq.bb1ltzJQsaIuvaV_PvfG5Eik6C7aKane5antn7Z0bDg?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://c70.img.avito.st/image/1/1.xq0ixra4akQUcehJIsGV3SRmaEKcZ-hSFGpoRpJvYk6U.-9HOwaJiRYWnOshIUReLbgdSW7v2awe87KR4YiIF7mo"
+            },
+            {
+              "1280x960": "https://b00.img.avito.st/image/1/1.jqfZxra4Ik7vcaBDyayK199mIEhnZ6BY72ogTGlvKkRv.1OVxvegqN6vmf8eeLZ1JCnR2U_FQTrZ3kY6mmPmiT2w?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://c90.img.avito.st/image/1/1.GTkEDLa4tdAyuzfdOkwDSAKst9a6rTfGMqC30rSlvdqy.a7Cb7bpwjvYjKeR1FNlfc_T-RJ4dUP04clFzwij5PLI"
+            },
+            {
+              "1280x960": "https://c70.img.avito.st/image/1/1.mLwvura4NFUZDbZYE_yMzSkaNlORG7ZDGRY2V58TPF-Z.Ehr9WChx1912E_uBlU_j7oEj4ikveMhYzsr4wSLfzIc"
+            },
+            {
+              "1280x960": "https://30.img.avito.st/image/1/1.402Pj7a4T6S5OM2pxfyKOokvTaIxLs2yuSNNpj8mR645.PN8jGrfOKqVIt-JXLnkQheSTEvipiyCvEWwqxXh_Z_I?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://b00.img.avito.st/image/1/1.vEYiRLa4EK8U85KiVj6UMSTkEqmc5ZK5FOgSrZLtGKWU.g7DDMf9NedeXz2NP_WadnG1nXGhCTOKC0zlXwtBnbQY?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://c70.img.avito.st/image/1/1.0XcFEba4fZ4zpv-TK1r9AAOxf5i7sP-IM71_nLW4dZSz.UArVbfKRtARj2_jeAYTSIQm6DUzS8i2c6JgRLbOyLEg"
+            },
+            {
+              "1280x960": "https://20.img.avito.st/image/1/1.j1Qoaba4I70e3qGwOgOWJS7JIbuWyKGrHsUhv5jAK7ee.r0I5azA3OqWPRi7uApFVhcPXj87rl4ivCC9I9ptTorc?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://b00.img.avito.st/image/1/1.JVCfJba4ibmpkgu02S1EJ5mFi78hhAuvqYmLuy-MgbMp.-zDCLU_tNghdFScEZcHeNUkgdaV5tT-kl4Ev8HohM70?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://c70.img.avito.st/image/1/1.YtoA9ba4zjM2Qkw-SMwdqAZVzDW-VEwlNlnMMbBcxjm2.6NGwDR4NDpJi40khEzFWB5lFKrCoFjEOBKcz_6A_m88"
+            },
+            {
+              "1280x960": "https://c90.img.avito.st/image/1/1.Zqfbxra4yk7tcUhDm6di191myEhlZ0hY7WrITGtvwkRt.6te01pkwtGzKH2TXRrxeECjXim0OtF4G0iaR7YLypqA"
+            },
+            {
+              "1280x960": "https://20.img.avito.st/image/1/1.qri8Bba4BlGKsoRc5HvIz7qlBFcCpIRHiqkEUwysDlsK.w-R0KrLOFqKdSYVt3gbb-QDk2MknG2MOdiNxKgnzaro?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://20.img.avito.st/image/1/1.HNkbNra4sDAtgTI9L04eqR2WsjallzImLZqyMqufuDqt.-hkB4hQ1NZ-zjjPKJH_Q8_82MMMNztAV12vpRnfVyYg?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://c90.img.avito.st/image/1/1.wKLv7ba4bEvZWu5G467u1elNbk1RTO5d2UFuSV9EZEFZ.yM3I82XGz_GXIK7XCKKqNGNvL3aXYkwk8sSEUipOF8A"
+            },
+            {
+              "1280x960": "https://20.img.avito.st/image/1/1.QLLuu7a47FvYDG5W4uokwOgb7l1QGm5N2BfuWV4S5FFY.7DNLlY9VmRRbDqOXQzkPLO4-wEVjTfLUlXhXPW8Hy4M?cqp=2.YN7dHnrK-mhyvtTBpyubvaFoUVdTM3W7BFy5YaeXzZ_Q2glMrBb_s4irqaJhHlfJPgeDGUqVXQ=="
+            },
+            {
+              "1280x960": "https://c90.img.avito.st/image/1/1.kxa6CLa4P_-Mv73ykH6LZ7yoPfkEqb3pjKQ9_QqhN_UM.BuSSqqBKn7tQy7Z-l2my-CRkl2F3Lnr5E2Nqz-tTKRA"
+            },
+            {
+              "1280x960": "https://c70.img.avito.st/image/1/1.2VkHPLa4dbAxi_e9ORenKwGcd7a5nfemMZB3sreVfbqx.68JNwi3bX8E8STISGd4e41jeo2lVWGygIW5kgwUfjZc"
+            }
+          ]
+        },
+        "paramsDto": {
+          "items": [
+            {
+              "title": "Количество комнат",
+              "description": "2"
+            },
+            {
+              "title": "Площадь дома",
+              "description": "59.2 м²"
+            },
+            {
+              "title": "Площадь участка",
+              "description": "6 сот."
+            },
+            {
+              "title": "Этажей в доме",
+              "description": "1"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "resale": {
+    "url": "https://www.avito.ru/samara/kvartiry/1-k._kvartira_57_m_1718_et._8199518030",
+    "title": "1-к. квартира, 57 м², 17/18 эт. на продажу в Самаре | Купить квартиру | Авито (8199518030)",
+    "route": {
+      "buyerItem": {
+        "item": {
+          "id": 8199518030,
+          "url": "/samara/kvartiry/1-k._kvartira_57_m_1718_et._8199518030",
+          "address": "Самарская обл., Самара, Солнечная ул., 53",
+          "price": 9500000,
+          "formattedPrice": {
+            "currencySign": "₽",
+            "discount": null,
+            "formatedString": "9 500 000&nbsp;₽",
+            "isHasValue": true,
+            "isWasLowered": false,
+            "normalizedPricePostFix": "",
+            "oldString": "",
+            "postfix": "",
+            "rubPricePostfix": "₽",
+            "string": "9 500 000",
+            "value": 9500000
+          },
+          "isActive": true,
+          "geo": {
+            "coords": {
+              "lat": 53.25960159,
+              "lng": 50.20936584,
+              "zoom": 16
+            }
+          }
+        },
+        "paramsDto": {
+          "items": [
+            {
+              "attributeId": 549,
+              "description": "1",
+              "title": "Количество комнат"
+            },
+            {
+              "attributeId": 578,
+              "description": "57 м²",
+              "title": "Общая площадь"
+            },
+            {
+              "attributeId": 496,
+              "description": "17 из 18",
+              "title": "Этаж"
+            }
+          ]
+        },
+        "ga": [
+          {},
+          {
+            "type": "Вторичка",
+            "status": "Квартира",
+            "offer_type": "Продам",
+            "rooms": "1",
+            "area": "57 м²",
+            "floor": 17,
+            "floors_count": 18
+          }
+        ]
+      }
+    }
+  },
+  "month_rent": {
+    "url": "https://www.avito.ru/samara/kvartiry/2-k._kvartira_64_m_2727_et._4977842672",
+    "title": "2-к. квартира, 64 м², 27/27 эт. в аренду Самаре | Снять квартиру | Авито (4977842672)",
+    "route": {
+      "buyerItem": {
+        "item": {
+          "id": 4977842672,
+          "url": "/samara/kvartiry/2-k._kvartira_64_m_2727_et._4977842672",
+          "address": "Самарская обл., Самара, Физкультурная ул., 103А",
+          "price": 43000,
+          "formattedPrice": {
+            "currencySign": "₽",
+            "discount": null,
+            "formatedString": "43 000&nbsp;₽ в месяц",
+            "isHasValue": true,
+            "isWasLowered": false,
+            "normalizedPricePostFix": " в месяц",
+            "oldString": "",
+            "postfix": "в месяц",
+            "rubPricePostfix": "₽ в месяц",
+            "string": "43 000",
+            "value": 43000
+          },
+          "isActive": true,
+          "geo": {
+            "coords": {
+              "lat": 53.21482468,
+              "lng": 50.26053238,
+              "zoom": 16
+            }
+          }
+        },
+        "paramsDto": {
+          "items": [
+            {
+              "attributeId": 550,
+              "description": "2",
+              "title": "Количество комнат"
+            },
+            {
+              "attributeId": 500,
+              "description": "64 м²",
+              "title": "Общая площадь"
+            },
+            {
+              "attributeId": 501,
+              "description": "27 из 27",
+              "title": "Этаж"
+            }
+          ]
+        },
+        "ga": [
+          {},
+          {
+            "offer_type": "Сдам"
+          }
+        ]
+      }
+    }
+  },
+  "day_rent": {
+    "url": "https://www.avito.ru/samara/kvartiry/1-k._kvartira_42_m_2_krovati_4595685717",
+    "title": "1-к. квартира, 42 м², 2 кровати в аренду Самаре | Снять квартиру | Авито (4595685717)",
+    "route": {
+      "buyerItem": {
+        "item": {
+          "id": 4595685717,
+          "url": "/samara/kvartiry/1-k._kvartira_42_m_2_krovati_4595685717",
+          "address": "Самарская обл., Самара, пр-т Карла Маркса, 171",
+          "price": 4980,
+          "formattedPrice": {
+            "currencySign": "₽",
+            "discount": null,
+            "formatedString": "4 980&nbsp;₽ за сутки",
+            "isHasValue": true,
+            "isWasLowered": false,
+            "normalizedPricePostFix": " за сутки",
+            "oldString": "",
+            "postfix": "за сутки",
+            "rubPricePostfix": "₽ за сутки",
+            "string": "4 980",
+            "value": 4980
+          },
+          "isActive": true,
+          "geo": {
+            "coords": {
+              "lat": 53.20658875,
+              "lng": 50.1726799,
+              "zoom": 16
+            }
+          }
+        },
+        "paramsDto": {
+          "items": [
+            {
+              "attributeId": 550,
+              "description": "1",
+              "title": "Количество комнат"
+            },
+            {
+              "attributeId": 165457,
+              "description": "1 раскладушка, 1 двуспальная",
+              "title": "Кровати"
+            },
+            {
+              "attributeId": 500,
+              "description": "42 м²",
+              "title": "Общая площадь"
+            },
+            {
+              "attributeId": 501,
+              "description": "12 из 26",
+              "title": "Этаж"
+            }
+          ]
+        },
+        "ga": [
+          {},
+          {
+            "offer_type": "Сдам"
+          }
+        ]
+      }
+    }
+  },
+  "room": {
+    "url": "https://www.avito.ru/samara/komnaty/dolya_komnata_125_m_v_2-k._13_et._7697142163",
+    "title": "Доля: Комната 12,5 м² в 2-к., 1/3 эт.",
+    "route": {
+      "buyerItem": {
+        "item": {
+          "id": 7697142163,
+          "url": "/samara/komnaty/dolya_komnata_125_m_v_2-k._13_et._7697142163",
+          "title": "Доля: Комната 12,5 м² в 2-к., 1/3 эт.",
+          "category": {
+            "slug": "komnaty"
+          },
+          "address": "Самарская обл., Самара, пр-т Кирова, 42",
+          "geo": {
+            "coords": {
+              "lat": 53.216745,
+              "lng": 50.264899
+            }
+          },
+          "isActive": true,
+          "price": 752777,
+          "formattedPrice": {
+            "currencySign": "₽",
+            "isHasValue": true,
+            "value": 752777,
+            "formatedString": "752 777 ₽",
+            "postfix": ""
+          }
+        },
+        "paramsDto": {
+          "items": [
+            {
+              "title": "Площадь комнаты",
+              "description": "12.5 м²"
+            },
+            {
+              "title": "Комнат в квартире",
+              "description": "2"
+            },
+            {
+              "title": "Этаж",
+              "description": "1 из 3"
+            },
+            {
+              "title": "Условия продажи",
+              "description": "Продажа доли"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "closed": {
+    "url": "https://www.avito.ru/krasnodar/kvartiry/1-k._kvartira_316_m_49_et._8417769121",
+    "title": "Ошибка 404. Страница не найдена",
+    "route": {
+      "type": "notFound",
+      "message": "Объявление закрыто.",
+      "isGone": false
+    }
+  }
+}

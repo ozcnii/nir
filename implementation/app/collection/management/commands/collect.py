@@ -12,12 +12,12 @@ from app.catalog.locks import CollectionBusy
 from app.collection.one_card import (
     CollectionError,
     CollectionStopped,
-    collect_cian_card,
+    collect_card,
 )
 
 
 class Command(BaseCommand):
-    help = "Collect one supported Cian listing."
+    help = "Collect one supported public listing."
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("url")
@@ -32,7 +32,7 @@ class Command(BaseCommand):
         signals = (signal.SIGINT, signal.SIGTERM)
         handlers = {signum: signal.signal(signum, request_stop) for signum in signals}
         try:
-            receipt = collect_cian_card(url, lambda: stop_requested)
+            receipt = collect_card(url, lambda: stop_requested)
         except CollectionStopped:
             self.stdout.write("Collection stopped.")
             return

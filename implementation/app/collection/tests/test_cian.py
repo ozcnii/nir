@@ -10,7 +10,7 @@ from playwright.sync_api import Page
 
 from app.catalog.contracts import ActiveSnapshot
 from app.collection.collectors.cian import parse_card
-from app.collection.collectors.cian_fields import RejectedCard
+from app.collection.normalization import RejectedCard
 from app.collection.one_card import CollectionStopped, _read_card
 from app.collection.tests.cian_fixture import FIXTURE, native_case, projection, script
 
@@ -174,10 +174,10 @@ class CianCardTests(TestCase):
 
         # Act / Assert
         with (
-            patch("app.collection.one_card.capture_card", side_effect=rejected),
+            patch("app.collection.one_card.cian.capture_card", side_effect=rejected),
             self.assertRaises(CollectionStopped),
         ):
-            _read_card(cast(Page, page), url, stopped.is_set)
+            _read_card(cast(Page, page), url, "cian", stopped.is_set, None)
 
     def test_replay_published_native_directions(self) -> None:
         expectations = {

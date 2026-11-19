@@ -15,6 +15,7 @@ from typing import cast
 from unittest.mock import patch
 
 import django
+from check_avito import verify_avito
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
@@ -394,3 +395,4 @@ if __name__ == "__main__":
             verify(stop_on_signal=args == ["stop"])
             if not args:
                 verify_room_area_owner()
+                verify_avito()

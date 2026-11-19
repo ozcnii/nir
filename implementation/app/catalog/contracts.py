@@ -60,6 +60,19 @@ class ActiveSnapshot(SnapshotKey, PropertyFacts):
     photos: KnownPhotos | Unavailable
 
 
+class RemovedSnapshot(SnapshotKey):
+    state: Literal["removed"]
+    url: str
+    deal_type: Deal
+
+
+class UnavailableSnapshot(SnapshotKey):
+    state: Literal["unavailable"]
+
+
+Snapshot = ActiveSnapshot | RemovedSnapshot | UnavailableSnapshot
+
+
 SnapshotOutcome = Literal[
     "created",
     "updated",

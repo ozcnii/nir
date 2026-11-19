@@ -8,7 +8,7 @@ from typing import cast
 from unittest import TestCase
 
 from app.collection.collectors.cian import card_key, parse_card
-from app.collection.collectors.cian_fields import RejectedCard
+from app.collection.normalization import RejectedCard
 
 OBSERVED_AT = datetime(2026, 11, 18, 12, tzinfo=UTC)
 

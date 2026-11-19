@@ -17,23 +17,24 @@ from app.catalog.contracts import (
     is_photo_url,
     is_publication_url,
 )
-from app.catalog.reference_defaults import APARTMENT_TYPE_ID
+from app.catalog.reference_defaults import APARTMENT_TYPE_ID, ROOM_TYPE_ID
 from app.collection.collectors.cian_fields import (
-    ROOM_TYPE_ID,
-    RejectedCard,
     address_component,
     area_m2,
-    as_object,
     check_floor,
     check_room,
     coordinates,
-    decimal_2,
-    number,
-    optional_integer,
     region_id,
     seller_description,
 )
 from app.collection.collectors.nuxt_state import UNDEFINED, resolve_reference
+from app.collection.normalization import (
+    RejectedCard,
+    as_object,
+    decimal_2,
+    number,
+    optional_integer,
+)
 
 PARTNER_HOST = "cian.sutochno.ru"
 _PARTNER_PATH = re.compile(r"/detail/([1-9][0-9]*)/?")

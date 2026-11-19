@@ -1,4 +1,4 @@
-"""Read the supported Cian card and send its snapshot to the catalog."""
+"""Read one supported public card and submit its snapshot to the catalog."""
 
 import time
 from collections.abc import Callable
@@ -8,18 +8,13 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, Route
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from app.catalog.contracts import SnapshotResult
+from app.catalog.contracts import Deal, Snapshot, SnapshotResult
 from app.catalog.locks import run_session
-from app.catalog.publications import accept_snapshot
+from app.catalog.publications import accept_snapshot, publication_deal
 from app.catalog.references import source_enabled
 from app.collection.browser import browser_page
-from app.collection.collectors.cian import (
-    CianSnapshot,
-    capture_card,
-    card_key,
-    same_card,
-)
-from app.collection.collectors.cian_fields import RejectedCard
+from app.collection.collectors import avito, cian
+from app.collection.normalization import RejectedCard
 
 CARD_TIMEOUT_MS = 30_000
 TRANSPORT_ERRORS = (
@@ -52,27 +47,42 @@ def _without_media(route: Route) -> None:
         route.fallback()
 
 
-def collect_cian_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
-    if card_key(url) is None:
+def collect_card(url: str, stopped: Callable[[], bool]) -> SnapshotResult:
+    if (key := avito.card_key(url)) is not None:
+        source = "avito"
+    elif (key := cian.card_key(url)) is not None:
+        source = "cian"
+    else:
         raise CollectionError("unsupported_card_url")
 
     _check_stop(stopped)
     with run_session():
-        if not source_enabled("cian"):
-            raise CollectionError("cian_is_disabled")
+        if not source_enabled(source):
+            raise CollectionError(f"{source}_is_disabled")
         _check_stop(stopped)
+        removed_deal = publication_deal(source, key) if source == "avito" else None
         with browser_page() as page:
             page.route("**/*", _without_media)
-            snapshot = _read_card(page, url, stopped)
+            snapshot = _read_card(page, url, source, stopped, removed_deal)
 
         _check_stop(stopped)
-        receipt = accept_snapshot(snapshot)
+        receipt = (
+            snapshot
+            if isinstance(snapshot, SnapshotResult)
+            else accept_snapshot(snapshot)
+        )
         if receipt.outcome not in ("created", "updated", "unchanged", "not_found"):
             raise CollectionError(receipt.reason or receipt.outcome)
         return receipt
 
 
-def _read_card(page: Page, url: str, stopped: Callable[[], bool]) -> CianSnapshot:
+def _read_card(
+    page: Page,
+    url: str,
+    source: str,
+    stopped: Callable[[], bool],
+    removed_deal: Deal | None,
+) -> Snapshot | SnapshotResult:
     for retry in (False, True):
         _check_stop(stopped)
         observed_at = datetime.now(UTC)
@@ -88,7 +98,12 @@ def _read_card(page: Page, url: str, stopped: Callable[[], bool]) -> CianSnapsho
                 raise CollectionError("no_http_response")
             if not response.ok:
                 raise CollectionError(f"http_{response.status}")
-            snapshot = capture_card(page, url, observed_at, deadline)
+            if source == "avito":
+                snapshot = avito.capture_card(
+                    page, url, observed_at, deadline, removed_deal=removed_deal
+                )
+            else:
+                snapshot = cian.capture_card(page, url, observed_at, deadline)
             _check_stop(stopped)
             if time.monotonic() >= deadline:
                 raise PlaywrightTimeout("Card attempt deadline elapsed")
@@ -98,9 +113,9 @@ def _read_card(page: Page, url: str, stopped: Callable[[], bool]) -> CianSnapsho
             raise CollectionError(str(error)) from error
         except PlaywrightError as error:
             _check_stop(stopped)
-            if not same_card(
-                url, page.url
-            ) and "Execution context was destroyed" in str(error):
+            if "Execution context was destroyed" in str(error) and not (
+                avito if source == "avito" else cian
+            ).same_card(url, page.url):
                 raise CollectionError("unexpected_redirect") from error
             if retry or not (
                 isinstance(error, PlaywrightTimeout)
