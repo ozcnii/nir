@@ -95,7 +95,9 @@ def _human_reload(page: Page) -> None:
         )
         time.sleep(random.uniform(0.4, 1.0))
         page.keyboard.press("F5")
-        page.wait_for_timeout(int(random.uniform(2500.0, 4500.0)))
+        # После обновления человек не жмёт следующее сразу: пауза длиннее,
+        # чем загрузка страницы, иначе площадка видит серию запросов.
+        page.wait_for_timeout(int(random.uniform(8000.0, 15000.0)))
     except PlaywrightError:
         pass
 
@@ -151,7 +153,7 @@ _FRAME_TASK = (
 FRAME_TASK_WAIT_S = 6.0
 # Кнопка проверки иногда не открывает окно с первого раза: hCaptcha
 # успевает не инициализироваться. Повторяем, пока задача не появится.
-CLICK_ATTEMPTS = 6
+CLICK_ATTEMPTS = 4
 # Сколько ждать решения после того, как ответ применён на странице.
 ANSWER_SETTLE_S = 12.0
 
