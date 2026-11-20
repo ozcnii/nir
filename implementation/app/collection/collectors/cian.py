@@ -14,6 +14,7 @@ from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from app.catalog.contracts import (
+    ActiveSnapshot,
     Deal,
     Market,
     Snapshot,
@@ -34,6 +35,13 @@ from app.collection.collectors.cian_partner import (
     partner_key,
 )
 from app.collection.normalization import RejectedCard, as_object
+from app.collection.observations import (
+    Observe,
+    observe_publication,
+    photo_links,
+    public_fields,
+    rows,
+)
 
 _NATIVE_HOSTS = {
     "cian.ru",
@@ -192,6 +200,48 @@ def _identity(url: str, observed_at: datetime) -> tuple[_Route, SnapshotKey]:
     }
 
 
+def _published(
+    data: dict[str, object], product: dict[str, object]
+) -> dict[str, object]:
+    offer = as_object(data.get("offer"))
+    geo = as_object(offer.get("geo"))
+    return {
+        **public_fields(
+            offer,
+            "status",
+            "category",
+            "offerType",
+            "dealType",
+            "totalArea",
+            "roomArea",
+            "floorNumber",
+            "roomsCount",
+            "roomsForSaleCount",
+            "offerPrice",
+            text=("description",),
+        ),
+        **public_fields(data, "offerPrice"),
+        "bargainTerms": public_fields(
+            offer.get("bargainTerms"),
+            "price",
+            "currency",
+            "paymentPeriod",
+            "leaseTermType",
+        ),
+        "building": public_fields(offer.get("building"), "floorsCount", "totalArea"),
+        "land": public_fields(offer.get("land"), "area", "areaUnitType"),
+        "coordinates": public_fields(geo.get("coordinates"), "lat", "lng"),
+        "address": [
+            public_fields(part, "id", "type", "locationTypeId", text=("fullName",))
+            for part in rows(geo.get("address"))
+        ],
+        "price": public_fields(
+            product.get("offers"), "@type", "price", "priceCurrency"
+        ),
+        "photos": photo_links(product.get("image")),
+    }
+
+
 def parse_card(
     requested_url: str,
     observed_at: datetime,
@@ -199,10 +249,11 @@ def parse_card(
     product_scripts: Iterable[str],
     *,
     loaded_url: str,
+    observe: Observe | None = None,
 ) -> Snapshot:
     route, key = _identity(requested_url, observed_at)
     return _parse_observation(
-        route, key, config_scripts, product_scripts, loaded_url
+        route, key, config_scripts, product_scripts, loaded_url, observe
     ) or {**key, "state": "unavailable"}
 
 
@@ -212,13 +263,20 @@ def _parse_observation(
     config_scripts: Iterable[str],
     product_scripts: Iterable[str],
     loaded_url: str,
+    observe: Observe | None,
 ) -> Snapshot | None:
     unavailable: UnavailableSnapshot = {**key, "state": "unavailable"}
     if _route(loaded_url) != route:
         return unavailable
     if route.kind == "partner":
         return (
-            parse_partner(loaded_url, key, config_scripts, _documents(product_scripts))
+            parse_partner(
+                loaded_url,
+                key,
+                config_scripts,
+                _documents(product_scripts),
+                observe=observe,
+            )
             or unavailable
         )
 
@@ -258,13 +316,14 @@ def _parse_observation(
         or offer.get("dealType") != route.deal
     ):
         return unavailable
-    if direction is None:
-        raise RejectedCard("invalid_card_direction")
-    if (direction.deal == "sale") != (route.deal == "sale") or (
-        direction.property_type_id == HOUSE_TYPE_ID
-    ) != (route.kind == "suburban"):
+    if direction is not None and (
+        (direction.deal == "sale") != (route.deal == "sale")
+        or (direction.property_type_id == HOUSE_TYPE_ID) != (route.kind == "suburban")
+    ):
         return unavailable
     if status == "deleted":
+        if direction is None:
+            raise RejectedCard("invalid_card_direction")
         return {
             **key,
             "state": "removed",
@@ -272,14 +331,23 @@ def _parse_observation(
             "deal_type": direction.deal,
         }
 
-    return normalize_cian_card(
-        loaded_url,
-        key,
-        data,
-        _product(_documents(product_scripts), route),
-        deal=direction.deal,
-        property_type_id=direction.property_type_id,
-        market_segment=direction.market,
+    product = _product(_documents(product_scripts), route)
+
+    def normalize() -> ActiveSnapshot:
+        if direction is None:
+            raise RejectedCard("invalid_card_direction")
+        return normalize_cian_card(
+            loaded_url,
+            key,
+            data,
+            product,
+            deal=direction.deal,
+            property_type_id=direction.property_type_id,
+            market_segment=direction.market,
+        )
+
+    return observe_publication(
+        observe, key, loaded_url, lambda: _published(data, product), normalize
     )
 
 
@@ -291,7 +359,12 @@ class _EmbeddedPage(TypedDict):
 
 
 def capture_card(
-    page: Page, url: str, observed_at: datetime, deadline: float
+    page: Page,
+    url: str,
+    observed_at: datetime,
+    deadline: float,
+    *,
+    observe: Observe | None = None,
 ) -> Snapshot:
     route, key = _identity(url, observed_at)
     previous_config: list[str] = []
@@ -300,7 +373,7 @@ def capture_card(
         if data["captcha"]:
             raise ChallengePending(Challenge("cian", "drag", "servicepipe"))
         snapshot = _parse_observation(
-            route, key, data["config"], data["products"], data["url"]
+            route, key, data["config"], data["products"], data["url"], observe
         )
         if snapshot is not None:
             return snapshot

@@ -36,7 +36,7 @@ _FLAT, _ROOM, _HOUSE = "kvartiry", "komnaty", "doma_dachi_kottedzhi"
 _TYPES = {_FLAT: APARTMENT_TYPE_ID, _ROOM: ROOM_TYPE_ID, _HOUSE: HOUSE_TYPE_ID}
 _AVITO_SAMARA_CITY_ID = 653040
 _REGION_BY_NAME = {name.casefold(): key for key, name in REGION_NAMES.items()}
-_LABELS = {
+PARAMETER_LABELS = {
     "Количество комнат",
     "Общая площадь",
     "Площадь комнаты",
@@ -88,7 +88,7 @@ def _params(buyer: dict[str, object]) -> dict[str, str]:
         label = _text(param.get("title"))
         if not label:
             raise RejectedCard("invalid_card_param")
-        if label not in _LABELS:
+        if label not in PARAMETER_LABELS:
             continue
         value = _text(param.get("description"))
         if not value or label in result:

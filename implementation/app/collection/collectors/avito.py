@@ -19,8 +19,19 @@ from app.catalog.contracts import (
     is_publication_url,
 )
 from app.collection.captcha import Challenge, ChallengePending
-from app.collection.collectors.avito_fields import normalize_avito_card
+from app.collection.collectors.avito_fields import (
+    PARAMETER_LABELS,
+    normalize_avito_card,
+)
 from app.collection.normalization import RejectedCard, as_object
+from app.collection.observations import (
+    Observe,
+    observe_publication,
+    photo_links,
+    public_fields,
+    public_text,
+    rows,
+)
 
 _CARD_PATH = re.compile(
     r"/[a-z0-9_-]+/(kvartiry|komnaty|doma_dachi_kottedzhi)"
@@ -58,6 +69,7 @@ def parse_card(
     page_title: str = "",
     removed_deal: Deal | None = None,
     listing_price: tuple[str, str] | None = None,
+    observe: Observe | None = None,
 ) -> Snapshot | SnapshotResult:
     identity = _identity(requested_url)
     if identity is None or observed_at.utcoffset() is None:
@@ -109,9 +121,60 @@ def parse_card(
         if listing_price is not None and _identity(listing_price[0]) == identity
         else None
     )
-    return normalize_avito_card(
-        family, key, loaded_url, buyer, page_title, listing_label
+    return observe_publication(
+        observe,
+        key,
+        loaded_url,
+        lambda: _published(buyer, item, page_title, listing_label),
+        lambda: normalize_avito_card(
+            family, key, loaded_url, buyer, page_title, listing_label
+        ),
     )
+
+
+def _published(
+    buyer: dict[str, object],
+    item: dict[str, object],
+    title: str,
+    listing_label: str | None,
+) -> dict[str, object]:
+    ga = rows(buyer.get("ga"))
+    return {
+        **public_fields(
+            item,
+            "price",
+            "locationId",
+            "isActive",
+            text=("title", "description", "address"),
+        ),
+        "page_title": public_text(title),
+        "listing_price": listing_label,
+        "coordinates": public_fields(
+            as_object(item.get("geo")).get("coords"), "lat", "lng"
+        ),
+        "category": public_fields(item.get("category"), "slug"),
+        "location": public_fields(item.get("location"), "slug"),
+        "formattedPrice": public_fields(
+            item.get("formattedPrice"),
+            "value",
+            "isHasValue",
+            "formatedString",
+            "postfix",
+            "currencySign",
+        ),
+        "classification": public_fields(ga[1], "type", "status", "offer_type")
+        if len(ga) > 1
+        else {},
+        "parameters": [
+            public_fields(param, "title", "description")
+            for raw in rows(as_object(buyer.get("paramsDto")).get("items"))
+            if isinstance(label := (param := as_object(raw)).get("title"), str)
+            and label.strip() in PARAMETER_LABELS
+        ],
+        "photos": photo_links(
+            [as_object(photo).get("1280x960") for photo in rows(item.get("imageUrls"))]
+        ),
+    }
 
 
 def capture_card(
@@ -122,6 +185,7 @@ def capture_card(
     *,
     removed_deal: Deal | None = None,
     listing_price: tuple[str, str] | None = None,
+    observe: Observe | None = None,
 ) -> Snapshot | SnapshotResult:
     """Read the public fields of a loaded card within the navigation deadline."""
     remaining_ms = (deadline - time.monotonic()) * 1000
@@ -203,4 +267,5 @@ def capture_card(
         page_title=cast(str, data["title"]),
         removed_deal=removed_deal,
         listing_price=listing_price,
+        observe=observe,
     )

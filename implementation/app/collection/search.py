@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 
 from playwright.sync_api import Page
@@ -35,9 +36,11 @@ from app.collection.collectors import (
     domclick,
     domclick_search,
 )
+from app.collection.corpus import Corpus
 from app.collection.domclick_normalization import DailyListingQuote
 from app.collection.listing_page import SearchPage
 from app.collection.normalization import RejectedCard
+from app.collection.observations import Observe
 from app.collection.one_card import capture_card, read_card
 
 _SOURCE_BLOCKS = {
@@ -231,6 +234,73 @@ def collect_search(
     }
 
 
+def collect_corpus(
+    directory: Path,
+    sources: Sequence[str],
+    region_id: int,
+    property_type_id: int,
+    deal: Deal,
+    stopped: Callable[[], bool],
+    *,
+    segment: Market | None = None,
+) -> dict[str, object]:
+    if "avito" in sources:
+        raise CollectionError("corpus_avito_requires_card_url")
+    directions = {
+        source: _directions(source, region_id, property_type_id, deal, segment)
+        for source in dict.fromkeys(sources)
+    }
+    pace = collection_pace()
+    corpus = Corpus(directory)
+    check_stop(stopped)
+
+    def in_scope(snapshot: Snapshot) -> bool:
+        return snapshot["state"] == "active" and (
+            snapshot["region_id"] == region_id
+            and snapshot["property_type_id"] == property_type_id
+            and snapshot["deal_type"] == deal
+            and (segment is None or snapshot["market_segment"] == segment)
+        )
+
+    results = {}
+    with browser_page() as listing:
+        listing.route("**/*", without_media)
+        card = listing.context.new_page()
+        card.route("**/*", without_media)
+        for source, routes in directions.items():
+            check_stop(stopped)
+            before = corpus.saved
+            results[source] = _collect_source(
+                routes,
+                listing,
+                card,
+                {},
+                deal,
+                stopped,
+                lambda _: SnapshotResult("created"),
+                in_scope,
+                None,
+                None,
+                pace,
+                corpus=corpus,
+            )
+            results[source]["saved"] = corpus.saved - before
+
+    if len(results) == 1:
+        source, result = next(iter(results.items()))
+        return {**result, "source": source, "directory": str(directory)}
+    return {
+        "outcome": (
+            "completed"
+            if all(row["outcome"] == "completed" for row in results.values())
+            else "partial"
+        ),
+        "sources": results,
+        "saved": corpus.saved,
+        "directory": str(directory),
+    }
+
+
 def _collect_source(
     routes: tuple[Direction, ...],
     listing: Page,
@@ -243,6 +313,8 @@ def _collect_source(
     solver: Solver | None,
     captcha_root: Path | None,
     pace: CollectionPace,
+    *,
+    corpus: Corpus | None = None,
 ) -> dict[str, object]:
     results: Counter[str] = Counter()
     issues_by_stage: dict[str, Counter[str]] = defaultdict(Counter)
@@ -265,12 +337,16 @@ def _collect_source(
         *,
         captured: Snapshot | SnapshotResult | None = None,
         recheck: bool = False,
+        observe: Observe | None = None,
     ) -> None:
         nonlocal cards_read
         check_stop(stopped)
         if key in seen_keys:
             return
         seen_keys.add(key)
+        if corpus is not None and corpus.contains(source, key):
+            results["already_saved"] += 1
+            return
         if card_key(url) != key:
             skip(key, "unknown_card_identity")
             return
@@ -295,6 +371,7 @@ def _collect_source(
                     quote=quote,
                     solver=solver,
                     captcha_root=captcha_root,
+                    observe=observe,
                 )
             )
         except CollectionError as error:
@@ -346,6 +423,13 @@ def _collect_source(
                 direction, listing, stopped, solver, captcha_root, pace, page_limit
             ):
                 page_count += 1
+                observe = (
+                    partial(
+                        corpus.save, route=direction.start, page=page, in_scope=in_scope
+                    )
+                    if corpus is not None
+                    else None
+                )
                 if page.incomplete:
                     listing_complete = False
                     issues_by_stage[stage].update(page.incomplete)
@@ -356,7 +440,19 @@ def _collect_source(
                     parent = card_key(group_url)
                     if parent in seen_keys or parent not in page.urls:
                         parent = None
+                    if (
+                        corpus is not None
+                        and parent is not None
+                        and corpus.contains(source, parent)
+                    ):
+                        parent = None
                     stage = "group"
+                    if (
+                        corpus is not None
+                        and pace.max_cards is not None
+                        and cards_read >= pace.max_cards
+                    ):
+                        raise CollectionError("stopped_by_limit")
                     try:
                         group, captured = _read_group(
                             direction,
@@ -365,6 +461,7 @@ def _collect_source(
                             stopped,
                             capture_parent=parent is not None,
                             removed_deal=deal if parent in known else None,
+                            observe=observe,
                         )
                     except CollectionError as error:
                         if str(error) in _SOURCE_BLOCKS:
@@ -383,10 +480,10 @@ def _collect_source(
                         visit(parent, group_url, captured=captured)
                     stage = "card"
                     for key, url in group.urls.items():
-                        visit(key, url, group.quotes.get(key))
+                        visit(key, url, group.quotes.get(key), observe=observe)
                 stage = "card"
                 for key, url in page.urls.items():
-                    visit(key, url, page.quotes.get(key))
+                    visit(key, url, page.quotes.get(key), observe=observe)
                 stage = "listing"
 
         if listing_complete:
@@ -418,6 +515,7 @@ def _read_group(
     *,
     capture_parent: bool,
     removed_deal: Deal | None,
+    observe: Observe | None = None,
 ) -> tuple[SearchPage, Snapshot | SnapshotResult | None]:
     def capture(
         observed_at: datetime, deadline: float
@@ -427,7 +525,13 @@ def _read_group(
             return group, None
         try:
             parent = capture_card(
-                card, url, direction.source, observed_at, deadline, removed_deal
+                card,
+                url,
+                direction.source,
+                observed_at,
+                deadline,
+                removed_deal,
+                observe=observe,
             )
         except RejectedCard as error:
             if str(error) in _SOURCE_BLOCKS:

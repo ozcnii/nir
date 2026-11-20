@@ -35,6 +35,13 @@ from app.collection.normalization import (
     number,
     optional_integer,
 )
+from app.collection.observations import (
+    Observe,
+    observe_publication,
+    photo_links,
+    public_fields,
+    rows,
+)
 
 PARTNER_HOST = "cian.sutochno.ru"
 _PARTNER_PATH = re.compile(r"/detail/([1-9][0-9]*)/?")
@@ -152,6 +159,8 @@ def parse_partner(
     key: SnapshotKey,
     scripts: Iterable[str],
     documents: list[dict[str, object]],
+    *,
+    observe: Observe | None = None,
 ) -> ActiveSnapshot | None:
     payloads = list(scripts)
     if len(payloads) != 1:
@@ -171,44 +180,117 @@ def parse_partner(
     except RejectedCard:
         return None
 
-    # Inspect type/parent before reading structural fields or constructing P3.
-    property_type_id = _property_type(
-        {field: nuxt.read(*path, field) for field in ("type", "title", "name", "hotel")}
-    )
-    # Price is optional. Missing context differs from explicitly unselected dates.
-    missing = object()
-    try:
-        search_path = ("vuex", "search")
-        price_context = {
-            "checkIn": nuxt.read(*search_path, "checkIn", default=missing),
-            "checkOut": nuxt.read(*search_path, "checkOut", default=missing),
-            "guests": nuxt.read(*search_path, "guests"),
-            "base": nuxt.read("vuex", "detail", "objectBasePrice"),
-            "currency": nuxt.read(*path, "currency", "code"),
+    published: dict[str, object] = {"status": "approved"}
+
+    def normalize() -> ActiveSnapshot:
+        unit = {
+            field: nuxt.read(*path, field)
+            for field in ("type", "title", "name", "hotel")
         }
-    except RejectedCard:
-        price_context = {}
-    location = {
-        field: nuxt.read(*path, "location", field)
-        for field in ("address", "lat", "lng")
+        if observe is not None:
+            published.update(
+                public_fields(unit, text=("title", "name")),
+                type=public_fields(unit.get("type"), "name"),
+            )
+        property_type_id = _property_type(unit)
+
+        # Missing dates differ from explicitly unselected dates.
+        missing = object()
+        try:
+            search_path = ("vuex", "search")
+            price_context = {
+                "checkIn": nuxt.read(*search_path, "checkIn", default=missing),
+                "checkOut": nuxt.read(*search_path, "checkOut", default=missing),
+                "guests": nuxt.read(*search_path, "guests"),
+                "base": nuxt.read("vuex", "detail", "objectBasePrice"),
+                "currency": nuxt.read(*path, "currency", "code"),
+            }
+        except RejectedCard:
+            price_context = {}
+        location = {
+            field: nuxt.read(*path, "location", field)
+            for field in ("address", "lat", "lng")
+        }
+        location["city"] = nuxt.read(*path, "location", "city", "title")
+        location["city_id"] = nuxt.read(*path, "location", "city", "id")
+        if observe is not None:
+            published["location"] = public_fields(
+                location, "lat", "lng", "city_id", text=("address", "city")
+            )
+        try:
+            images = nuxt.read(*path, "media", "images")
+        except RejectedCard:
+            images = None
+        groups = nuxt.read(*path, "propertyGroups")
+        product = _partner_product(documents, images, key["external_id"], internal_url)
+        if observe is not None:
+            published.update(
+                attributes=_published_attributes(groups),
+                price_context=_published_tariff(price_context, product),
+                photos=photo_links(
+                    [as_object(image).get("path") for image in rows(images)]
+                ),
+            )
+        return _snapshot(
+            url,
+            key,
+            property_type_id,
+            location,
+            groups,
+            images,
+            price_context,
+            documents,
+            product,
+        )
+
+    return observe_publication(observe, key, url, lambda: published, normalize)
+
+
+def _published_attributes(groups: object) -> list[dict[str, object]]:
+    result = []
+    for group in rows(groups):
+        group_data = as_object(group)
+        group_name = group_data.get("name")
+        if group_name not in ("basic_properties", "detail_description"):
+            continue
+        for raw in rows(group_data.get("properties")):
+            attribute = as_object(raw)
+            name = attribute.get("name")
+            if name == "description" and group_name == "detail_description":
+                result.append(
+                    public_fields(attribute, "name", "title", text=("value",))
+                )
+            elif group_name == "basic_properties" and name in (
+                "rooms",
+                "area",
+                "floor",
+                "max_floor",
+            ):
+                result.append(public_fields(attribute, "name", "title", "value"))
+    return result
+
+
+def _published_tariff(
+    context: dict[str, object], product: dict[str, object]
+) -> dict[str, object]:
+    base = as_object(context.get("base"))
+    guests = as_object(context.get("guests"))
+    return {
+        **public_fields(context, "currency", "checkIn", "checkOut"),
+        "object_id": base.get("object_id")
+        if type(base.get("object_id")) is int
+        else None,
+        "base_price": public_fields(base.get("base_price"), "currency_code", "price"),
+        "guests": {
+            **public_fields(guests, "adults"),
+            "children_empty": guests.get("childrens") == [],
+            "pets": public_fields(guests.get("pets"), "value"),
+        },
+        "offer": public_fields(
+            product.get("offers"), "@type", "priceCurrency", "lowPrice"
+        ),
+        "label": public_fields(product, text=("description",)),
     }
-    location["city"] = nuxt.read(*path, "location", "city", "title")
-    location["city_id"] = nuxt.read(*path, "location", "city", "id")
-    try:
-        images = nuxt.read(*path, "media", "images")
-    except RejectedCard:
-        images = None
-    return _snapshot(
-        url,
-        key,
-        property_type_id,
-        location,
-        nuxt.read(*path, "propertyGroups"),
-        images,
-        price_context,
-        documents,
-        _partner_product(documents, images, key["external_id"], internal_url),
-    )
 
 
 _ROOM_NAME = re.compile(r"\bномер\b|\b\d+\s+кроватью\b", re.IGNORECASE)

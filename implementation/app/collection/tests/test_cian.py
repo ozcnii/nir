@@ -169,7 +169,7 @@ class CianCardTests(TestCase):
         page.goto.return_value.status = 200
         stopped = Event()
 
-        def rejected(*args: object) -> None:
+        def rejected(*args: object, **kwargs: object) -> None:
             stopped.set()
             raise RejectedCard("source_captcha")
 

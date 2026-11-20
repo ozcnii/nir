@@ -20,7 +20,9 @@ from app.collection.browser import (
 )
 from app.collection.captcha import Solver
 from app.collection.collectors import avito, cian, domclick
+from app.collection.corpus import Corpus
 from app.collection.domclick_normalization import DailyListingQuote
+from app.collection.observations import Observe
 
 
 def collect_card(
@@ -30,21 +32,14 @@ def collect_card(
     solver: Solver | None = None,
     captcha_root: Path | None = None,
 ) -> SnapshotResult:
-    if (key := avito.card_key(url)) is not None:
-        source = "avito"
-    elif cian.card_key(url) is not None:
-        source = "cian"
-    elif domclick.card_key(url) is not None:
-        source = "domclick"
-    else:
-        raise CollectionError("unsupported_card_url")
+    source, key = _card_identity(url)
 
     check_stop(stopped)
     with run_session():
         if not source_enabled(source):
             raise CollectionError(f"{source}_is_disabled")
         check_stop(stopped)
-        removed_deal = publication_deal(source, key) if key is not None else None
+        removed_deal = publication_deal(source, key) if source == "avito" else None
         with browser_page() as page:
             warm_profile(page, url, stopped)
             page.route("**/*", without_media)
@@ -69,6 +64,46 @@ def collect_card(
         return receipt
 
 
+def _card_identity(url: str) -> tuple[str, str]:
+    for source, adapter in (("avito", avito), ("cian", cian), ("domclick", domclick)):
+        if key := adapter.card_key(url):
+            return source, key
+    raise CollectionError("unsupported_card_url")
+
+
+def collect_corpus_card(
+    url: str, directory: Path, stopped: Callable[[], bool]
+) -> dict[str, object]:
+    source, key = _card_identity(url)
+    corpus = Corpus(directory)
+    check_stop(stopped)
+    if corpus.contains(source, key):
+        outcome = "already_saved"
+    else:
+        with browser_page() as page:
+            page.route("**/*", without_media)
+            outcome = "saved"
+            try:
+                card = read_card(page, url, source, stopped, None, observe=corpus.save)
+            except CollectionError as error:
+                if not corpus.saved:
+                    raise
+                outcome = str(error)
+            else:
+                if not corpus.saved:
+                    outcome = (
+                        card.outcome
+                        if isinstance(card, SnapshotResult)
+                        else card["state"]
+                    )
+    return {
+        "source": source,
+        "external_id": key,
+        "outcome": outcome,
+        "saved": corpus.saved,
+    }
+
+
 def read_card(
     page: Page,
     url: str,
@@ -79,6 +114,7 @@ def read_card(
     quote: DailyListingQuote | None = None,
     solver: Solver | None = None,
     captcha_root: Path | None = None,
+    observe: Observe | None = None,
 ) -> Snapshot | SnapshotResult:
     same_card = {
         "avito": avito.same_card,
@@ -90,7 +126,14 @@ def read_card(
         url,
         stopped,
         lambda observed_at, deadline: capture_card(
-            page, url, source, observed_at, deadline, removed_deal, quote=quote
+            page,
+            url,
+            source,
+            observed_at,
+            deadline,
+            removed_deal,
+            quote=quote,
+            observe=observe,
         ),
         accepts_redirect=lambda loaded: same_card(url, loaded),
         solver=solver,
@@ -107,13 +150,19 @@ def capture_card(
     removed_deal: Deal | None,
     *,
     quote: DailyListingQuote | None = None,
+    observe: Observe | None = None,
 ) -> Snapshot | SnapshotResult:
     if source == "avito":
         return avito.capture_card(
-            page, url, observed_at, deadline, removed_deal=removed_deal
+            page,
+            url,
+            observed_at,
+            deadline,
+            removed_deal=removed_deal,
+            observe=observe,
         )
     if source == "domclick":
         return domclick.read_card(
-            page, url, observed_at, deadline=deadline, quote=quote
+            page, url, observed_at, deadline=deadline, quote=quote, observe=observe
         )
-    return cian.capture_card(page, url, observed_at, deadline)
+    return cian.capture_card(page, url, observed_at, deadline, observe=observe)

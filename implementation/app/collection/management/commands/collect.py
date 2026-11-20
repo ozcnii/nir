@@ -24,8 +24,8 @@ from app.catalog.reference_defaults import (
 )
 from app.collection.browser import CollectionError, CollectionStopped
 from app.collection.captcha import CAPTCHA_WAIT_S, BrokerSolver
-from app.collection.one_card import collect_card
-from app.collection.search import collect_search
+from app.collection.one_card import collect_card, collect_corpus_card
+from app.collection.search import collect_corpus, collect_search
 
 # Тот же каталог, что и у приложения: обвязка лежит рядом с проектом.
 _AGENT_SCRIPT = Path(__file__).resolve().parents[4] / "tools" / "captcha_agent.py"
@@ -86,6 +86,11 @@ class Command(BaseCommand):
         parser.add_argument("--property-type", choices=_PROPERTY_TYPES)
         parser.add_argument("--deal", choices=get_args(Deal))
         parser.add_argument("--segment", choices=get_args(Market))
+        parser.add_argument(
+            "--corpus-dir",
+            type=Path,
+            help="Save verified public card snapshots to a local directory.",
+        )
         parser.add_argument("--captcha-broker", type=Path)
         parser.add_argument("--captcha-wait", type=float, default=CAPTCHA_WAIT_S)
         parser.add_argument(
@@ -106,9 +111,16 @@ class Command(BaseCommand):
         captcha_broker: Path | None,
         captcha_wait: float,
         captcha_agent: bool,
+        corpus_dir: Path | None = None,
         **options: object,
     ) -> None:
+        sources = [source] if isinstance(source, str) else source
+        if corpus_dir is not None and (captcha_broker is not None or captcha_agent):
+            raise CommandError("corpus_does_not_use_captcha_broker")
         stop_requested = False
+
+        def request_stopped() -> bool:
+            return stop_requested
 
         def request_stop(_signum: int, _frame: object) -> None:
             nonlocal stop_requested
@@ -133,20 +145,23 @@ class Command(BaseCommand):
                     for value in (source, region, property_type, deal, segment)
                 ):
                     raise CommandError("choose_card_or_collection_scope")
-                receipt = collect_card(
-                    url,
-                    lambda: stop_requested,
-                    solver=solver,
-                    captcha_root=captcha_broker,
-                )
-                result: dict[str, object] = {
-                    "outcome": receipt.outcome,
-                    "ad_id": receipt.ad_id,
-                    "property_id": receipt.property_id,
-                    "price_changed": receipt.price_changed,
-                }
+                if corpus_dir is not None:
+                    result = collect_corpus_card(url, corpus_dir, request_stopped)
+                else:
+                    receipt = collect_card(
+                        url,
+                        request_stopped,
+                        solver=solver,
+                        captcha_root=captcha_broker,
+                    )
+                    result = {
+                        "outcome": receipt.outcome,
+                        "ad_id": receipt.ad_id,
+                        "property_id": receipt.property_id,
+                        "price_changed": receipt.price_changed,
+                    }
             elif (
-                source is not None
+                sources is not None
                 and region is not None
                 and property_type is not None
                 and deal is not None
@@ -155,16 +170,27 @@ class Command(BaseCommand):
                     property_type != "apartment" or deal != "sale"
                 ):
                     raise CommandError("collection_segment_requires_apartment_sale")
-                result = collect_search(
-                    [source] if isinstance(source, str) else source,
-                    region,
-                    _PROPERTY_TYPES[property_type],
-                    deal,
-                    lambda: stop_requested,
-                    segment=segment,
-                    solver=solver,
-                    captcha_root=captcha_broker,
-                )
+                if corpus_dir is None:
+                    result = collect_search(
+                        sources,
+                        region,
+                        _PROPERTY_TYPES[property_type],
+                        deal,
+                        request_stopped,
+                        segment=segment,
+                        solver=solver,
+                        captcha_root=captcha_broker,
+                    )
+                else:
+                    result = collect_corpus(
+                        corpus_dir,
+                        sources,
+                        region,
+                        _PROPERTY_TYPES[property_type],
+                        deal,
+                        request_stopped,
+                        segment=segment,
+                    )
             else:
                 raise CommandError("collection_scope_required")
         except CollectionStopped:
@@ -174,6 +200,10 @@ class Command(BaseCommand):
             raise CommandError(str(error)) from error
         except PlaywrightError as error:
             raise CommandError("browser_failed") from error
+        except OSError as error:
+            if corpus_dir is None:
+                raise
+            raise CommandError(f"corpus_io_error: {error}") from error
         except DatabaseError as error:
             raise CommandError("database_error") from error
         finally:

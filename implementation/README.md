@@ -89,6 +89,9 @@ python -m app.manage collect <URL> \
 Как устроен обход, что починено и что осталось ручным — в
 [`COLLECTION-RUNTIME.md`](COLLECTION-RUNTIME.md).
 
+Для исследовательского корпуса запускайте `collect --corpus-dir` без решателя.
+[Команды сбора для #37](#исследовательский-сбор-37).
+
 Сбор одной карточки запускается отдельной командой Django. Поддержаны
 проверенные маршруты Циан, [Авито](app/collection/collectors/avito.md) и Домклик,
 включая партнёрские карточки Циан и Домклик и витрину Домклик 24.
@@ -180,6 +183,42 @@ python -m app.manage collect --source cian --region 68 \
 `docker compose logs -f`.
 Для остановки своего стека используйте `docker compose down`. Данные
 PostgreSQL остаются в томе `db`.
+
+## Исследовательский сбор #37
+
+Режим `--corpus-dir` сохраняет исходные опубликованные поля и результат
+нормализации в `raw.json` и `normalized.json`. Файлы находятся в подкаталогах
+по площадке и ключу публикации. Повтор пропускает сохранённый ключ. Если
+нормализация отклонила содержательный снимок, сохраняются исходные поля и
+причина. Режим работает без PostgreSQL и брокера. Используйте одну новую
+локальную папку для всех площадок, вне репозитория.
+
+Запуск с Mac из `implementation/`, где подготовлены окружение и Chromium.
+Первый пример обходит продажи квартир в Самарской области и читает до
+120 новых карточек из выдачи каждого источника за запуск. Для комнат и
+домов меняйте `--property-type` на `room` и `house`.
+
+```sh
+export DJANGO_SETTINGS_MODULE=app.config.settings_base
+export CORPUS_DIR="$HOME/Documents/vkr-corpus-37-fresh"
+COLLECTION_MAX_CARDS=120 .venv/bin/python -m app.manage collect \
+  --source cian --source domclick --region 68 --property-type apartment --deal sale \
+  --corpus-dir "$CORPUS_DIR"
+```
+
+Авито принимает URL карточки. Для порции используйте файл с одним URL на
+строку. Пример берёт до 120 разных строк и останавливается при ошибке команды.
+
+```sh
+awk 'NF && !seen[$0]++ { print; if (++count == 120) exit }' "$HOME/Documents/avito-urls.txt" |
+while IFS= read -r url; do
+  .venv/bin/python -m app.manage collect "$url" --corpus-dir "$CORPUS_DIR" || break
+done
+```
+
+Число `saved` показывает количество новых снимков, включая записи с отказом
+нормализации. Итоговый отбор по квотам и разметка идут отдельно по
+[протоколу 7.2](../bachelor-thesis/RESEARCH-DATASET-7.2-PROPOSAL.md).
 
 ## Проверки кода
 

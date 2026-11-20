@@ -11,6 +11,7 @@ from playwright.sync_api import Page
 
 from app.catalog.contracts import Deal, Snapshot, SnapshotKey
 from app.collection.captcha import Challenge, ChallengePending
+from app.collection.collectors import domclick_observations
 from app.collection.collectors.domclick_state import nuxt_card, ssr_state
 from app.collection.collectors.nuxt_state import UNDEFINED
 from app.collection.collectors.page_data import wait_for_card_data
@@ -22,6 +23,7 @@ from app.collection.domclick_normalization import (
     normalize_partner_card,
 )
 from app.collection.normalization import RejectedCard, as_object
+from app.collection.observations import Observe, observe_publication
 
 NATIVE_HOSTS = frozenset(
     (
@@ -234,6 +236,7 @@ def _parse_native(
     data: dict[str, object],
     removed_marker: bool,
     page_title: str,
+    observe: Observe | None,
 ) -> Snapshot:
     expected = {
         "offerType": identity.native_type,
@@ -250,13 +253,19 @@ def _parse_native(
     if status != 2:
         return {**key, "state": "unavailable"}
 
-    return normalize_native_card(
+    return observe_publication(
+        observe,
         key,
         url,
-        data,
-        native_type=identity.native_type,
-        deal=identity.deal,
-        page_title=page_title,
+        lambda: domclick_observations.native_fields(data, page_title),
+        lambda: normalize_native_card(
+            key,
+            url,
+            data,
+            native_type=identity.native_type,
+            deal=identity.deal,
+            page_title=page_title,
+        ),
     )
 
 
@@ -265,6 +274,7 @@ def _parse_partner(
     identity: CardIdentity,
     url: str,
     nuxt_scripts: list[str],
+    observe: Observe | None,
 ) -> Snapshot:
     source = nuxt_card(nuxt_scripts, identity.published_id)
     if source is None:
@@ -287,7 +297,13 @@ def _parse_partner(
     except ValueError:
         return {**key, "state": "unavailable"}
 
-    return normalize_partner_card(key, url, state, detail, deal=identity.deal)
+    return observe_publication(
+        observe,
+        key,
+        url,
+        lambda: domclick_observations.partner_fields(state, detail),
+        lambda: normalize_partner_card(key, url, state, detail, deal=identity.deal),
+    )
 
 
 def _parse_daily(
@@ -298,6 +314,7 @@ def _parse_daily(
     gallery: list[str],
     quote: DailyListingQuote | None,
     page_title: str,
+    observe: Observe | None,
 ) -> Snapshot:
     inventory = as_object(source.get("inventory"))
     search = as_object(inventory.get("searchData"))
@@ -311,14 +328,20 @@ def _parse_daily(
         return {**key, "state": "unavailable"}
     if quote is not None and _identity(quote.card_url) != identity:
         quote = None
-    return normalize_daily_card(
+    return observe_publication(
+        observe,
         key,
         url,
-        data,
-        deal=identity.deal,
-        gallery=gallery,
-        quote=quote,
-        page_title=page_title,
+        lambda: domclick_observations.daily_fields(data, page_title, gallery, quote),
+        lambda: normalize_daily_card(
+            key,
+            url,
+            data,
+            deal=identity.deal,
+            gallery=gallery,
+            quote=quote,
+            page_title=page_title,
+        ),
     )
 
 
@@ -333,6 +356,7 @@ def parse_card(
     page_title: str = "",
     gallery: list[str] | None = None,
     quote: DailyListingQuote | None = None,
+    observe: Observe | None = None,
 ) -> Snapshot:
     identity = _identity(requested_url)
     if identity is None or observed_at.utcoffset() is None:
@@ -345,11 +369,11 @@ def parse_card(
     if not same_card(requested_url, loaded_url):
         return {**key, "state": "unavailable"}
     if identity.family == "partner":
-        return _parse_partner(key, identity, loaded_url, nuxt_scripts)
+        return _parse_partner(key, identity, loaded_url, nuxt_scripts, observe)
     state = ssr_state(ssr_scripts)
     if identity.family == "daily":
         return _parse_daily(
-            key, identity, loaded_url, state, gallery or [], quote, page_title
+            key, identity, loaded_url, state, gallery or [], quote, page_title, observe
         )
     if identity.family == "native":
         return _parse_native(
@@ -359,6 +383,7 @@ def parse_card(
             as_object(state.get("productCard")),
             removed_marker,
             page_title,
+            observe,
         )
     shell = as_object(state.get("shell"))
     flat = as_object(as_object(shell.get("flatDetails")).get("data"))
@@ -366,8 +391,15 @@ def parse_card(
         flat.get("id"), identity
     ):
         return {**key, "state": "unavailable"}
-    return normalize_new_flat_card(
-        key, loaded_url, flat, as_object(state.get("regions")), page_title
+    geography = as_object(state.get("regions"))
+    return observe_publication(
+        observe,
+        key,
+        loaded_url,
+        lambda: domclick_observations.native_fields(
+            flat, page_title, geography=geography
+        ),
+        lambda: normalize_new_flat_card(key, loaded_url, flat, geography, page_title),
     )
 
 
@@ -387,6 +419,7 @@ def read_card(
     *,
     deadline: float | None = None,
     quote: DailyListingQuote | None = None,
+    observe: Observe | None = None,
 ) -> Snapshot:
     """Read the public documents already loaded by the collection runner."""
     if _identity(requested_url) is None:
@@ -434,4 +467,5 @@ def read_card(
         page_title=projected["title"],
         gallery=projected["gallery"],
         quote=quote,
+        observe=observe,
     )
