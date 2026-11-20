@@ -81,6 +81,25 @@ _CONTINUE_CONTROL = {
 }
 
 
+def _human_reload(page: Page) -> None:
+    """Обновляет страницу как человек: курсор в сторону, F5, пауза.
+
+    Программный reload заметен площадке, а обычное обновление страницы
+    возвращает её к нормальному виду, как это делает оператор.
+    """
+    try:
+        page.mouse.move(
+            random.uniform(180.0, 900.0),
+            random.uniform(120.0, 620.0),
+            steps=random.randint(10, 20),
+        )
+        time.sleep(random.uniform(0.4, 1.0))
+        page.keyboard.press("F5")
+        page.wait_for_timeout(int(random.uniform(2500.0, 4500.0)))
+    except PlaywrightError:
+        pass
+
+
 def _click_continue(page: Page, source: str) -> bool:
     """Нажимает кнопку продолжения, если для источника она известна."""
     selectors = _CONTINUE_CONTROL.get(source)
@@ -122,8 +141,11 @@ def _click_continue(page: Page, source: str) -> bool:
         return False
 
 
+# Задача может прийти фреймом или виджетом в самом документе: у hCaptcha
+# пазл GeeTest рисуется в странице, а её собственные фреймы остаются пустыми.
 _FRAME_TASK = (
-    'iframe[src*="frame=challenge"], iframe[src*="puzzle"], iframe[src*="geetest"]'
+    '[class*="geetest_slider"], [class*="geetest_holder"], [class*="geetest_panel"],'
+    ' iframe[src*="frame=challenge"], iframe[src*="puzzle"], iframe[src*="geetest"]'
 )
 # Сколько ждать, пока нажатая кнопка откроет задачу во фрейме.
 FRAME_TASK_WAIT_S = 6.0
@@ -577,9 +599,13 @@ def _read_page[Result](
             media_released = True
         if not continue_clicked:
             before_click = loaded_images(page)
-            for _ in range(CLICK_ATTEMPTS):
+            for attempt in range(CLICK_ATTEMPTS):
                 if not _click_continue(page, pending.challenge.source):
-                    break
+                    # Кнопки нет: блокировка иногда снимается обычным
+                    # обновлением страницы, как это сделал бы человек.
+                    if attempt + 1 < CLICK_ATTEMPTS:
+                        _human_reload(page)
+                    continue
                 # CAPTCHA-NEXT-STAGE: the continue button opens the next stage
                 # over the same document (a puzzle over the refusal notice). The
                 # check is still there by design, so the broker answers that
@@ -592,9 +618,8 @@ def _read_page[Result](
                     break
                 if _challenge_gone(page, CONTINUE_SETTLE_S):
                     return True
-                # Кнопка не открыла задачу: страница отдана заново, пробуем ещё.
-                page.reload(wait_until="domcontentloaded")
-                page.wait_for_timeout(2500)
+                # Кнопка не открыла задачу: обновляем страницу как человек.
+                _human_reload(page)
         if _challenge_gone(page, CHALLENGE_SELF_RESOLVE_S):
             return True
         if broker_rounds >= CAPTCHA_ROUNDS or solver is None:

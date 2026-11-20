@@ -173,7 +173,8 @@ def _wait_for_new_image(page: Page, known: frozenset[str]) -> None:
 
 
 _FRAME_TASK = (
-    'iframe[src*="frame=challenge"], iframe[src*="puzzle"], iframe[src*="geetest"]'
+    '[class*="geetest_slider"], [class*="geetest_holder"], [class*="geetest_panel"],'
+    ' iframe[src*="frame=challenge"], iframe[src*="puzzle"], iframe[src*="geetest"]'
 )
 
 
