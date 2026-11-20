@@ -7,6 +7,10 @@
 Запускается там же, где лежит каталог — локальный путь, без внешних хостов.
 Работает одинаково на macOS, Linux и Windows.
 
+Требуется установленный и авторизованный `pi` (`pi auth`), модель должна уметь
+смотреть изображения. Имя модели задаётся переменной `CAPTCHA_MODEL`, по
+умолчанию `opencode-go/deepseek-v4.1-flash`.
+
     python implementation/tools/captcha_agent.py --root ./broker
     python implementation/tools/captcha_agent.py --root /var/lib/nir/broker --once
 """
@@ -15,11 +19,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
 
-MODEL = "opencode-go/deepseek-v4.1-flash"
+MODEL = os.environ.get("CAPTCHA_MODEL", "opencode-go/deepseek-v4.1-flash")
 VIEWPORT = (1280, 720)
 
 # Задача формулируется по типу картинки, а не по названию площадки: агенту
