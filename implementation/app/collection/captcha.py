@@ -19,6 +19,7 @@ POLL_INTERVAL_S = 0.3
 DRAG_STEPS = 12
 MAX_PAUSE_S = 30.0
 IMAGE_SETTLE_MS = 8_000.0
+NEW_IMAGE_MS = 10_000.0
 _CHALLENGE_NODE = (
     '#js-challenge-loader, script[src*="servicepipe"], [data-captcha], iframe'
 )
@@ -136,12 +137,48 @@ def _wait_for_challenge_image(page: Page) -> None:
         pass
 
 
+def loaded_images(page: Page) -> frozenset[str]:
+    """The pictures this document already shows, used as a stage baseline."""
+    try:
+        sources = cast(
+            list[str],
+            page.evaluate(
+                """() => Array.from(document.images)
+                    .filter(image => image.naturalWidth > 0)
+                    .map(image => image.currentSrc || image.src)"""
+            ),
+        )
+    except PlaywrightError:
+        return frozenset()
+    return frozenset(sources)
+
+
+def _wait_for_new_image(page: Page, known: frozenset[str]) -> None:
+    """A stage opened by our answer shows a picture this document did not have.
+
+    CAPTCHA-NEW-STAGE: the refusal notice carries its own pictures, so "some
+    image is loaded" is true long before the puzzle appears. Waiting for a new
+    picture keeps the screenshot on the stage the site actually opened.
+    """
+    try:
+        page.wait_for_function(
+            """(known) => Array.from(document.images).some(
+                image => image.naturalWidth > 0
+                    && !known.includes(image.currentSrc || image.src))""",
+            arg=sorted(known),
+            timeout=NEW_IMAGE_MS,
+        )
+    except PlaywrightError:
+        pass
+
+
 def prepare_challenge(
     page: Page,
     pending: ChallengePending,
     root: Path,
     *,
     reload: bool,
+    wait_for_new: frozenset[str] | None = None,
 ) -> CaptchaRequest:
     """Publish the check as the page shows it; the caller owns media and reload.
 
@@ -155,7 +192,10 @@ def prepare_challenge(
     screenshot = pending_dir / f"{identifier}.png"
     if reload:
         page.reload(wait_until="domcontentloaded")
-    _wait_for_challenge_image(page)
+    if wait_for_new is None:
+        _wait_for_challenge_image(page)
+    else:
+        _wait_for_new_image(page, wait_for_new)
     page.screenshot(path=str(screenshot))
     start = _challenge_centre(page)
 

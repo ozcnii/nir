@@ -25,6 +25,7 @@ from app.collection.captcha import (
     NoAnswer,
     Solver,
     apply_answer,
+    loaded_images,
     prepare_challenge,
 )
 from app.collection.normalization import RejectedCard, as_object
@@ -525,9 +526,11 @@ def _read_page[Result](
     media_released = False
     resume_read = False
 
+    image_baseline: frozenset[str] | None = None
+
     def resolve(pending: ChallengePending) -> bool:
         """Pass one challenge: wait it out, click a known control, or ask the broker."""
-        nonlocal broker_rounds, media_released
+        nonlocal broker_rounds, media_released, image_baseline
         if _challenge_gone(page, CHALLENGE_SELF_RESOLVE_S):
             return True
         if _click_continue(page, pending.challenge.source):
@@ -553,6 +556,7 @@ def _read_page[Result](
                 and pending.challenge.replaces_document
                 and not bool(getattr(solver, "handover", False))
             ),
+            wait_for_new=image_baseline,
         )
         actions = solver(request, stopped)
         check_stop(stopped)
@@ -560,6 +564,9 @@ def _read_page[Result](
             return True
         if any(isinstance(action, NoAnswer) for action in actions):
             return False
+        # The next stage may open only after this answer is applied; remember
+        # what the document showed so the next screenshot waits for something new.
+        image_baseline = loaded_images(page)
         return apply_answer(page, request, actions)
 
     try:

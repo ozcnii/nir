@@ -516,6 +516,7 @@ class TransitionalStatusTests(TestCase):
         root = Path(self.enterContext(tempfile.TemporaryDirectory()))
         challenge_page = (
             "<meta charset=utf-8>"
+            '<div id="js-challenge-loader"></div>'
             "<script>"
             "setInterval(async () => {"
             '  const response = await fetch("/document").catch(() => null);'
@@ -555,9 +556,15 @@ class TransitionalStatusTests(TestCase):
 
         class Watcher(Thread):
             def run(self) -> None:
-                deadline = time.monotonic() + 15
+                # The check waits for a self-resolve window before the broker
+                # sees the request, so the watcher outlives that wait.
+                deadline = time.monotonic() + 90
                 while time.monotonic() < deadline:
                     for pending in sorted((root / "pending").glob("*.json")):
+                        # The publisher also writes a "<id>.dom.json" note; only
+                        # the request itself is named after its identifier.
+                        if pending.name.endswith(".dom.json"):
+                            continue
                         (root / "answers").mkdir(parents=True, exist_ok=True)
                         (root / "answers" / f"{pending.stem}.json").write_text(
                             '{"action": "done"}', encoding="utf-8"
@@ -587,7 +594,12 @@ class TransitionalStatusTests(TestCase):
         # Assert: the operator kept the document, and the read waited for it.
         self.assertEqual(result, "card")
         self.assertTrue(answer_written.is_set())
-        self.assertEqual(len(list((root / "pending").glob("*.json"))), 1)
+        requests = [
+            path
+            for path in (root / "pending").glob("*.json")
+            if not path.name.endswith(".dom.json")
+        ]
+        self.assertEqual(len(requests), 1)
         self.assertEqual(navigations, [START])
 
     def test_operator_refusal_stops_without_another_request(self) -> None:
