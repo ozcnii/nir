@@ -18,6 +18,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from app.catalog.contracts import Deal
 from app.catalog.reference_defaults import (
     APARTMENT_TYPE_ID,
+    HOUSE_TYPE_ID,
     REGION_NAMES,
     ROOM_TYPE_ID,
 )
@@ -37,6 +38,11 @@ _STARTS: dict[tuple[str, Deal, int], str] = {
         "sale",
         ROOM_TYPE_ID,
     ): "https://www.avito.ru/samara/komnaty/prodam-ASgBAgICAUSQA7wQ?cd=1",
+    (
+        "Самарская область",
+        "sale",
+        HOUSE_TYPE_ID,
+    ): "https://www.avito.ru/samara/doma_dachi_kottedzhi/prodam-ASgBAgICAUSUA9AQ?cd=1",
 }
 
 # Ссылки на карточки и признак следующей страницы читаются из отрисованного DOM:
@@ -52,6 +58,31 @@ _LISTING = r"""(segment) => {
 }"""
 
 _LISTING_WAIT_S = 30.0
+# Выдача дорисовывается рывками: ждём, пока число ссылок перестанет расти,
+# иначе страница читается полупустой.
+_LISTING_SETTLE_MS = 20_000.0
+_SETTLE_TICKS = 3
+
+
+def _settle_links(page: Page, segment: str) -> None:
+    deadline = time.monotonic() + _LISTING_SETTLE_MS / 1000
+    last, stable = -1, 0
+    while time.monotonic() < deadline and stable < _SETTLE_TICKS:
+        try:
+            count = int(
+                page.evaluate(
+                    """(segment) => document
+                        .querySelectorAll(`a[href*="/${segment}/"]`).length""",
+                    segment,
+                )
+            )
+        except PlaywrightTimeout:
+            count = last
+        if count > 0 and count == last:
+            stable += 1
+        else:
+            stable, last = 0, count
+        page.wait_for_timeout(500)
 
 
 @dataclass(frozen=True)
@@ -116,6 +147,7 @@ def read_page(
     remaining_ms = (deadline - time.monotonic()) * 1000
     if remaining_ms <= 0:
         raise PlaywrightTimeout("Result page attempt deadline elapsed")
+    _settle_links(page, route.segment)
     handle = page.wait_for_function(
         _LISTING,
         arg=route.segment,
