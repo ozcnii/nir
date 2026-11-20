@@ -27,8 +27,10 @@ from app.collection.captcha import (
     CaptchaRequest,
     Challenge,
     ChallengePending,
+    Click,
     Drag,
     GiveUp,
+    Pause,
     apply_answer,
 )
 from app.collection.collectors import cian
@@ -297,6 +299,92 @@ class TransitionalStatusTests(TestCase):
 
         # Assert
         self.assertEqual(actions, (GiveUp(),))
+
+    def test_broker_reads_a_sequence_of_actions(self) -> None:
+        # Arrange: one check needs a click, a settle, then the slider.
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        request = _request(root)
+        (root / "answers").mkdir()
+        (root / "answers" / f"{request.identifier}.json").write_text(
+            '{"actions": [{"action": "click", "x": 30, "y": 40},'
+            ' {"action": "pause", "seconds": 0.01},'
+            ' {"action": "drag", "dx": 120, "dy": 0}]}',
+            encoding="utf-8",
+        )
+
+        # Act
+        actions = BrokerSolver(root, wait=1.0)(request, lambda: False)
+
+        # Assert
+        self.assertEqual(actions, (Click(30.0, 40.0), Pause(0.01), Drag(120.0, 0.0)))
+
+    def test_broker_gives_up_when_any_step_is_unknown(self) -> None:
+        # Arrange: a partly broken answer must not run halfway.
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        request = _request(root)
+        (root / "answers").mkdir()
+        (root / "answers" / f"{request.identifier}.json").write_text(
+            '{"actions": [{"action": "click", "x": 30, "y": 40},'
+            ' {"action": "teleport"}]}',
+            encoding="utf-8",
+        )
+
+        # Act
+        actions = BrokerSolver(root, wait=1.0)(request, lambda: False)
+
+        # Assert
+        self.assertEqual(actions, (GiveUp(),))
+
+    def test_refused_document_check_reaches_the_broker_and_resumes_in_place(
+        self,
+    ) -> None:
+        # Arrange: the refusal carries the check page instead of a plain error.
+        navigations: list[str] = []
+        requested: list[CaptchaRequest] = []
+        captured: list[str] = []
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        body = (
+            "<meta charset=utf-8><title>Доступ ограничен: проблема с IP</title>"
+            "<p>Страница не загрузилась из-за проблем с IP</p>"
+            '<div data-captcha style="width:80px;height:40px"></div>'
+        )
+
+        def serve(request: Route) -> None:
+            navigations.append(request.request.url)
+            request.fulfill(
+                status=429, content_type="text/html; charset=utf-8", body=body
+            )
+
+        def capture(_observed_at: datetime, _deadline: float) -> str:
+            captured.append("read")
+            return "read"
+
+        def solver(
+            request: CaptchaRequest, _stopped: Callable[[], bool]
+        ) -> tuple[Drag]:
+            requested.append(request)
+            return (Drag(20.0, 0.0),)
+
+        # Act
+        with browser_page() as page:
+            page.route("**/*", serve)
+            result = read_page(
+                page,
+                START,
+                lambda: False,
+                capture,
+                accepts_redirect=lambda loaded: loaded == START,
+                solver=solver,
+                captcha_root=root,
+            )
+
+        # Assert: the check is published, and the answer continues the same read.
+        self.assertEqual(result, "read")
+        self.assertEqual(len(requested), 1)
+        self.assertEqual(captured, ["read"])
+        self.assertTrue((root / "pending" / f"{requested[0].identifier}.png").is_file())
+        # Only the initial load plus the broker's own reload touched the network.
+        self.assertEqual(len(navigations), 2)
 
     def test_broker_stops_waiting_when_the_run_is_stopped(self) -> None:
         # Arrange

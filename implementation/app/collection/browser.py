@@ -18,6 +18,7 @@ from playwright.sync_api import Page, ProxySettings, Response, Route, sync_playw
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from app.collection.captcha import (
+    Challenge,
     ChallengePending,
     Solver,
     apply_answer,
@@ -26,6 +27,54 @@ from app.collection.captcha import (
 from app.collection.normalization import RejectedCard, as_object
 
 LOGGER = logging.getLogger(__name__)
+
+# ACCESS-CHECK-NAVIGATION: a challenge replaces the requested document, so it
+# must be recognised before the status or the address is treated as a refusal.
+_CHECK_STATUSES = frozenset({401, 403, 429, 439})
+CHECK_SETTLE_MS = 5_000.0
+_CHALLENGE_DOCUMENT = r"""() => {
+    if (document.readyState !== "complete") return null;
+    const text = `${document.title || ""}\n${(document.body?.innerText || "").slice(0, 4000)}`;
+    if (document.querySelector('#js-challenge-loader')) return 'js-challenge-loader';
+    if (document.querySelector('iframe[src*="geetest"], script[src*="geetest"]')) return 'geetest';
+    if (document.querySelector('script[src*="servicepipe"]') && /\/xpvnsulc\//.test(location.pathname)) return '/xpvnsulc/';
+    if (/\/xpvnsulc\//.test(location.pathname)) return '/xpvnsulc/';
+    if (/доступ ограничен|проблемы с ip|подозрительн|проверка безопасности|убедиться[^.]{0,40}ботом/i.test(text)) return 'block_notice';
+    return null;
+}"""
+
+
+def _challenge_source(url: str) -> str:
+    host = urlsplit(url).netloc.lower()
+    for source, suffix in (
+        ("avito", "avito.ru"),
+        ("cian", "cian.ru"),
+        ("domclick", "domclick.ru"),
+    ):
+        if host == suffix or host.endswith("." + suffix):
+            return source
+    return "unknown"
+
+
+def _document_challenge(
+    page: Page, timeout_ms: float = CHECK_SETTLE_MS
+) -> ChallengePending | None:
+    # The refusal document replaces the page after the navigation event, so the
+    # check page is often still loading when the status is already known.
+    try:
+        page.wait_for_function(
+            "() => document.readyState === 'complete'", timeout=timeout_ms
+        )
+    except PlaywrightError:
+        return None
+    try:
+        marker = page.evaluate(_CHALLENGE_DOCUMENT)
+    except PlaywrightError:
+        return None
+    if not isinstance(marker, str) or not marker:
+        return None
+    return ChallengePending(Challenge(_challenge_source(page.url), "drag", marker))
+
 
 MAX_ATTEMPTS = 2
 CARD_TIMEOUT_MS = 30_000
@@ -38,6 +87,7 @@ STOP_POLL_S = 0.2
 # One source can sample a few pages and cards at a human pace instead of
 # draining the whole listing in a burst. Limits and pauses are empty by default
 # so checks walk the complete listing; a live run sets its own pace.
+CAPTCHA_ROUNDS = 3
 COLLECTION_MAX_PAGES = ""
 COLLECTION_MAX_CARDS = ""
 COLLECTION_PAGE_PAUSE = ""
@@ -386,8 +436,21 @@ def _read_page[Result](
     clicked = False
     attempts = 0
     observed_status: int | None = None
-    broker_used = False
+    broker_rounds = 0
     resume_read = False
+
+    def resolve(pending: ChallengePending) -> bool:
+        """Ask the broker for one challenge and apply the answer in place."""
+        nonlocal broker_rounds
+        if broker_rounds >= CAPTCHA_ROUNDS or solver is None:
+            return False
+        broker_rounds += 1
+        root = captcha_root if captcha_root is not None else default_captcha_root()
+        request = prepare_challenge(page, pending, root, without_media)
+        actions = solver(request, stopped)
+        check_stop(stopped)
+        return apply_answer(page, request, actions)
+
     while True:
         navigation = not resume_read
         resume_read = False
@@ -413,6 +476,12 @@ def _read_page[Result](
                 if response is None:
                     raise CollectionError("no_http_response")
                 recovery = document_recovery(response.status, navigation=True)
+                if response.status in _CHECK_STATUSES:
+                    found = _document_challenge(page)
+                    if found is not None and resolve(found):
+                        attempts = max(attempts - 1, 0)
+                        resume_read = True
+                        continue
                 if recovery == "stop":
                     raise CollectionError(f"http_{response.status}")
                 if recovery == "retry":
@@ -456,16 +525,9 @@ def _read_page[Result](
                 pending.challenge.marker,
                 observed_status,
             )
-            if broker_used or solver is None:
+            if not resolve(pending):
                 raise CollectionError("source_captcha") from None
-            broker_used = True
-            root = captcha_root if captcha_root is not None else default_captcha_root()
-            request = prepare_challenge(page, pending, root, without_media)
-            actions = solver(request, stopped)
-            check_stop(stopped)
-            if not apply_answer(page, request, actions):
-                raise CollectionError("source_captcha") from None
-            attempts -= 1
+            attempts = max(attempts - 1, 0)
             resume_read = True
             continue
         except RejectedCard as error:
@@ -491,6 +553,11 @@ def _read_page[Result](
             if "Execution context was destroyed" in str(error) and not accepts_redirect(
                 page.url
             ):
+                found = _document_challenge(page)
+                if found is not None and resolve(found):
+                    attempts = max(attempts - 1, 0)
+                    resume_read = True
+                    continue
                 raise CollectionError("unexpected_redirect") from error
             if observed_status is not None:
                 raise CollectionError(f"http_{observed_status}") from error

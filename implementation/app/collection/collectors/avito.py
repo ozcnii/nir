@@ -129,8 +129,12 @@ def capture_card(
         raise PlaywrightTimeout("Card attempt deadline elapsed")
     handle = page.wait_for_function(
         """() => {
-            const challenge = /доступ ограничен|подозрительн|проверка безопасности/i
-                .test(document.body?.innerText?.slice(0, 4000) ?? "")
+            // AVITO-CHECK-TITLE: the block notice names itself in <title> while
+            // the body only says the page failed because of the IP address.
+            const notice = `${document.title || ""}\n${
+                document.body?.innerText?.slice(0, 4000) ?? ""}`;
+            const challenge = /доступ ограничен|подозрительн|проверка безопасности|проблемы с ip|пройти проверку/i
+                .test(notice)
                 || Boolean(document.querySelector(
                     'iframe[src*="geetest"], script[src*="geetest"]'));
             if (document.readyState !== "complete") return false;
