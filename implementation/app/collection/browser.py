@@ -151,7 +151,7 @@ _FRAME_TASK = (
 FRAME_TASK_WAIT_S = 6.0
 # Кнопка проверки иногда не открывает окно с первого раза: hCaptcha
 # успевает не инициализироваться. Повторяем, пока задача не появится.
-CLICK_ATTEMPTS = 3
+CLICK_ATTEMPTS = 6
 # Сколько ждать решения после того, как ответ применён на странице.
 ANSWER_SETTLE_S = 12.0
 
@@ -597,6 +597,7 @@ def _read_page[Result](
             # pictures even before an answer arrives.
             page.unroute("**/*", without_media)
             media_released = True
+        clicked_any = False
         if not continue_clicked:
             before_click = loaded_images(page)
             for attempt in range(CLICK_ATTEMPTS):
@@ -611,6 +612,7 @@ def _read_page[Result](
                 # check is still there by design, so the broker answers that
                 # stage instead of the click counting as a failed attempt.
                 continue_clicked = True
+                clicked_any = True
                 image_baseline = before_click
                 # Задача в фрейме открывается сразу после клика и живёт
                 # недолго: ждать её закрытия вместе с отказом нельзя.
@@ -622,6 +624,9 @@ def _read_page[Result](
                 _human_reload(page)
         if _challenge_gone(page, CHALLENGE_SELF_RESOLVE_S):
             return True
+        if not clicked_any and not continue_clicked:
+            # Кнопки так и не было: модели на такой странице нечего измерять.
+            return False
         if broker_rounds >= CAPTCHA_ROUNDS or solver is None:
             return False
         broker_rounds += 1
