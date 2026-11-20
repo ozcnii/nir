@@ -27,6 +27,10 @@ import time
 from pathlib import Path
 
 MODEL = os.environ.get("CAPTCHA_MODEL", "").strip()
+# Сколько ждать ответа модели на одну задачу. Ориентир — самая медленная
+# пригодная модель: пазл Авито на deepseek занимает около 240 с. По истечении
+# задача получает give_up.
+ANSWER_TIMEOUT_S = float(os.environ.get("CAPTCHA_TIMEOUT", "360"))
 VIEWPORT = (1280, 720)
 
 # Задача формулируется как измерение по картинке. Так модель отвечает на
@@ -94,7 +98,7 @@ def ask(image: Path, kind: str) -> str:
         ["pi", "-p", "--model", MODEL, prompt],
         capture_output=True,
         text=True,
-        timeout=300,
+        timeout=ANSWER_TIMEOUT_S,
     )
     return run.stdout.strip()
 
@@ -148,7 +152,15 @@ def main() -> int:
             if not image.is_file():
                 continue
             kind = task_kind(str(request.get("marker", "")))
-            raw = ask(image, kind)
+            try:
+                raw = ask(image, kind)
+            except subprocess.TimeoutExpired:
+                print(
+                    f"{request_path.stem}: ответа нет за {ANSWER_TIMEOUT_S:.0f} с, "
+                    "задача получает give_up",
+                    flush=True,
+                )
+                raw = ""
             answer = parse(raw) or {"action": "give_up"}
             answer_path.write_text(json.dumps(answer), encoding="utf-8")
             print(
