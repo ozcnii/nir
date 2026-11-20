@@ -13,6 +13,7 @@ export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
 export DB_APP_PASSWORD="$(openssl rand -hex 24)"
 export DB_MIGRATOR_PASSWORD="$(openssl rand -hex 24)"
 export DJANGO_SECRET_KEY="$(openssl rand -hex 32)"
+export COLLECTION_PROFILE=acceptance
 export NIR_PG_FIXTURE_TOKEN="$(openssl rand -hex 24)"
 
 project_label="com.docker.compose.project=$COMPOSE_PROJECT_NAME"

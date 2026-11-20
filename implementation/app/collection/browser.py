@@ -2,6 +2,7 @@
 
 import logging
 import os
+import random
 import tempfile
 import time
 from collections.abc import Callable, Iterator
@@ -34,6 +35,13 @@ LOGGER = logging.getLogger(__name__)
 # must be recognised before the status or the address is treated as a refusal.
 _CHECK_STATUSES = frozenset({401, 403, 429, 439})
 CHECK_SETTLE_MS = 5_000.0
+# Часть проверок проходит сама: страница закрывает их после короткого ожидания.
+# Прежде чем звать агента, даём задаче исчезнуть самостоятельно.
+CHALLENGE_SELF_RESOLVE_S = 15.0
+# После нажатия кнопки проверка думает секунды: ждём, а не жмём повторно.
+CONTINUE_SETTLE_S = 25.0
+# Сколько ждать появления кнопки продолжения после обнаружения проверки.
+CONTINUE_WAIT_S = 8.0
 _CHALLENGE_DOCUMENT = r"""() => {
     if (document.readyState !== "complete") return null;
     const text = `${document.title || ""}\n${(document.body?.innerText || "").slice(0, 4000)}`;
@@ -41,6 +49,7 @@ _CHALLENGE_DOCUMENT = r"""() => {
     if (document.querySelector('iframe[src*="geetest"], script[src*="geetest"]')) return 'geetest';
     if (document.querySelector('script[src*="servicepipe"]') && /\/xpvnsulc\//.test(location.pathname)) return '/xpvnsulc/';
     if (/\/xpvnsulc\//.test(location.pathname)) return '/xpvnsulc/';
+    if (/нажмите для подтверждения|подтвердите, что вы не робот/i.test(text)) return 'confirm_notice';
     if (/доступ ограничен|проблемы с ip|подозрительн|проверка безопасности|убедиться[^.]{0,40}ботом/i.test(text)) return 'block_notice';
     return null;
 }"""
@@ -56,6 +65,68 @@ def _challenge_source(url: str) -> str:
         if host == suffix or host.endswith("." + suffix):
             return source
     return "unknown"
+
+
+# Кнопка продолжения на странице проверки. Её текст стабилен, поэтому нажимаем
+# селектором, а не просим модель искать координаты.
+_CONTINUE_CONTROL = {
+    "avito": (
+        "button:has-text('Пройти проверку')",
+        "button:has-text('Продолжить')",
+        "text=Нажмите для подтверждения",
+    ),
+}
+
+
+def _click_continue(page: Page, source: str) -> bool:
+    """Нажимает кнопку продолжения, если для источника она известна."""
+    selectors = _CONTINUE_CONTROL.get(source)
+    if not selectors:
+        return False
+    try:
+        control = None
+        # Кнопка появляется не мгновенно: страница сначала дорисовывает модалку.
+        deadline = time.monotonic() + CONTINUE_WAIT_S
+        while control is None and time.monotonic() < deadline:
+            for selector in selectors:
+                candidate = page.locator(selector).first
+                if candidate.count() > 0 and candidate.is_visible():
+                    control = candidate
+                    break
+            if control is None:
+                page.wait_for_timeout(500)
+        if control is None:
+            return False
+        box = control.bounding_box()
+        if box is None:
+            return False
+        # Человеческий клик: пауза, случайная точка внутри кнопки, путь из
+        # многих шагов и небольшая задержка перед отпусканием.
+        time.sleep(random.uniform(0.4, 1.2))
+        x = box["x"] + random.uniform(0.25, 0.75) * box["width"]
+        y = box["y"] + random.uniform(0.25, 0.75) * box["height"]
+        page.mouse.move(
+            box["x"] + box["width"] / 2 + random.uniform(-120.0, 120.0),
+            box["y"] + box["height"] / 2 + random.uniform(-80.0, 80.0),
+        )
+        page.mouse.move(x, y, steps=random.randint(15, 25))
+        time.sleep(random.uniform(0.1, 0.3))
+        page.mouse.down()
+        time.sleep(random.uniform(0.05, 0.15))
+        page.mouse.up()
+        return True
+    except PlaywrightError:
+        return False
+
+
+def _challenge_gone(page: Page, seconds: float) -> bool:
+    """Ждёт, пока проверка закроется сама; True — закрылась без вмешательства."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if _document_challenge(page, timeout_ms=500.0) is None:
+            return True
+        time.sleep(0.5)
+    return False
 
 
 def _document_challenge(
@@ -91,7 +162,9 @@ STOP_POLL_S = 0.2
 # One source can sample a few pages and cards at a human pace instead of
 # draining the whole listing in a burst. Limits and pauses are empty by default
 # so checks walk the complete listing; a live run sets its own pace.
-CAPTCHA_ROUNDS = 3
+# Сколько раз за одну попытку страницы разрешено проходить проверку. У Авито
+# её ступени идут подряд: кнопка, пазл, после перезагрузки снова кнопка.
+CAPTCHA_ROUNDS = int(os.environ.get("COLLECTION_CAPTCHA_ROUNDS", "4"))
 COLLECTION_MAX_PAGES = ""
 COLLECTION_MAX_CARDS = ""
 COLLECTION_PAGE_PAUSE = ""
@@ -317,6 +390,14 @@ def browser_page() -> Iterator[Page]:
                 handle_sigint=False,
                 handle_sigterm=False,
                 proxy=proxy,
+                viewport={"width": 1440, "height": 900},
+                locale="ru-RU",
+                timezone_id="Europe/Samara",
+                # Playwright по умолчанию оставляет --enable-automation, из-за
+                # которого страница видит navigator.webdriver и считает браузер
+                # роботом. Для обычного чтения публичных страниц это лишний флаг.
+                ignore_default_args=["--enable-automation"],
+                args=["--disable-blink-features=AutomationControlled"],
             )
         except OSError as error:
             raise CollectionError("profile_unavailable") from error
@@ -445,8 +526,15 @@ def _read_page[Result](
     resume_read = False
 
     def resolve(pending: ChallengePending) -> bool:
-        """Ask the broker for one challenge and apply the answer in place."""
+        """Pass one challenge: wait it out, click a known control, or ask the broker."""
         nonlocal broker_rounds, media_released
+        if _challenge_gone(page, CHALLENGE_SELF_RESOLVE_S):
+            return True
+        if _click_continue(page, pending.challenge.source):
+            if _challenge_gone(page, CONTINUE_SETTLE_S):
+                return True
+            # Клик не помог: повторять его бессмысленно и заметно.
+            return False
         if broker_rounds >= CAPTCHA_ROUNDS or solver is None:
             return False
         broker_rounds += 1

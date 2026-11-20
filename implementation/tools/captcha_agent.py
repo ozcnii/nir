@@ -46,32 +46,26 @@ TASKS = {
         "Измерь, на сколько пикселей вправо сдвинуть бегунок, чтобы пропорции "
         "изображения восстановились."
     ),
-    "button": (
-        "На картинке есть элемент, нажатие на который продолжает работу. "
-        "Определи его центр."
-    ),
 }
 
-PROMPT = """Открой изображение {image} и выполни измерение.
+PROMPT = """Открой изображение {image} и выполни задачу.
 
 {task}
 
 Изображение — скриншот экрана {width}x{height}; координаты на нём совпадают с экранными.
 
-Ответь одной строкой, без пояснений и без markdown:
-    dx=<целое> center=(<x>, <y>)
-где dx — сдвиг вправо в пикселях, center — центр круглого бегунка ползунка.
-Если задача про нажатие:
-    click=(<x>, <y>)
-Если измерить по картинке нельзя:
-    give_up: <что именно не видно>
+{answer}
 """
+
+ANSWER = """Ответь одной строкой, без пояснений и без markdown:
+    dx=<целое> center=(<x>, <y>)
+где dx — на сколько пикселей вправо сдвинуть бегунок, center — его центр.
+Если измерить нельзя: give_up: <что именно не видно>"""
 
 # Признак в запросе -> тип задачи. Первое совпадение выигрывает.
 MARKERS = (
     ("puzzle", ("geetest",)),
     ("unfold", ("unfold", "servicepipe", "xpvnsulc")),
-    ("button", ("button", "notice", "block")),
 )
 
 _DRAG = re.compile(r"dx\s*=\s*(-?\d+).*?\(\s*(\d+)\s*,\s*(\d+)\s*\)", re.S)
@@ -84,7 +78,7 @@ def task_kind(marker: str) -> str:
     for kind, tokens in MARKERS:
         if any(token in marker for token in tokens):
             return kind
-    return "button"
+    return "puzzle"
 
 
 def ask(image: Path, kind: str) -> str:
@@ -93,6 +87,7 @@ def ask(image: Path, kind: str) -> str:
         task=TASKS[kind],
         width=VIEWPORT[0],
         height=VIEWPORT[1],
+        answer=ANSWER,
     )
     run = subprocess.run(
         ["pi", "-p", "--model", MODEL, prompt],

@@ -131,6 +131,12 @@ class Command(BaseCommand):
             if captcha_broker is not None
             else None
         )
+        if not os.environ.get("COLLECTION_PROFILE", "").strip():
+            # Одноразовый контекст площадка считает подозрительным и включает
+            # более жёсткую проверку, которую скриптовый клик не проходит.
+            raise CommandError(
+                "collection_profile_required: задайте COLLECTION_PROFILE"
+            )
         if captcha_agent and captcha_broker is None:
             raise CommandError("captcha_agent_requires_broker")
         agent = (
