@@ -102,6 +102,8 @@ _DIRECTIONS = {
     "flatSale": _Direction("sale", APARTMENT_TYPE_ID, "resale"),
     "roomSale": _Direction("sale", ROOM_TYPE_ID),
     "houseSale": _Direction("sale", HOUSE_TYPE_ID),
+    # Коттеджи приходят отдельной категорией, а не houseSale.
+    "cottageSale": _Direction("sale", HOUSE_TYPE_ID),
     "flatRent": _Direction("month_rent", APARTMENT_TYPE_ID),
     "roomRent": _Direction("month_rent", ROOM_TYPE_ID),
     "cottageRent": _Direction("month_rent", HOUSE_TYPE_ID),
