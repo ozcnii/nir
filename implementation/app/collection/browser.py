@@ -527,26 +527,33 @@ def _read_page[Result](
     resume_read = False
 
     image_baseline: frozenset[str] | None = None
+    continue_clicked = False
 
     def resolve(pending: ChallengePending) -> bool:
         """Pass one challenge: wait it out, click a known control, or ask the broker."""
-        nonlocal broker_rounds, media_released, image_baseline
+        nonlocal broker_rounds, media_released, image_baseline, continue_clicked
+        if not media_released:
+            # A check is interactive: its control and the next stage need their
+            # pictures even before an answer arrives.
+            page.unroute("**/*", without_media)
+            media_released = True
         if _challenge_gone(page, CHALLENGE_SELF_RESOLVE_S):
             return True
-        if _click_continue(page, pending.challenge.source):
-            if _challenge_gone(page, CONTINUE_SETTLE_S):
-                return True
-            # Клик не помог: повторять его бессмысленно и заметно.
-            return False
+        if not continue_clicked:
+            before_click = loaded_images(page)
+            if _click_continue(page, pending.challenge.source):
+                # CAPTCHA-NEXT-STAGE: the continue button opens the next stage
+                # over the same document (a puzzle over the refusal notice). The
+                # check is still there by design, so the broker answers that
+                # stage instead of the click counting as a failed attempt.
+                continue_clicked = True
+                image_baseline = before_click
+                if _challenge_gone(page, CONTINUE_SETTLE_S):
+                    return True
         if broker_rounds >= CAPTCHA_ROUNDS or solver is None:
             return False
         broker_rounds += 1
         root = captcha_root if captcha_root is not None else default_captcha_root()
-        if not media_released:
-            # The check needs its pictures while the answer is applied: the next
-            # stage opens inside this document and must find them loaded.
-            page.unroute("**/*", without_media)
-            media_released = True
         request = prepare_challenge(
             page,
             pending,

@@ -507,6 +507,58 @@ class TransitionalStatusTests(TestCase):
         self.assertEqual(len(requested), 1)
         self.assertEqual(navigations, [START])
 
+    def test_continue_button_opens_the_stage_the_broker_answers(self) -> None:
+        # Arrange: the notice carries a continue button and a check behind it.
+        navigations: list[str] = []
+        requested: list[CaptchaRequest] = []
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        body = (
+            "<meta charset=utf-8>"
+            '<button onclick="window.__clicked = true">Пройти проверку</button>'
+            '<div id="js-challenge-loader"></div>'
+        )
+
+        def serve(request: Route) -> None:
+            navigations.append(request.request.url)
+            request.fulfill(
+                status=200, content_type="text/html; charset=utf-8", body=body
+            )
+
+        def capture(_observed_at: datetime, _deadline: float) -> str:
+            if not requested:
+                raise ChallengePending(Challenge("avito", "drag", "geetest"))
+            return "card"
+
+        def solver(
+            request: CaptchaRequest, _stopped: Callable[[], bool]
+        ) -> tuple[Drag]:
+            requested.append(request)
+            return (Drag(10.0, 0.0),)
+
+        # Act
+        with (
+            patch("app.collection.browser.CHALLENGE_SELF_RESOLVE_S", 0.2),
+            patch("app.collection.browser.CONTINUE_SETTLE_S", 0.2),
+            browser_page() as page,
+        ):
+            page.route("**/*", serve)
+            result = read_page(
+                page,
+                START,
+                lambda: False,
+                capture,
+                accepts_redirect=lambda loaded: loaded == START,
+                solver=solver,
+                captcha_root=root,
+            )
+            clicked = page.evaluate("() => window.__clicked === true")
+
+        # Assert: the button was pressed, and the opened stage went to the broker.
+        self.assertEqual(result, "card")
+        self.assertTrue(clicked)
+        self.assertEqual(len(requested), 1)
+        self.assertEqual(navigations, [START])
+
     def test_handover_through_the_file_broker_resumes_after_the_document(
         self,
     ) -> None:
