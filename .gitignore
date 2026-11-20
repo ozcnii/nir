@@ -147,6 +147,7 @@ thesis/thesis.docx
 
 # Python implementation artifacts
 /implementation/.venv/
+/implementation/.broker/
 /implementation/.mypy_cache/
 /implementation/.ruff_cache/
 /implementation/.local/
