@@ -115,8 +115,6 @@ class Command(BaseCommand):
         **options: object,
     ) -> None:
         sources = [source] if isinstance(source, str) else source
-        if corpus_dir is not None and (captcha_broker is not None or captcha_agent):
-            raise CommandError("corpus_does_not_use_captcha_broker")
         stop_requested = False
 
         def request_stopped() -> bool:
@@ -196,6 +194,8 @@ class Command(BaseCommand):
                         deal,
                         request_stopped,
                         segment=segment,
+                        solver=solver,
+                        captcha_root=captcha_broker,
                     )
             else:
                 raise CommandError("collection_scope_required")

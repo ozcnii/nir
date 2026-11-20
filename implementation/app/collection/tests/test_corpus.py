@@ -285,15 +285,12 @@ class CorpusTests(TestCase):
                 read_json(domclick_dir / "normalized.json")["state"], "active"
             )
 
-    def test_corpus_rejects_a_broker_before_opening_a_browser(self) -> None:
-        # Arrange
+    def test_corpus_accepts_a_broker_for_the_same_run(self) -> None:
+        # Arrange: корпус и обработчик проверок больше не конфликтуют.
         with TemporaryDirectory() as directory:
             destination = Path(directory) / "fresh"
             url = avito_fixture.projection("resale")["url"]
 
-            # Act / Assert
-            with self.assertRaisesRegex(
-                CommandError, "^corpus_does_not_use_captcha_broker$"
-            ):
+            # Act: команда доходит до запуска и падает уже на профиле.
+            with self.assertRaisesRegex(CommandError, "^collection_profile_required$"):
                 collect(destination, url, "--captcha-broker", str(destination))
-            self.assertFalse(destination.exists())

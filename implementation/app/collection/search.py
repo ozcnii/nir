@@ -30,6 +30,8 @@ from app.collection.browser import (
 )
 from app.collection.captcha import Solver
 from app.collection.collectors import (
+    avito,
+    avito_search,
     cian,
     cian_room_search,
     cian_search,
@@ -100,6 +102,23 @@ def _directions(
                     )
                     if deal == "day_rent" and property_type_id == ROOM_TYPE_ID
                     else None,
+                ),
+            )
+    if source == "avito":
+        avito_route = avito_search.route_for(region_id, deal, property_type_id, segment)
+        if avito_route is not None:
+            return (
+                Direction(
+                    source,
+                    avito_route.start,
+                    avito_route.permits_next,
+                    avito.card_key,
+                    lambda page, deadline, previous: avito_search.read_page(
+                        page, avito_route, deadline, previous_page=previous
+                    ),
+                    lambda page, deadline, address: avito_search.read_page(
+                        page, avito_route, deadline
+                    ),
                 ),
             )
     if source == "domclick":
@@ -243,9 +262,9 @@ def collect_corpus(
     stopped: Callable[[], bool],
     *,
     segment: Market | None = None,
+    solver: Solver | None = None,
+    captcha_root: Path | None = None,
 ) -> dict[str, object]:
-    if "avito" in sources:
-        raise CollectionError("corpus_avito_requires_card_url")
     directions = {
         source: _directions(source, region_id, property_type_id, deal, segment)
         for source in dict.fromkeys(sources)
@@ -279,8 +298,8 @@ def collect_corpus(
                 stopped,
                 lambda _: SnapshotResult("created"),
                 in_scope,
-                None,
-                None,
+                solver,
+                captcha_root,
                 pace,
                 corpus=corpus,
             )

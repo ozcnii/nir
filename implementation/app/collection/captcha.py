@@ -177,6 +177,25 @@ def prepare_challenge(
         "start": list(start),
         "created_at": request.created_at.isoformat(),
     }
+    # Что именно показала площадка: разметка нужна, чтобы понять, во что
+    # целиться, не гадая по картинке.
+    try:
+        observed = page.evaluate(
+            """() => ({
+                iframes: Array.from(document.querySelectorAll('iframe'))
+                    .map(node => node.src).slice(0, 12),
+                scripts: Array.from(document.querySelectorAll('script[src]'))
+                    .map(node => node.src)
+                    .filter(src => /captcha|geetest|qrator|servicepipe/i.test(src)),
+                dialogs: Array.from(document.querySelectorAll('div[role="dialog"], [class*="modal"]'))
+                    .map(node => (node.outerHTML || '').slice(0, 2000)).slice(0, 3),
+            })"""
+        )
+        (pending_dir / f"{identifier}.dom.json").write_text(
+            json.dumps(observed, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except PlaywrightError:
+        pass
     (pending_dir / f"{identifier}.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
