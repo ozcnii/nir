@@ -27,6 +27,9 @@ import time
 from pathlib import Path
 
 MODEL = os.environ.get("CAPTCHA_MODEL", "").strip()
+# CAPTCHA-THINKING: the global default is "max", where a slow model reasons
+# past any usable deadline. A bounded level keeps the answer measurable.
+THINKING = os.environ.get("CAPTCHA_THINKING", "low").strip()
 # Сколько ждать ответа модели на одну задачу. Ориентир — самая медленная
 # пригодная модель: пазл Авито на deepseek занимает около 240 с. По истечении
 # задача получает give_up.
@@ -89,8 +92,11 @@ def ask(image: Path, kind: str) -> str:
         height=VIEWPORT[1],
         answer=ANSWER,
     )
+    command = ["pi", "-p", "--model", MODEL]
+    if THINKING:
+        command += ["--thinking", THINKING]
     run = subprocess.run(
-        ["pi", "-p", "--model", MODEL, prompt],
+        [*command, prompt],
         capture_output=True,
         text=True,
         timeout=ANSWER_TIMEOUT_S,
