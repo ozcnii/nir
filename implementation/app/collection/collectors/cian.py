@@ -371,7 +371,9 @@ def capture_card(
     while True:
         data = _wait_for_card_scripts(page, url, deadline, previous_config)
         if data["captcha"]:
-            raise ChallengePending(Challenge("cian", "drag", "servicepipe"))
+            raise ChallengePending(
+                Challenge("cian", "drag", "servicepipe", replaces_document=True)
+            )
         snapshot = _parse_observation(
             route, key, data["config"], data["products"], data["url"], observe
         )

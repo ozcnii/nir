@@ -53,7 +53,9 @@ def _check_document(page: Page, route: SearchRoute) -> None:
         return
     path = page.url.split("?", 1)[0].rstrip("/")
     if path.endswith("/cian-captcha") or "/xpvnsulc" in path:
-        raise ChallengePending(Challenge("cian", "drag", "servicepipe"))
+        raise ChallengePending(
+            Challenge("cian", "drag", "servicepipe", replaces_document=True)
+        )
     raise RejectedCard("unexpected_redirect")
 
 

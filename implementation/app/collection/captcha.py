@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Literal, cast
 
 from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Page, Route
+from playwright.sync_api import Page
 
 CaptchaKind = Literal["click", "drag", "unknown"]
 
@@ -31,6 +31,9 @@ class Challenge:
     source: str
     kind: CaptchaKind
     marker: str
+    # CAPTCHA-DOCUMENT: a check that replaced the requested document is safe to
+    # read again; a check shown over a document the site already served is not.
+    replaces_document: bool = False
 
 
 class ChallengePending(Exception):
@@ -72,7 +75,17 @@ class GiveUp:
     """The check stays unresolved; the page attempt keeps its own reason."""
 
 
-Action = Click | Drag | Pause | GiveUp
+@dataclass(frozen=True)
+class NoAnswer:
+    """Nobody answered before the deadline; the document stays unverified."""
+
+
+@dataclass(frozen=True)
+class Done:
+    """The answerer passed the check by hand; the document is read again."""
+
+
+Action = Click | Drag | Pause | GiveUp | NoAnswer | Done
 
 
 @dataclass(frozen=True)
@@ -112,28 +125,6 @@ def _challenge_centre(page: Page) -> tuple[float, float]:
     return float(observed["x"]), float(observed["y"])
 
 
-_OPEN_CHALLENGE = r"""() => {
-    // A second stage is only "open" when its dialog is really visible: an
-    // element carrying the class name may be hidden in the base markup.
-    const shown = (node) => {
-        if (!node) return false;
-        const rect = node.getBoundingClientRect();
-        const style = getComputedStyle(node);
-        return rect.width > 100 && rect.height > 100
-            && style.visibility !== "hidden" && style.display !== "none";
-    };
-    return Array.from(document.querySelectorAll('iframe[src*="geetest"]')).some(shown);
-}"""
-
-
-def _challenge_on_screen(page: Page) -> bool:
-    """Whether the check is already shown and must not be reloaded away."""
-    try:
-        return bool(page.evaluate(_OPEN_CHALLENGE))
-    except PlaywrightError:
-        return False
-
-
 def _wait_for_challenge_image(page: Page) -> None:
     """Give the task picture a chance to load before taking the screenshot."""
     try:
@@ -149,24 +140,24 @@ def prepare_challenge(
     page: Page,
     pending: ChallengePending,
     root: Path,
-    media_filter: Callable[[Route], None],
+    *,
+    reload: bool,
 ) -> CaptchaRequest:
-    """Reload the check once with media enabled and publish the request."""
+    """Publish the check as the page shows it; the caller owns media and reload.
+
+    CAPTCHA-KEEP-OPEN: a second stage opens inside the same document, over the
+    refusal notice. Reloading there would close it and start the check over, so
+    only the caller decides whether the document itself must be read again.
+    """
     identifier = uuid.uuid4().hex[:12]
     pending_dir = root / "pending"
     pending_dir.mkdir(parents=True, exist_ok=True)
     screenshot = pending_dir / f"{identifier}.png"
-    try:
-        page.unroute("**/*", media_filter)
-        # CAPTCHA-KEEP-OPEN: a second stage opens inside the page (a puzzle over
-        # the refusal notice). Reloading would close it and start the check over.
-        if not _challenge_on_screen(page):
-            page.reload(wait_until="domcontentloaded")
-        _wait_for_challenge_image(page)
-        page.screenshot(path=str(screenshot))
-        start = _challenge_centre(page)
-    finally:
-        page.route("**/*", media_filter)
+    if reload:
+        page.reload(wait_until="domcontentloaded")
+    _wait_for_challenge_image(page)
+    page.screenshot(path=str(screenshot))
+    start = _challenge_centre(page)
 
     request = CaptchaRequest(
         identifier=identifier,
@@ -195,9 +186,14 @@ def prepare_challenge(
 class BrokerSolver:
     """Read the answer an operator (or an agent) writes next to the request."""
 
-    def __init__(self, root: Path, wait: float = CAPTCHA_WAIT_S) -> None:
+    def __init__(
+        self, root: Path, wait: float = CAPTCHA_WAIT_S, *, handover: bool = False
+    ) -> None:
         self._root = root
         self._wait = wait
+        # CAPTCHA-HANDOVER: a person watching the window keeps the page as it
+        # is; an agent reading a screenshot may need the document re-read.
+        self.handover = handover
 
     def __call__(
         self, request: CaptchaRequest, stopped: Callable[[], bool]
@@ -210,10 +206,10 @@ class BrokerSolver:
             if answer.exists():
                 return _read_answer(answer, request)
             time.sleep(POLL_INTERVAL_S)
-        return (GiveUp(),)
+        return (NoAnswer(),)
 
 
-def _one_action(item: object) -> Action | None:
+def _one_action(item: object, *, allow_done: bool = False) -> Action | None:
     if not isinstance(item, dict):
         return None
     entry = cast(dict[str, object], item)
@@ -233,7 +229,10 @@ def _one_action(item: object) -> Action | None:
                 start,
             )
         if entry.get("action") == "pause":
-            return Pause(float(cast(float, entry["seconds"])))
+            seconds = float(cast(float, entry["seconds"]))
+            return Pause(seconds) if seconds >= 0 else None
+        if allow_done and entry.get("action") == "done":
+            return Done()
     except (KeyError, TypeError, ValueError):
         return None
     return None
@@ -244,16 +243,25 @@ def _read_answer(path: Path, _request: CaptchaRequest) -> tuple[Action, ...]:
     # notice whose button opens the slider. Both a single action and a list are
     # accepted, so a short answer stays short.
     try:
-        payload = cast(dict[str, object], json.loads(path.read_text(encoding="utf-8")))
-    except (OSError, json.JSONDecodeError):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return (GiveUp(),)
+    if not isinstance(payload, dict):
         return (GiveUp(),)
     listed = payload.get("actions")
-    items: list[object] = (
-        list(cast(list[object], listed)) if isinstance(listed, list) else [payload]
-    )
+    if "actions" in payload and not isinstance(listed, list):
+        return (GiveUp(),)
+    # CAPTCHA-DONE: a handover confirmation stands alone; inside a sequence it
+    # would be one step among others, so it is refused there.
+    if isinstance(listed, list):
+        items: list[object] = list(cast(list[object], listed))
+        allow_done = False
+    else:
+        items = [payload]
+        allow_done = True
     actions: list[Action] = []
     for item in items:
-        action = _one_action(item)
+        action = _one_action(item, allow_done=allow_done)
         if action is None:
             return (GiveUp(),)
         actions.append(action)
@@ -266,7 +274,7 @@ def apply_answer(
     """Perform the answered actions on the same document the request described."""
     applied = False
     for action in actions:
-        if isinstance(action, GiveUp):
+        if isinstance(action, (GiveUp, NoAnswer)):
             return False
         if isinstance(action, Click):
             page.mouse.move(action.x, action.y, steps=8)

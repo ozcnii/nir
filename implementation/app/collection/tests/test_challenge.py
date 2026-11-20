@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from threading import Event
+from threading import Event, Thread
 from typing import cast
 from unittest import TestCase
 from unittest.mock import patch
@@ -28,8 +28,10 @@ from app.collection.captcha import (
     Challenge,
     ChallengePending,
     Click,
+    Done,
     Drag,
     GiveUp,
+    NoAnswer,
     Pause,
     apply_answer,
 )
@@ -286,19 +288,34 @@ class TransitionalStatusTests(TestCase):
         self.assertEqual(actions, (Drag(120.0, 0.0),))
 
     def test_broker_gives_up_on_a_missing_or_broken_answer(self) -> None:
-        # Arrange
+        # Arrange: no answer at all, then answers that cannot be executed.
         root = Path(self.enterContext(tempfile.TemporaryDirectory()))
         request = _request(root)
-        (root / "answers").mkdir()
-        (root / "answers" / f"{request.identifier}.json").write_text(
-            "{not json", encoding="utf-8"
+        answers = root / "answers"
+        answers.mkdir()
+
+        # Act / Assert: a missing answer keeps the document unverified.
+        self.assertEqual(
+            BrokerSolver(root, wait=0.1)(request, lambda: False), (NoAnswer(),)
         )
 
-        # Act
-        actions = BrokerSolver(root, wait=0.1)(request, lambda: False)
+        for payload in (
+            b"{not json",
+            b"[]",
+            b"null",
+            b'{"action": "done", "actions": {}}',
+            b'{"actions": [{"action": "done"}]}',
+            b'{"action": "pause", "seconds": -1}',
+            b"\xff\xfe",
+        ):
+            (answers / f"{request.identifier}.json").write_bytes(payload)
 
-        # Assert
-        self.assertEqual(actions, (GiveUp(),))
+            # Assert: a broken answer is an explicit refusal, never a crash.
+            self.assertEqual(
+                BrokerSolver(root, wait=0.5)(request, lambda: False),
+                (GiveUp(),),
+                payload,
+            )
 
     def test_broker_reads_a_sequence_of_actions(self) -> None:
         # Arrange: one check needs a click, a settle, then the slider.
@@ -438,6 +455,195 @@ class TransitionalStatusTests(TestCase):
 
         # Assert
         self.assertFalse(applied)
+
+    def test_operator_keeps_the_document_and_a_completed_check_resumes_the_read(
+        self,
+    ) -> None:
+        # Arrange: the check replaces the document, and a person answers it.
+        navigations: list[str] = []
+        requested: list[CaptchaRequest] = []
+        captured: list[str] = []
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+
+        def serve(request: Route) -> None:
+            navigations.append(request.request.url)
+            request.fulfill(
+                status=200, content_type="text/html; charset=utf-8", body=_STUB
+            )
+
+        class Operator:
+            handover = True
+
+            def __call__(
+                self, request: CaptchaRequest, _stopped: Callable[[], bool]
+            ) -> tuple[Done]:
+                requested.append(request)
+                return (Done(),)
+
+        def capture(_observed_at: datetime, _deadline: float) -> str:
+            if not requested:
+                raise ChallengePending(
+                    Challenge("cian", "drag", "servicepipe", replaces_document=True)
+                )
+            captured.append("read")
+            return "read"
+
+        # Act
+        with browser_page() as page:
+            page.route("**/*", serve)
+            result = read_page(
+                page,
+                START,
+                lambda: False,
+                capture,
+                accepts_redirect=lambda loaded: loaded == START,
+                solver=Operator(),
+                captcha_root=root,
+            )
+
+        # Assert: the operator kept the same document, and the read resumed.
+        self.assertEqual(result, "read")
+        self.assertEqual(captured, ["read"])
+        self.assertEqual(len(requested), 1)
+        self.assertEqual(navigations, [START])
+
+    def test_handover_through_the_file_broker_resumes_after_the_document(
+        self,
+    ) -> None:
+        # Arrange: the page serves the document only after an operator answered.
+        navigations: list[str] = []
+        answer_written = Event()
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        challenge_page = (
+            "<meta charset=utf-8>"
+            "<script>"
+            "setInterval(async () => {"
+            '  const response = await fetch("/document").catch(() => null);'
+            "  if (response && response.status === 200) {"
+            "    document.body.innerHTML = '<div id=\"listing\">card</div>';"
+            "    window.__ready = true;"
+            "  }"
+            "}, 100);"
+            "</script>"
+        )
+
+        def serve(request: Route) -> None:
+            url = request.request.url
+            if request.request.resource_type == "document":
+                navigations.append(url)
+            if url.endswith("/document"):
+                request.fulfill(
+                    status=200 if answer_written.is_set() else 404,
+                    content_type="text/plain; charset=utf-8",
+                    body="document",
+                )
+            else:
+                request.fulfill(
+                    status=200,
+                    content_type="text/html; charset=utf-8",
+                    body=challenge_page,
+                )
+
+        def capture(_observed_at: datetime, deadline: float) -> str:
+            if not answer_written.is_set():
+                raise ChallengePending(
+                    Challenge("cian", "drag", "servicepipe", replaces_document=True)
+                )
+            remaining = max(1, int((deadline - time.monotonic()) * 1000))
+            page.wait_for_function("() => window.__ready === true", timeout=remaining)
+            return "card"
+
+        class Watcher(Thread):
+            def run(self) -> None:
+                deadline = time.monotonic() + 15
+                while time.monotonic() < deadline:
+                    for pending in sorted((root / "pending").glob("*.json")):
+                        (root / "answers").mkdir(parents=True, exist_ok=True)
+                        (root / "answers" / f"{pending.stem}.json").write_text(
+                            '{"action": "done"}', encoding="utf-8"
+                        )
+                        answer_written.set()
+                        return
+                    time.sleep(0.05)
+
+        # Act
+        with browser_page() as page:
+            page.route("**/*", serve)
+            watcher = Watcher()
+            watcher.start()
+            try:
+                result = read_page(
+                    page,
+                    START,
+                    lambda: False,
+                    capture,
+                    accepts_redirect=lambda loaded: loaded == START,
+                    solver=BrokerSolver(root, wait=15.0, handover=True),
+                    captcha_root=root,
+                )
+            finally:
+                watcher.join(timeout=5)
+
+        # Assert: the operator kept the document, and the read waited for it.
+        self.assertEqual(result, "card")
+        self.assertTrue(answer_written.is_set())
+        self.assertEqual(len(list((root / "pending").glob("*.json"))), 1)
+        self.assertEqual(navigations, [START])
+
+    def test_operator_refusal_stops_without_another_request(self) -> None:
+        # Arrange: a person refuses, so the check stays on the same document.
+        navigations: list[str] = []
+        requested: list[CaptchaRequest] = []
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+
+        def serve(request: Route) -> None:
+            navigations.append(request.request.url)
+            request.fulfill(
+                status=200, content_type="text/html; charset=utf-8", body=_STUB
+            )
+
+        class Operator:
+            handover = True
+
+            def __call__(
+                self, request: CaptchaRequest, _stopped: Callable[[], bool]
+            ) -> tuple[GiveUp]:
+                requested.append(request)
+                return (GiveUp(),)
+
+        def capture(_observed_at: datetime, _deadline: float) -> str:
+            raise ChallengePending(
+                Challenge("cian", "drag", "servicepipe", replaces_document=True)
+            )
+
+        # Act / Assert
+        with browser_page() as page:
+            page.route("**/*", serve)
+            with self.assertRaisesRegex(CollectionError, "^source_captcha$"):
+                read_page(
+                    page,
+                    START,
+                    lambda: False,
+                    capture,
+                    accepts_redirect=lambda loaded: loaded == START,
+                    solver=Operator(),
+                    captcha_root=root,
+                )
+
+        self.assertEqual(len(requested), 1)
+        self.assertEqual(navigations, [START])
+
+    def test_broker_reports_no_answer_after_the_deadline(self) -> None:
+        # Arrange: nobody writes an answer before the wait ends.
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        request = _request(root)
+        (root / "answers").mkdir()
+
+        # Act
+        actions = BrokerSolver(root, wait=0.1)(request, lambda: False)
+
+        # Assert
+        self.assertEqual(actions, (NoAnswer(),))
 
     def test_ephemeral_context_does_not_create_a_profile(self) -> None:
         # Arrange: no profile name means the previous behaviour.

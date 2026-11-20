@@ -242,7 +242,9 @@ def _projection(
     finally:
         handle.dispose()
     if observed["captcha"]:
-        raise ChallengePending(Challenge("cian", "drag", "servicepipe"))
+        raise ChallengePending(
+            Challenge("cian", "drag", "servicepipe", replaces_document=True)
+        )
     return observed
 
 

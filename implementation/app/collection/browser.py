@@ -20,6 +20,8 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from app.collection.captcha import (
     Challenge,
     ChallengePending,
+    Done,
+    NoAnswer,
     Solver,
     apply_answer,
     prepare_challenge,
@@ -73,7 +75,9 @@ def _document_challenge(
         return None
     if not isinstance(marker, str) or not marker:
         return None
-    return ChallengePending(Challenge(_challenge_source(page.url), "drag", marker))
+    return ChallengePending(
+        Challenge(_challenge_source(page.url), "drag", marker, replaces_document=True)
+    )
 
 
 MAX_ATTEMPTS = 2
@@ -437,132 +441,165 @@ def _read_page[Result](
     attempts = 0
     observed_status: int | None = None
     broker_rounds = 0
+    media_released = False
     resume_read = False
 
     def resolve(pending: ChallengePending) -> bool:
         """Ask the broker for one challenge and apply the answer in place."""
-        nonlocal broker_rounds
+        nonlocal broker_rounds, media_released
         if broker_rounds >= CAPTCHA_ROUNDS or solver is None:
             return False
         broker_rounds += 1
         root = captcha_root if captcha_root is not None else default_captcha_root()
-        request = prepare_challenge(page, pending, root, without_media)
+        if not media_released:
+            # The check needs its pictures while the answer is applied: the next
+            # stage opens inside this document and must find them loaded.
+            page.unroute("**/*", without_media)
+            media_released = True
+        request = prepare_challenge(
+            page,
+            pending,
+            root,
+            reload=(
+                broker_rounds == 1
+                and pending.challenge.replaces_document
+                and not bool(getattr(solver, "handover", False))
+            ),
+        )
         actions = solver(request, stopped)
         check_stop(stopped)
+        if any(isinstance(action, Done) for action in actions):
+            return True
+        if any(isinstance(action, NoAnswer) for action in actions):
+            return False
         return apply_answer(page, request, actions)
 
-    while True:
-        navigation = not resume_read
-        resume_read = False
-        if navigation:
-            if attempts >= MAX_ATTEMPTS:
-                reason = (
-                    f"http_{observed_status}"
-                    if observed_status is not None
-                    else "browser_read_failed"
-                )
-                raise CollectionError(reason)
-            attempts += 1
-            observed_status = None
-        check_stop(stopped)
-        observed_at = datetime.now(UTC)
-        deadline = time.monotonic() + CARD_TIMEOUT_MS / 1000
-        try:
-            if navigation and direct_url is not None:
-                response = page.goto(
-                    direct_url, wait_until="domcontentloaded", timeout=CARD_TIMEOUT_MS
-                )
-                check_stop(stopped)
-                if response is None:
-                    raise CollectionError("no_http_response")
-                recovery = document_recovery(response.status, navigation=True)
-                if response.status in _CHECK_STATUSES:
-                    found = _document_challenge(page)
-                    if found is not None and resolve(found):
-                        attempts = max(attempts - 1, 0)
-                        resume_read = True
-                        continue
-                if recovery == "stop":
-                    raise CollectionError(f"http_{response.status}")
-                if recovery == "retry":
-                    if attempts < MAX_ATTEMPTS:
-                        if response.status == 429:
-                            time.sleep(retry_pause)
-                        continue
-                    raise CollectionError(f"http_{response.status}")
-                if recovery == "observe":
-                    observed_status = response.status
-                    deadline = min(deadline, time.monotonic() + challenge_budget)
-            elif (
-                navigation
-                and advance is None
-                and not clicked
-                and next_control is not None
-            ):
-                control = page.locator(next_control)
-                control.click(trial=True, timeout=CARD_TIMEOUT_MS)
-                check_stop(stopped)
-                # After dispatch the same control can refer to another page.
-                clicked = True
-                control.click(timeout=max(1, (deadline - time.monotonic()) * 1000))
-                if responses and not responses[-1].ok:
-                    raise DocumentResponseError(responses[-1])
+    try:
+        while True:
+            navigation = not resume_read
+            resume_read = False
+            if navigation:
+                if attempts >= MAX_ATTEMPTS:
+                    reason = (
+                        f"http_{observed_status}"
+                        if observed_status is not None
+                        else "browser_read_failed"
+                    )
+                    raise CollectionError(reason)
+                attempts += 1
+                observed_status = None
             check_stop(stopped)
-            result = (
-                advance(deadline)
-                if navigation and advance is not None and direct_url is None
-                else capture(observed_at, deadline)
-            )
-            check_stop(stopped)
-            if time.monotonic() >= deadline:
-                raise PlaywrightTimeout("Page attempt deadline elapsed")
-            return result
-        except ChallengePending as pending:
-            check_stop(stopped)
-            LOGGER.warning(
-                "challenge: source=%s marker=%s status=%s",
-                pending.challenge.source,
-                pending.challenge.marker,
-                observed_status,
-            )
-            if not resolve(pending):
-                raise CollectionError("source_captcha") from None
-            attempts = max(attempts - 1, 0)
-            resume_read = True
-            continue
-        except RejectedCard as error:
-            check_stop(stopped)
-            if isinstance(error, DocumentResponseError):
-                if (
-                    attempts < MAX_ATTEMPTS
-                    and 500 <= error.status < 600
-                    and accepts_redirect(error.url)
+            observed_at = datetime.now(UTC)
+            deadline = time.monotonic() + CARD_TIMEOUT_MS / 1000
+            try:
+                if navigation and direct_url is not None:
+                    response = page.goto(
+                        direct_url,
+                        wait_until="domcontentloaded",
+                        timeout=CARD_TIMEOUT_MS,
+                    )
+                    check_stop(stopped)
+                    if response is None:
+                        raise CollectionError("no_http_response")
+                    recovery = document_recovery(response.status, navigation=True)
+                    if response.status in _CHECK_STATUSES:
+                        found = _document_challenge(page)
+                        if found is not None:
+                            resolved = resolve(found)
+                            if not resolved and solver is not None:
+                                raise CollectionError("source_captcha") from None
+                            if resolved:
+                                attempts = max(attempts - 1, 0)
+                                resume_read = True
+                                continue
+                    if recovery == "stop":
+                        raise CollectionError(f"http_{response.status}")
+                    if recovery == "retry":
+                        if attempts < MAX_ATTEMPTS:
+                            if response.status == 429:
+                                time.sleep(retry_pause)
+                            continue
+                        raise CollectionError(f"http_{response.status}")
+                    if recovery == "observe":
+                        observed_status = response.status
+                        deadline = min(deadline, time.monotonic() + challenge_budget)
+                elif (
+                    navigation
+                    and advance is None
+                    and not clicked
+                    and next_control is not None
                 ):
-                    direct_url = error.url
+                    control = page.locator(next_control)
+                    control.click(trial=True, timeout=CARD_TIMEOUT_MS)
+                    check_stop(stopped)
+                    # After dispatch the same control can refer to another page.
+                    clicked = True
+                    control.click(timeout=max(1, (deadline - time.monotonic()) * 1000))
+                    if responses and not responses[-1].ok:
+                        raise DocumentResponseError(responses[-1])
+                check_stop(stopped)
+                result = (
+                    advance(deadline)
+                    if navigation and advance is not None and direct_url is None
+                    else capture(observed_at, deadline)
+                )
+                check_stop(stopped)
+                if time.monotonic() >= deadline:
+                    raise PlaywrightTimeout("Page attempt deadline elapsed")
+                return result
+            except ChallengePending as pending:
+                check_stop(stopped)
+                LOGGER.warning(
+                    "challenge: source=%s marker=%s status=%s",
+                    pending.challenge.source,
+                    pending.challenge.marker,
+                    observed_status,
+                )
+                if not resolve(pending):
+                    raise CollectionError("source_captcha") from None
+                attempts = max(attempts - 1, 0)
+                resume_read = True
+                continue
+            except RejectedCard as error:
+                check_stop(stopped)
+                if isinstance(error, DocumentResponseError):
+                    if (
+                        attempts < MAX_ATTEMPTS
+                        and 500 <= error.status < 600
+                        and accepts_redirect(error.url)
+                    ):
+                        direct_url = error.url
+                        continue
+                    raise CollectionError(str(error)) from error
+                if attempts < MAX_ATTEMPTS and reason_recovery(str(error)) == "retry":
+                    if str(error) == "http_429":
+                        time.sleep(retry_pause)
                     continue
                 raise CollectionError(str(error)) from error
-            if attempts < MAX_ATTEMPTS and reason_recovery(str(error)) == "retry":
-                if str(error) == "http_429":
-                    time.sleep(retry_pause)
-                continue
-            raise CollectionError(str(error)) from error
-        except PlaywrightError as error:
-            check_stop(stopped)
-            if page.is_closed():
-                raise
-            if "Execution context was destroyed" in str(error) and not accepts_redirect(
-                page.url
-            ):
-                found = _document_challenge(page)
-                if found is not None and resolve(found):
-                    attempts = max(attempts - 1, 0)
-                    resume_read = True
-                    continue
-                raise CollectionError("unexpected_redirect") from error
-            if observed_status is not None:
-                raise CollectionError(f"http_{observed_status}") from error
-            if attempts >= MAX_ATTEMPTS or not (
-                isinstance(error, (BrowserTransportError, PlaywrightTimeout))
-                or any(code in str(error) for code in TRANSPORT_ERRORS)
-            ):
-                raise CollectionError("browser_read_failed") from error
+            except PlaywrightError as error:
+                check_stop(stopped)
+                if page.is_closed():
+                    raise
+                if "Execution context was destroyed" in str(
+                    error
+                ) and not accepts_redirect(page.url):
+                    found = _document_challenge(page)
+                    if found is not None:
+                        resolved = resolve(found)
+                        if not resolved and solver is not None:
+                            raise CollectionError("source_captcha") from None
+                        if resolved:
+                            attempts = max(attempts - 1, 0)
+                            resume_read = True
+                            continue
+                    raise CollectionError("unexpected_redirect") from error
+                if observed_status is not None:
+                    raise CollectionError(f"http_{observed_status}") from error
+                if attempts >= MAX_ATTEMPTS or not (
+                    isinstance(error, (BrowserTransportError, PlaywrightTimeout))
+                    or any(code in str(error) for code in TRANSPORT_ERRORS)
+                ):
+                    raise CollectionError("browser_read_failed") from error
+    finally:
+        if media_released and not page.is_closed():
+            page.route("**/*", without_media)

@@ -127,7 +127,7 @@ class Command(BaseCommand):
             stop_requested = True
 
         solver = (
-            BrokerSolver(captcha_broker, wait=captcha_wait)
+            BrokerSolver(captcha_broker, wait=captcha_wait, handover=not captcha_agent)
             if captcha_broker is not None
             else None
         )
