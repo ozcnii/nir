@@ -7,24 +7,35 @@
 ## Условия
 
 - `pi` установлен и авторизован: `pi auth check --model "$CAPTCHA_MODEL"` → `ready`.
-- Модель умеет смотреть изображения. Имя задаётся `CAPTCHA_MODEL`
-  (по умолчанию `openai-codex/gpt-6-luna`).
+- Модель умеет смотреть изображения. Имя **обязательно** задаётся переменной
+  `CAPTCHA_MODEL`: без неё и сбор, и решатель завершаются с ошибкой до начала
+  работы.
 - Для самого сбора — обычные требования: PostgreSQL и переменные окружения
   (`DB_NAME`, `DB_APP_PASSWORD`, `DJANGO_SECRET_KEY`, профиль браузера).
 
 ## Запуск
 
+Одна команда — флаг `--captcha-agent` поднимает решателя рядом со сбором:
+
 ```
-python implementation/tools/collect_with_agent.py -- \
-    --source cian --region 68 --property-type apartment --deal sale
+python -m app.manage collect <URL> \
+    --captcha-broker ./broker --captcha-agent --captcha-wait 300
 ```
 
-Всё после `--` передаётся команде `collect` без изменений. Каталог брокера —
-`--root` (по умолчанию `.broker`), ожидание ответа — `--wait` (по умолчанию 300 с).
+Для областного сбора:
 
-Обёртка поднимает `tools/captcha_agent.py`, ждёт секунду, запускает сбор и
-гасит решателя по завершении. Если задача не встретится, поведение не
-отличается от обычного запуска.
+```
+python -m app.manage collect --source cian --region 68 \
+    --property-type apartment --deal sale \
+    --captcha-broker ./broker --captcha-agent --captcha-wait 300
+```
+
+Команда проверяет готовность `pi` и модели до запуска, поднимает
+`tools/captcha_agent.py`, а по завершении гасит его. Если задача не встретится,
+поведение не отличается от обычного запуска.
+
+Без `--captcha-agent` тот же `--captcha-broker` работает в ручном режиме: сбор
+публикует задачу и ждёт, пока ответ положит человек или другой процесс.
 
 ## Что происходит при задаче
 

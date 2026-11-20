@@ -1,7 +1,11 @@
 """Collect a card or a verified regional search in the foreground."""
 
 import json
+import os
+import shutil
 import signal
+import subprocess
+import sys
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import get_args
@@ -23,6 +27,48 @@ from app.collection.captcha import CAPTCHA_WAIT_S, BrokerSolver
 from app.collection.one_card import collect_card
 from app.collection.search import collect_search
 
+# Тот же каталог, что и у приложения: обвязка лежит рядом с проектом.
+_AGENT_SCRIPT = Path(__file__).resolve().parents[4] / "tools" / "captcha_agent.py"
+
+
+def _agent_model() -> str:
+    """Модель задаётся только окружением: скрытого значения по умолчанию нет."""
+    model = os.environ.get("CAPTCHA_MODEL", "").strip()
+    if not model:
+        raise CommandError("captcha_agent_model_not_set: задайте CAPTCHA_MODEL")
+    return model
+
+
+def _start_agent(root: Path) -> subprocess.Popen[bytes]:
+    """Поднимает решателя рядом со сбором и проверяет готовность до запуска."""
+    if not _AGENT_SCRIPT.is_file():
+        raise CommandError("captcha_agent_script_missing")
+    if shutil.which("pi") is None:
+        raise CommandError("captcha_agent_requires_pi")
+    model = _agent_model()
+    ready = subprocess.run(
+        ["pi", "auth", "check", "--model", model],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if ready.returncode != 0:
+        raise CommandError(f"captcha_agent_model_not_ready: {model}")
+    (root / "pending").mkdir(parents=True, exist_ok=True)
+    (root / "answers").mkdir(parents=True, exist_ok=True)
+    return subprocess.Popen([sys.executable, str(_AGENT_SCRIPT), "--root", str(root)])
+
+
+def _stop_agent(agent: subprocess.Popen[bytes]) -> None:
+    if agent.poll() is not None:
+        return
+    agent.terminate()
+    try:
+        agent.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        agent.kill()
+
+
 _PROPERTY_TYPES = {
     "apartment": APARTMENT_TYPE_ID,
     "room": ROOM_TYPE_ID,
@@ -42,6 +88,11 @@ class Command(BaseCommand):
         parser.add_argument("--segment", choices=get_args(Market))
         parser.add_argument("--captcha-broker", type=Path)
         parser.add_argument("--captcha-wait", type=float, default=CAPTCHA_WAIT_S)
+        parser.add_argument(
+            "--captcha-agent",
+            action="store_true",
+            help="поднять решателя pi на каталоге брокера и погасить его в конце",
+        )
 
     def handle(
         self,
@@ -54,6 +105,7 @@ class Command(BaseCommand):
         segment: Market | None,
         captcha_broker: Path | None,
         captcha_wait: float,
+        captcha_agent: bool,
         **options: object,
     ) -> None:
         stop_requested = False
@@ -66,6 +118,11 @@ class Command(BaseCommand):
             BrokerSolver(captcha_broker, wait=captcha_wait)
             if captcha_broker is not None
             else None
+        )
+        if captcha_agent and captcha_broker is None:
+            raise CommandError("captcha_agent_requires_broker")
+        agent = (
+            _start_agent(captcha_broker) if captcha_agent and captcha_broker else None
         )
         signals = (signal.SIGINT, signal.SIGTERM)
         handlers = {signum: signal.signal(signum, request_stop) for signum in signals}
@@ -122,5 +179,7 @@ class Command(BaseCommand):
         finally:
             for signum, handler in handlers.items():
                 signal.signal(signum, handler)
+            if agent is not None:
+                _stop_agent(agent)
 
         self.stdout.write(json.dumps(result, ensure_ascii=False))

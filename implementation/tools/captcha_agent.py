@@ -8,8 +8,8 @@
 Работает одинаково на macOS, Linux и Windows.
 
 Требуется установленный и авторизованный `pi` (`pi auth`), модель должна уметь
-смотреть изображения. Имя модели задаётся переменной `CAPTCHA_MODEL`, по
-умолчанию `openai-codex/gpt-6-luna`.
+смотреть изображения. Имя модели обязательно задаётся переменной
+`CAPTCHA_MODEL`; без неё запуск завершается с ошибкой.
 
     python implementation/tools/captcha_agent.py --root ./broker
     python implementation/tools/captcha_agent.py --root /var/lib/nir/broker --once
@@ -22,10 +22,11 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 
-MODEL = os.environ.get("CAPTCHA_MODEL", "openai-codex/gpt-6-luna")
+MODEL = os.environ.get("CAPTCHA_MODEL", "").strip()
 VIEWPORT = (1280, 720)
 
 # Задача формулируется как измерение по картинке. Так модель отвечает на
@@ -121,6 +122,9 @@ def parse(answer: str) -> dict[str, object] | None:
 
 
 def main() -> int:
+    if not MODEL:
+        print("нужна переменная CAPTCHA_MODEL с именем модели", file=sys.stderr)
+        return 2
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", required=True, type=Path)
     parser.add_argument("--once", action="store_true")
