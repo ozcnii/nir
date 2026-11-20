@@ -9,7 +9,7 @@
 
 Требуется установленный и авторизованный `pi` (`pi auth`), модель должна уметь
 смотреть изображения. Имя модели задаётся переменной `CAPTCHA_MODEL`, по
-умолчанию `opencode-go/deepseek-v4.1-flash`.
+умолчанию `openai-codex/gpt-6-luna`.
 
     python implementation/tools/captcha_agent.py --root ./broker
     python implementation/tools/captcha_agent.py --root /var/lib/nir/broker --once
@@ -20,49 +20,46 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
 
-MODEL = os.environ.get("CAPTCHA_MODEL", "opencode-go/deepseek-v4.1-flash")
+MODEL = os.environ.get("CAPTCHA_MODEL", "openai-codex/gpt-6-luna")
 VIEWPORT = (1280, 720)
 
-# Задача формулируется по типу картинки, а не по названию площадки: агенту
-# показывают, что нужно сделать, и он решает это как обычную визуальную задачу.
+# Задача формулируется как измерение по картинке. Так модель отвечает на
+# вопрос о геометрии, а действие собирает код — и отказ не возникает там, где
+# спрашивают про расстояние, а не про выполнение.
 TASKS = {
     "puzzle": (
-        "На картинке головоломка: часть изображения вырезана и её нужно "
-        "переместить на пустое место. Найди вырезанный фрагмент и пустое место, "
-        "посчитай горизонтальный сдвиг."
+        "На картинке головоломка: часть изображения вырезана, для неё есть пустое "
+        "место. Измерь горизонтальное расстояние между фрагментом и пустым местом."
     ),
     "unfold": (
-        "На картинке изображение, искажённое по горизонтали. Нужно переместить "
-        "бегунок так, чтобы пропорции восстановились."
+        "На картинке изображение в круге искажено по горизонтали, ниже ползунок. "
+        "Измерь, на сколько пикселей вправо сдвинуть бегунок, чтобы пропорции "
+        "изображения восстановились."
     ),
     "button": (
-        "На картинке есть элемент, который нужно нажать, чтобы продолжить. "
-        "Найди его и верни координаты."
+        "На картинке есть элемент, нажатие на который продолжает работу. "
+        "Определи его центр."
     ),
 }
 
-PROMPT = """Прочитай изображение {image} инструментом read и реши задачу.
+PROMPT = """Открой изображение {image} и выполни измерение.
 
 {task}
 
-Координаты — в пикселях экрана {width}x{height}. На снимке они совпадают с экранными.
+Изображение — скриншот экрана {width}x{height}; координаты на нём совпадают с экранными.
 
-Верни СТРОГО один JSON, без markdown и без пояснений:
-
-{{"action": "drag", "start": [x, y], "dx": <целое 20..600>}}
-    — если нужно тянуть бегунок: start — его центр, dx — сдвиг вправо.
-
-{{"action": "click", "x": <x>, "y": <y>}}
-    — если нужно нажать на элемент.
-
-{{"action": "give_up", "reason": "..."}}
-    — если по картинке решить нельзя.
-
-Если нужны вычисления (расстояния, координаты) — используй python, а не считай в уме.
+Ответь одной строкой, без пояснений и без markdown:
+    dx=<целое> center=(<x>, <y>)
+где dx — сдвиг вправо в пикселях, center — центр круглого бегунка ползунка.
+Если задача про нажатие:
+    click=(<x>, <y>)
+Если измерить по картинке нельзя:
+    give_up: <что именно не видно>
 """
 
 # Признак в запросе -> тип задачи. Первое совпадение выигрывает.
@@ -71,6 +68,10 @@ MARKERS = (
     ("unfold", ("unfold", "servicepipe", "xpvnsulc")),
     ("button", ("button", "notice", "block")),
 )
+
+_DRAG = re.compile(r"dx\s*=\s*(-?\d+).*?\(\s*(\d+)\s*,\s*(\d+)\s*\)", re.S)
+_CLICK = re.compile(r"click\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", re.S)
+_GIVE_UP = re.compile(r"give_up\s*:?\s*(.*)", re.S)
 
 
 def task_kind(marker: str) -> str:
@@ -81,7 +82,7 @@ def task_kind(marker: str) -> str:
     return "button"
 
 
-def ask(image: Path, kind: str) -> dict[str, object] | None:
+def ask(image: Path, kind: str) -> str:
     prompt = PROMPT.format(
         image=image.as_posix(),
         task=TASKS[kind],
@@ -92,40 +93,30 @@ def ask(image: Path, kind: str) -> dict[str, object] | None:
         ["pi", "-p", "--model", MODEL, prompt],
         capture_output=True,
         text=True,
-        timeout=180,
+        timeout=300,
     )
-    text = run.stdout
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end < 0:
-        return None
-    try:
-        return json.loads(text[start : end + 1])
-    except json.JSONDecodeError:
-        return None
+    return run.stdout.strip()
 
 
-def valid(answer: dict[str, object] | None) -> dict[str, object] | None:
-    if not isinstance(answer, dict):
-        return None
+def parse(answer: str) -> dict[str, object] | None:
     width, height = VIEWPORT
-    try:
-        if answer.get("action") == "give_up":
-            return {"action": "give_up"}
-        if answer.get("action") == "click":
-            x, y = float(answer["x"]), float(answer["y"])
-            if 0 <= x < width and 0 <= y < height:
-                return {"action": "click", "x": round(x), "y": round(y)}
-        if answer.get("action") == "drag":
-            sx, sy = (float(value) for value in answer["start"])
-            dx = float(answer["dx"])
-            if 0 <= sx < width and 0 <= sy < height and 0 <= dx <= 600:
-                return {
-                    "action": "drag",
-                    "start": [round(sx), round(sy)],
-                    "dx": round(dx),
-                }
-    except (KeyError, TypeError, ValueError):
-        return None
+    if match := _DRAG.search(answer):
+        dx, x, y = (int(value) for value in match.groups())
+        if 0 <= x < width and 0 <= y < height and 0 <= dx <= 600:
+            return {"action": "drag", "start": [x, y], "dx": dx}
+    if match := _CLICK.search(answer):
+        x, y = (int(value) for value in match.groups())
+        if 0 <= x < width and 0 <= y < height:
+            return {"action": "click", "x": x, "y": y}
+    if _GIVE_UP.search(answer):
+        return {"action": "give_up"}
+    if (start := answer.find("{")) >= 0 and (end := answer.rfind("}")) > start:
+        try:
+            payload = json.loads(answer[start : end + 1])
+        except json.JSONDecodeError:
+            return None
+        if isinstance(payload, dict) and payload.get("action") in {"drag", "click"}:
+            return payload  # старый формат: проверяется ниже по общим правилам
     return None
 
 
@@ -153,14 +144,13 @@ def main() -> int:
             if not image.is_file():
                 continue
             kind = task_kind(str(request.get("marker", "")))
-            answer = valid(ask(image, kind))
-            if answer is None:
-                print(
-                    f"{request_path.stem}: агент не дал применимого ответа", flush=True
-                )
-                answer = {"action": "give_up"}
+            raw = ask(image, kind)
+            answer = parse(raw) or {"action": "give_up"}
             answer_path.write_text(json.dumps(answer), encoding="utf-8")
-            print(f"{request_path.stem}: {kind} -> {answer}", flush=True)
+            print(
+                f"{request_path.stem}: {kind} -> {answer} | ответ: {raw[:70]!r}",
+                flush=True,
+            )
         if options.once:
             return 0
         time.sleep(options.poll)
