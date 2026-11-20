@@ -399,7 +399,7 @@ def browser_page() -> Iterator[Page]:
                 # Playwright по умолчанию оставляет --enable-automation, из-за
                 # которого страница видит navigator.webdriver и считает браузер
                 # роботом. Для обычного чтения публичных страниц это лишний флаг.
-                ignore_default_args=["--enable-automation"],
+                ignore_default_args=["--enable-automation", "--no-sandbox"],
                 args=["--disable-blink-features=AutomationControlled"],
             )
         except OSError as error:
