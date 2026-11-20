@@ -172,6 +172,29 @@ def _wait_for_new_image(page: Page, known: frozenset[str]) -> None:
         pass
 
 
+_FRAME_TASK = (
+    'iframe[src*="frame=challenge"], iframe[src*="puzzle"], iframe[src*="geetest"]'
+)
+
+
+def _wait_for_frame_task(page: Page) -> bool:
+    """Задача может жить во фрейме: без видимого фрейма снимок будет пустым."""
+    try:
+        page.wait_for_function(
+            """(selector) => Array.from(document.querySelectorAll(selector))
+                .some(node => {
+                    const rect = node.getBoundingClientRect();
+                    return rect.width > 0 && rect.height > 0
+                        && rect.bottom > 0 && rect.top < innerHeight;
+                })""",
+            arg=_FRAME_TASK,
+            timeout=IMAGE_SETTLE_MS,
+        )
+    except PlaywrightError:
+        return False
+    return True
+
+
 def prepare_challenge(
     page: Page,
     pending: ChallengePending,
@@ -192,10 +215,12 @@ def prepare_challenge(
     screenshot = pending_dir / f"{identifier}.png"
     if reload:
         page.reload(wait_until="domcontentloaded")
-    if wait_for_new is None:
-        _wait_for_challenge_image(page)
-    else:
-        _wait_for_new_image(page, wait_for_new)
+    # Задача во фрейме не видна документу, поэтому ждём именно фрейм.
+    if not _wait_for_frame_task(page):
+        if wait_for_new is None:
+            _wait_for_challenge_image(page)
+        else:
+            _wait_for_new_image(page, wait_for_new)
     page.screenshot(path=str(screenshot))
     start = _challenge_centre(page)
 

@@ -49,7 +49,7 @@ _CHALLENGE_DOCUMENT = r"""() => {
     if (document.readyState !== "complete") return null;
     const text = `${document.title || ""}\n${(document.body?.innerText || "").slice(0, 4000)}`;
     if (document.querySelector('#js-challenge-loader')) return 'js-challenge-loader';
-    if (document.querySelector('iframe[src*="geetest"], script[src*="geetest"]')) return 'geetest';
+    if (document.querySelector('iframe[src*="geetest"], script[src*="geetest"], [class*="geetest_"]')) return 'geetest';
     if (document.querySelector('script[src*="servicepipe"]') && /\/xpvnsulc\//.test(location.pathname)) return '/xpvnsulc/';
     if (/\/xpvnsulc\//.test(location.pathname)) return '/xpvnsulc/';
     if (/нажмите для подтверждения|подтвердите, что вы не робот/i.test(text)) return 'confirm_notice';
@@ -120,6 +120,42 @@ def _click_continue(page: Page, source: str) -> bool:
         return True
     except PlaywrightError:
         return False
+
+
+_FRAME_TASK = (
+    'iframe[src*="frame=challenge"], iframe[src*="puzzle"], iframe[src*="geetest"]'
+)
+# Сколько ждать, пока нажатая кнопка откроет задачу во фрейме.
+FRAME_TASK_WAIT_S = 6.0
+# Кнопка проверки иногда не открывает окно с первого раза: hCaptcha
+# успевает не инициализироваться. Повторяем, пока задача не появится.
+CLICK_ATTEMPTS = 3
+# Сколько ждать решения после того, как ответ применён на странице.
+ANSWER_SETTLE_S = 12.0
+
+
+def _frame_task_visible(page: Page, seconds: float) -> bool:
+    """Открылась ли задача во фрейме: её нельзя ждать вместе с «проверка ушла»."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        try:
+            visible = bool(
+                page.evaluate(
+                    """(selector) => Array.from(document.querySelectorAll(selector))
+                        .some(node => {
+                            const rect = node.getBoundingClientRect();
+                            return rect.width > 0 && rect.height > 0
+                                && rect.bottom > 0 && rect.top < innerHeight;
+                        })""",
+                    _FRAME_TASK,
+                )
+            )
+        except PlaywrightError:
+            visible = False
+        if visible:
+            return True
+        time.sleep(0.4)
+    return False
 
 
 def _challenge_gone(page: Page, seconds: float) -> bool:
@@ -539,19 +575,28 @@ def _read_page[Result](
             # pictures even before an answer arrives.
             page.unroute("**/*", without_media)
             media_released = True
-        if _challenge_gone(page, CHALLENGE_SELF_RESOLVE_S):
-            return True
         if not continue_clicked:
             before_click = loaded_images(page)
-            if _click_continue(page, pending.challenge.source):
+            for _ in range(CLICK_ATTEMPTS):
+                if not _click_continue(page, pending.challenge.source):
+                    break
                 # CAPTCHA-NEXT-STAGE: the continue button opens the next stage
                 # over the same document (a puzzle over the refusal notice). The
                 # check is still there by design, so the broker answers that
                 # stage instead of the click counting as a failed attempt.
                 continue_clicked = True
                 image_baseline = before_click
+                # Задача в фрейме открывается сразу после клика и живёт
+                # недолго: ждать её закрытия вместе с отказом нельзя.
+                if _frame_task_visible(page, FRAME_TASK_WAIT_S):
+                    break
                 if _challenge_gone(page, CONTINUE_SETTLE_S):
                     return True
+                # Кнопка не открыла задачу: страница отдана заново, пробуем ещё.
+                page.reload(wait_until="domcontentloaded")
+                page.wait_for_timeout(2500)
+        if _challenge_gone(page, CHALLENGE_SELF_RESOLVE_S):
+            return True
         if broker_rounds >= CAPTCHA_ROUNDS or solver is None:
             return False
         broker_rounds += 1
@@ -563,6 +608,9 @@ def _read_page[Result](
             reload=(
                 broker_rounds == 1
                 and pending.challenge.replaces_document
+                # CAPTCHA-KEEP-WIDGET: перезагрузка закрывает задачу, которую
+                # только что открыла нажатая кнопка.
+                and not continue_clicked
                 and not bool(getattr(solver, "handover", False))
             ),
             wait_for_new=image_baseline,
@@ -576,7 +624,20 @@ def _read_page[Result](
         # The next stage may open only after this answer is applied; remember
         # what the document showed so the next screenshot waits for something new.
         image_baseline = loaded_images(page)
-        return apply_answer(page, request, actions)
+        applied = apply_answer(page, request, actions)
+        # CAPTCHA-VERIFY: ответ мог быть непринятым, поэтому недостаточно
+        # самого действия — ждём, что проверка действительно закрылась.
+        if applied and _challenge_gone(page, ANSWER_SETTLE_S):
+            return True
+        if not applied:
+            return False
+        # Задача открывается заново тем же кликом, но уже с другой картинкой.
+        continue_clicked = False
+        if not _click_continue(page, pending.challenge.source):
+            return False
+        if not _frame_task_visible(page, FRAME_TASK_WAIT_S):
+            return False
+        return resolve(pending)
 
     try:
         while True:
@@ -614,7 +675,9 @@ def _read_page[Result](
                                 raise CollectionError("source_captcha") from None
                             if resolved:
                                 attempts = max(attempts - 1, 0)
-                                resume_read = True
+                                resume_read = (
+                                    _document_challenge(page, timeout_ms=800.0) is None
+                                )
                                 continue
                     if recovery == "stop":
                         raise CollectionError(f"http_{response.status}")
@@ -662,7 +725,7 @@ def _read_page[Result](
                 if not resolve(pending):
                     raise CollectionError("source_captcha") from None
                 attempts = max(attempts - 1, 0)
-                resume_read = True
+                resume_read = _document_challenge(page, timeout_ms=800.0) is None
                 continue
             except RejectedCard as error:
                 check_stop(stopped)
@@ -694,7 +757,9 @@ def _read_page[Result](
                             raise CollectionError("source_captcha") from None
                         if resolved:
                             attempts = max(attempts - 1, 0)
-                            resume_read = True
+                            resume_read = (
+                                _document_challenge(page, timeout_ms=800.0) is None
+                            )
                             continue
                     raise CollectionError("unexpected_redirect") from error
                 if observed_status is not None:
