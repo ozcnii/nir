@@ -16,7 +16,11 @@ from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from app.catalog.contracts import Deal
-from app.catalog.reference_defaults import APARTMENT_TYPE_ID, REGION_NAMES
+from app.catalog.reference_defaults import (
+    APARTMENT_TYPE_ID,
+    REGION_NAMES,
+    ROOM_TYPE_ID,
+)
 from app.collection.collectors.avito import card_key
 from app.collection.listing_page import SearchPage
 from app.collection.normalization import RejectedCard, as_object
@@ -28,6 +32,11 @@ _STARTS: dict[tuple[str, Deal, int], str] = {
         "sale",
         APARTMENT_TYPE_ID,
     ): "https://www.avito.ru/samara/kvartiry/prodam-ASgBAgICAUSSA8YQ?cd=1",
+    (
+        "Самарская область",
+        "sale",
+        ROOM_TYPE_ID,
+    ): "https://www.avito.ru/samara/komnaty/prodam-ASgBAgICAUSQA7wQ?cd=1",
 }
 
 # Ссылки на карточки и признак следующей страницы читаются из отрисованного DOM:

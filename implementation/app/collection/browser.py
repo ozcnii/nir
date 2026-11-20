@@ -35,6 +35,8 @@ LOGGER = logging.getLogger(__name__)
 # ACCESS-CHECK-NAVIGATION: a challenge replaces the requested document, so it
 # must be recognised before the status or the address is treated as a refusal.
 _CHECK_STATUSES = frozenset({401, 403, 429, 439})
+# Маркеры, за которыми стоит только сообщение о блокировке, без задания.
+_NOTICE_MARKERS = frozenset({"block_notice", "confirm_notice"})
 CHECK_SETTLE_MS = 5_000.0
 # Часть проверок проходит сама: страница закрывает их после короткого ожидания.
 # Прежде чем звать агента, даём задаче исчезнуть самостоятельно.
