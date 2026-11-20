@@ -61,7 +61,7 @@ _LISTING_WAIT_S = 30.0
 # Выдача дорисовывается рывками: ждём, пока число ссылок перестанет расти,
 # иначе страница читается полупустой.
 _LISTING_SETTLE_MS = 20_000.0
-_SETTLE_TICKS = 3
+_SETTLE_TICKS = 6
 
 
 def _settle_links(page: Page, segment: str) -> None:
