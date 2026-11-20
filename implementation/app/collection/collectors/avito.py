@@ -35,7 +35,7 @@ from app.collection.observations import (
 
 _CARD_PATH = re.compile(
     r"/[a-z0-9_-]+/(kvartiry|komnaty|doma_dachi_kottedzhi)"
-    r"/[a-z0-9_.-]+_([1-9][0-9]{0,19})/?"
+    r"/[^/]+_([1-9][0-9]{0,19})/?"
 )
 _ORIGIN = "https://www.avito.ru"
 

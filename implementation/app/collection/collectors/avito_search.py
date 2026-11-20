@@ -41,9 +41,9 @@ _STARTS: dict[tuple[str, Deal, int], str] = {
 
 # Ссылки на карточки и признак следующей страницы читаются из отрисованного DOM:
 # выдача Авито не публикует отдельного состояния.
-_LISTING = r"""() => {
+_LISTING = r"""(segment) => {
     if (document.readyState !== "complete") return null;
-    const links = Array.from(document.querySelectorAll('a[href*="/kvartiry/"]'))
+    const links = Array.from(document.querySelectorAll(`a[href*="/${segment}/"]`))
         .map(link => link.href.split('?')[0]);
     const urls = Array.from(new Set(links));
     const more = Array.from(document.querySelectorAll('a,button'))
@@ -60,6 +60,16 @@ class SearchRoute:
     source_region: int
     deal: Deal
     property_type_id: int
+
+    @property
+    def segment(self) -> str:
+        """Раздел выдачи: у квартир `kvartiry`, у комнат `komnaty`.
+
+        Ссылки на карточки живут в разделе своего вида объекта, поэтому
+        шаблон ссылок нельзя зашивать одним словом.
+        """
+        parts = [part for part in urlsplit(self.start).path.split("/") if part]
+        return parts[1] if len(parts) > 1 else ""
 
     def permits_next(self, url: str) -> bool:
         if "\\" in url:
@@ -107,7 +117,9 @@ def read_page(
     if remaining_ms <= 0:
         raise PlaywrightTimeout("Result page attempt deadline elapsed")
     handle = page.wait_for_function(
-        _LISTING, timeout=min(remaining_ms, _LISTING_WAIT_S * 1000)
+        _LISTING,
+        arg=route.segment,
+        timeout=min(remaining_ms, _LISTING_WAIT_S * 1000),
     )
     try:
         projection = as_object(cast(object, handle.json_value()))
