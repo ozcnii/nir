@@ -145,7 +145,7 @@ docker compose run --rm app python -m app.manage collect \
 | `COLLECTION_BROWSER_HEADLESS` | `1` | `0` — окно браузера видно оператору |
 | `COLLECTION_PROXY` | пусто | прокси Playwright, например `socks5://127.0.0.1:1081` |
 | `COLLECTION_MAX_PAGES` | не задан | страниц выдачи на источник; пусто или `0` — без лимита |
-| `COLLECTION_MAX_CARDS` | не задан | карточек на источник; пусто или `0` — без лимита |
+| `COLLECTION_MAX_CARDS` | не задан | уникальных карточек выдачи на источник; пусто или `0` — без лимита |
 | `COLLECTION_PAGE_PAUSE` | пусто | пауза между страницами, секунды: `5-12` или `5` |
 | `COLLECTION_CARD_PAUSE` | пусто | пауза перед чтением карточки: `3-8` или `3` |
 
@@ -154,6 +154,17 @@ docker compose run --rm app python -m app.manage collect \
 карточки не допроверяются. Сама допроверка не обрезается лимитом
 карточек, но идёт с той же паузой. Паузы по умолчанию выключены, чтобы
 сохранённые проверки не ждали; живой прогон задаёт их явно.
+
+В Docker передавайте лимит через `-e`. Пример для продажи квартир Циан
+в Самарской области ограничивает чтение выдачи 120 карточками. Сохранённых
+объявлений может быть меньше, если часть карточек не удалось прочитать
+или обработать.
+
+```sh
+docker compose run --rm -e COLLECTION_MAX_CARDS=120 \
+  app python -m app.manage collect \
+  --source cian --region 68 --property-type apartment --deal sale
+```
 
 ```sh
 COLLECTION_PROFILE=warm COLLECTION_BROWSER_CHANNEL=chrome \
