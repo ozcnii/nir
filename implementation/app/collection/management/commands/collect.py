@@ -38,6 +38,7 @@ class Command(BaseCommand):
         parser.add_argument("--property-type", choices=_PROPERTY_TYPES)
         parser.add_argument("--deal", choices=get_args(Deal))
         parser.add_argument("--segment", choices=get_args(Market))
+        parser.add_argument("--max-cards", type=int, metavar="N")
 
     def handle(
         self,
@@ -48,6 +49,7 @@ class Command(BaseCommand):
         property_type: str | None,
         deal: Deal | None,
         segment: Market | None,
+        max_cards: int | None,
         **options: object,
     ) -> None:
         stop_requested = False
@@ -62,7 +64,14 @@ class Command(BaseCommand):
             if url is not None:
                 if any(
                     value is not None
-                    for value in (source, region, property_type, deal, segment)
+                    for value in (
+                        source,
+                        region,
+                        property_type,
+                        deal,
+                        segment,
+                        max_cards,
+                    )
                 ):
                     raise CommandError("choose_card_or_collection_scope")
                 receipt = collect_card(url, lambda: stop_requested)
@@ -78,6 +87,8 @@ class Command(BaseCommand):
                 and property_type is not None
                 and deal is not None
             ):
+                if max_cards is not None and max_cards < 1:
+                    raise CommandError("collection_max_cards_must_be_positive")
                 if segment is not None and (
                     property_type != "apartment" or deal != "sale"
                 ):
@@ -89,6 +100,7 @@ class Command(BaseCommand):
                     deal,
                     lambda: stop_requested,
                     segment=segment,
+                    max_cards=max_cards,
                 )
             else:
                 raise CommandError("collection_scope_required")
