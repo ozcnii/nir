@@ -4,13 +4,13 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import urlsplit
 
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.db import DatabaseError, connection, models
 from django.http import QueryDict
 from django.test import Client, TransactionTestCase, override_settings
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import Page, expect, sync_playwright
 
 from app.catalog.catalog_filters import BIGINT_MAX, CatalogFilters
 from app.catalog.catalog_queries import read_catalog
@@ -83,7 +83,9 @@ def check_api_catalog(page: Page, origin: str, ids: tuple[int, int]) -> None:
 
     # Act: read the same object via the detail API without its HTML search context.
     page.locator("article.result a.object-link").click()
-    assert parse_qs(urlsplit(page.url).query)["from"] == ["catalog"]
+    expect(page).to_have_url(
+        f"{origin}/properties/{property_id}/?from=catalog&{SEARCH}&page=2"
+    )
     detail_response = page.request.get(f"{origin}{API_LIST}{property_id}/")
     detail = detail_response.json()
     removed_response = page.request.get(f"{origin}{API_LIST}{removed_id}/")

@@ -130,12 +130,15 @@ def check_catalog(page: Page, live_server_url: str) -> None:
     expect(page).to_have_url(url)
     expect(page.get_by_role("combobox", name="Сделка")).to_have_value("sale")
     expect(page.locator('#id_deal_type option[value="sale"]')).to_have_text("Продажа")
-    expect(cards.first).to_contain_text("Вторичка")
     expect(cards).to_have_count(20)
     expect(cards.first).to_contain_text("Тестовая улица, 01")
     expect(cards.first).to_contain_text("Студия")
     expect(cards.first).to_contain_text("Этаж: 0")
     expect(cards.first.locator(".offers a")).to_have_count(2)
+    expect(cards.first.locator(".offers a").first).to_have_attribute(
+        "title", "Вторичка"
+    )
+    expect(cards.nth(1)).to_contain_text("Вторичка")
     expect(cards.first.get_by_text("Фото недоступно")).to_be_visible()
     expect(cards.first.get_by_text("Цена зафиксирована", exact=False)).to_have_count(0)
     expect(page.get_by_role("link", name="JSON")).to_have_count(0)
@@ -263,7 +266,8 @@ class CatalogBrowserTests(StaticLiveServerTestCase):
         # Assert
         self.assertEqual(unprotected.status_code, 403)
         self.assertRedirects(saved, search, fetch_redirect_response=False)
-        self.assertContains(comparison, "9\u00a0000\u00a0000 руб.")
+        self.assertContains(comparison, "9\u00a0000\u00a0000 ₽")
+        self.assertNotContains(comparison, "₽/мес.")
         self.assertNotContains(comparison, "руб./мес.")
         self.assertEqual(
             comparison.context["recommendation"]["value"], Decimal("9000000")

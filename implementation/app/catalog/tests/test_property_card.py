@@ -162,7 +162,9 @@ def check_property_card(page: Page, live_server_url: str, ids: tuple[int, int]) 
     daily = active.get_by_role("article").filter(has_text="Суточная аренда")
     expect(daily.locator(".price")).to_have_text("от 4 000 руб./сут.")
     history.get_by_role("combobox").select_option(label="Суточная аренда")
-    expect(history.get_by_text("Дата фиксации", exact=False)).to_be_visible()
+    daily_history = history.locator("[data-price-chart]:visible")
+    expect(daily_history.locator("time")).to_have_text("17.11.2026 10:00")
+    expect(daily_history).to_contain_text("от 4 000 руб./сут.")
 
     # Act: a failed first photo, a working second photo, and a removed publication.
     gallery = page.get_by_role("region", name="Фото объявления", exact=True)
