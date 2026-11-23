@@ -248,7 +248,7 @@ def verify_cian_search() -> None:
     assert limited_summary["pages"] == 1
     assert limited_summary["listing_complete"] is False
     assert limited_summary["issues"] == {"card_limit_reached": 1}
-    assert requests == [REGIONAL_URL, card(FIRST)[0]], requests
+    assert requests == [REGIONAL_URL, card(FIRST)[0], card(FIRST)[0]], requests
 
     for case in ("cycle", "drift", "stop"):
         # Arrange

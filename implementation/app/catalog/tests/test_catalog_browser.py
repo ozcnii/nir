@@ -156,6 +156,7 @@ def check_catalog(page: Page, live_server_url: str) -> None:
     page.locator("#id_area_min").fill("69,0")
     expect(page).to_have_url(re.compile(r"[?&]area_min=69%2C0"))
     listing_link.click()
+    expect(page).to_have_url(re.compile(r"[?&]page=2(?:&|$)"))
     params = parse_qs(urlsplit(page.url).query)
     prop_url = cards.first.locator("a.object-link").get_attribute("href")
 
