@@ -64,6 +64,8 @@ def repeated_flat_patch(
         and previous["address"] is not None
         and incoming["address"] is not None
     ):
+        if previous["address"] == incoming["address"]:
+            return property_patch(previous, incoming, None)
         # The current address may hold stronger evidence than the parser can resolve.
         return {}
     if new is None and incoming["address"] is not None:

@@ -1,0 +1,65 @@
+{% load l10n %}
+<section class="property-price-chart"
+         aria-labelledby="property-history-title"
+         data-price-history>
+  <div class="price-chart-heading">
+    <h2 id="property-history-title">История цен</h2>
+    {% if price_charts|length > 1 %}
+      <select aria-label="Тип сделки в истории цен" data-price-deal hidden>
+        {% for chart in price_charts %}
+          <option value="{{ forloop.counter|unlocalize }}">{{ chart.label }}</option>
+        {% endfor %}
+      </select>
+    {% endif %}
+  </div>
+  {% for chart in price_charts %}
+    <div class="price-chart-group"
+         data-price-chart="{{ forloop.counter|unlocalize }}">
+      {% if mixed_deals %}<h3 data-price-deal-label>{{ chart.label }}</h3>{% endif %}
+      {% if chart.point_count == 1 %}
+        {% with point=chart.series.0.points.0 %}
+          <p class="hint">{{ chart.series.0.label }} · <time datetime="{{ point.price.observed_at|date:'c' }}">{{ point.price.observed_at|date:"d.m.Y H:i" }}</time> · {% include "catalog/price_value.html" with price=point.price unit=chart.unit only %}</p>
+        {% endwith %}
+      {% else %}
+        <ul class="price-chart-legend" aria-label="Площадки">
+          {% for series in chart.series %}
+            <li data-price-source="{{ series.source }}"><span aria-hidden="true"></span>{{ series.label }}</li>
+          {% endfor %}
+        </ul>
+        <figure class="price-chart-figure">
+          <figcaption class="hint">{{ chart.unit }}</figcaption>
+          <svg viewBox="0 0 510 144"
+               preserveAspectRatio="xMinYMid meet"
+               role="group"
+               aria-label="Зафиксированные цены по датам">
+            {% for amount, y in chart.price_ticks %}
+              <line x1="158" x2="490" y1="{{ y|unlocalize }}" y2="{{ y|unlocalize }}" class="price-chart-gridline" />
+              <text x="151" y="{{ y|unlocalize }}" text-anchor="end" dominant-baseline="middle">{{ amount|floatformat:"-2g" }}</text>
+            {% endfor %}
+            {% for date, x in chart.date_ticks %}
+              <text x="{{ x|unlocalize }}" y="136" text-anchor="{% if forloop.last and not forloop.first %}end{% elif forloop.first and not forloop.last %}start{% else %}middle{% endif %}">{{ date|date:"d.m.Y" }}</text>
+            {% endfor %}
+            {% for series in chart.series %}
+              <g data-price-source="{{ series.source }}">
+              {% if series.points|length > 1 %}
+                <polyline points="{{ series.coordinates }}" class="price-chart-line" />
+              {% endif %}
+              </g>
+            {% endfor %}
+            {% for marker in chart.markers %}
+              <g class="price-chart-marker" data-price-marker aria-labelledby="price-point-{{ forloop.parentloop.counter|unlocalize }}-{{ forloop.counter|unlocalize }}">
+              <title id="price-point-{{ forloop.parentloop.counter|unlocalize }}-{{ forloop.counter|unlocalize }}">{% for source, price in marker.observations %}{{ source }} · {{ price.observed_at|date:"d.m.Y H:i" }} · {% include "catalog/price_value.html" with price=price unit=chart.unit only %}{% if not forloop.last %} / {% endif %}{% endfor %}</title>
+              <circle class="price-chart-hit" cx="{{ marker.x|unlocalize }}" cy="{{ marker.y|unlocalize }}" r="14" fill="transparent" />
+              {% for source, kind, radius in marker.rings %}
+                <circle cx="{{ marker.x|unlocalize }}" cy="{{ marker.y|unlocalize }}" r="{{ radius|unlocalize }}" data-price-source="{{ source }}" class="price-chart-dot{% if kind == 'from' %} price-chart-estimate{% endif %}" />
+              {% endfor %}
+              </g>
+            {% endfor %}
+          </svg>
+          <output class="price-chart-value" data-price-value aria-live="polite" hidden></output>
+        </figure>
+        {% if chart.has_estimates %}<p class="hint price-chart-note">Контур точки — цена «от».</p>{% endif %}
+      {% endif %}
+    </div>
+  {% endfor %}
+</section>

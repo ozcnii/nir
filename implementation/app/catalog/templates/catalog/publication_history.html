@@ -1,0 +1,20 @@
+{% if item.offer.price_history %}
+  <table class="price-history">
+    <thead>
+      <tr>
+        <th scope="col">Дата фиксации</th>
+        <th scope="col">Цена</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for price in item.offer.price_history %}
+        <tr>
+          <td><time datetime="{{ price.observed_at|date:'c' }}">{{ price.observed_at|date:"d.m.Y H:i" }}</time></td>
+          <td>{% include "catalog/price_value.html" with price=price unit=item.unit only %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>История цен пуста</p>
+{% endif %}

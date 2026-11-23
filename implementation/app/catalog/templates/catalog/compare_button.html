@@ -1,0 +1,18 @@
+{% load l10n %}
+<form class="favorite-action" action="{% url 'compare' %}" method="post">
+  {% csrf_token %}
+  <input type="hidden" name="property_id" value="{{ property_id|unlocalize }}">
+  <input type="hidden" name="deal" value="{{ deal }}">
+  <input type="hidden"
+         name="return_to"
+         value="{{ return_url|default:request.get_full_path }}#compare-{{ deal }}-{{ property_id|unlocalize }}">
+  <button class="button button-secondary compare-action{% if compact %} compact-action{% endif %}{% if comparing %} is-selected{% endif %}" id="compare-{{ deal }}-{{ property_id|unlocalize }}" data-selection-button {% if compact %}aria-pressed="{% if comparing %}true{% else %}false{% endif %}" title="{% if comparing %}Убрать из сравнения{% else %}В сравнение{% endif %}"{% elif remove_label %}aria-label="Убрать вариант {{ remove_label }} из сравнения" title="Убрать из сравнения"{% endif %} type="submit" name="action" value="{% if comparing %}remove{% else %}save{% endif %}">
+    {% if remove_label %}
+      {% include "catalog/icon.html" with name="x" only %}
+    {% else %}
+      {% include "catalog/icon.html" with name="scale" only %}
+      {% if compact and comparing %}В сравнении{% elif comparing %}Убрать из сравнения{% else %}В сравнение{% endif %}
+    {% endif %}
+    {% if deal_label %}<span class="favorite-deal"> · {{ deal_label }}</span>{% endif %}
+  </button>
+</form>

@@ -1,0 +1,25 @@
+{% extends "catalog/base.html" %}
+{% block title %}Избранное{% endblock title %}
+{% block content %}
+  <header class="workspace-heading">
+    <h1>Избранное</h1>
+  </header>
+  {% include "catalog/deal_tabs.html" with tabs=deal_tabs label="Сделки в избранном" only %}
+  {% if housing_tabs %}
+    {% include "catalog/deal_tabs.html" with tabs=housing_tabs label="Тип жилья в избранном" only %}
+  {% endif %}
+  {% if cards %}
+    <section aria-label="Сохранённые объекты">
+      <div class="result-grid">
+        {% for card in cards %}
+          {% include "catalog/result.html" with in_favorites=True %}
+        {% endfor %}
+      </div>
+    </section>
+  {% else %}
+    <section class="favorites-empty">
+      <h2>{% if has_saved %}В этой подборке пока пусто{% else %}Избранное пока пусто{% endif %}</h2>
+      <a class="button button-primary" href="{{ search_url }}">Перейти к поиску</a>
+    </section>
+  {% endif %}
+{% endblock content %}

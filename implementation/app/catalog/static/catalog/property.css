@@ -1,0 +1,59 @@
+.property-price-chart {
+  margin-block: var(--space-5);
+  min-inline-size: 0;
+  font-size: var(--text-small);
+}
+.price-chart-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+}
+.price-chart-heading h2, .price-chart-group > p { margin: 0; }
+.price-chart-heading select { min-width: 0; }
+.price-chart-group { margin-block-start: var(--space-2); }
+.price-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.price-chart-legend li { display: flex; align-items: center; gap: var(--space-1); overflow-wrap: anywhere; }
+.price-chart-legend li > span {
+  flex: 0 0 .65em;
+  block-size: .65em;
+  border-radius: var(--radius);
+  background: var(--series-color);
+}
+[data-price-source] { --series-color: var(--accent); }
+[data-price-source="avito"] { --series-color: light-dark(#7932a9, #dab1fd); }
+[data-price-source="cian"] { --series-color: light-dark(#185ab5, #89bcff); }
+[data-price-source="domclick"] { --series-color: light-dark(#14734d, #71d6ac); }
+.price-chart-figure { margin: var(--space-2) 0 0; }
+.price-chart-figure figcaption { font-size: var(--text-caption); }
+.price-chart-figure svg { display: block; width: 100%; height: auto; }
+.price-chart-figure text { fill: var(--muted); font-size: 12px; }
+.price-chart-gridline { stroke: var(--line); }
+.price-chart-line { fill: none; stroke: var(--series-color); stroke-width: 2; stroke-linejoin: round; }
+.price-chart-dot { fill: var(--series-color); stroke: var(--surface); stroke-width: 1.5; }
+.price-chart-marker { cursor: pointer; }
+.price-chart-hit { stroke: none; }
+.price-chart-marker:focus-visible { outline: 0; }
+.price-chart-marker:is(:focus-visible, [aria-pressed="true"]) .price-chart-hit {
+  r: 8px;
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+.price-chart-value:not([hidden]) { display: block; margin-block: var(--space-2); }
+.price-chart-figure svg { max-block-size: 19rem; }
+.property-publications { max-inline-size: 76ch; }
+.offer-row .publication-header > p.hint { margin: var(--space-1) 0 0; font-size: var(--text-caption); }
+.price-chart-estimate { fill: var(--surface); stroke: var(--series-color); stroke-width: 2; }
+.price-chart-note { font-size: var(--text-caption); }
+.publication-content { padding: var(--space-4); overflow-wrap: anywhere; }
+.publication-content + .publication-content { border-block-start: 1px solid var(--line); }
+.publication-content h3 { margin: 0 0 var(--space-2); }
+.publication-content p { margin-block: 0 var(--space-2); font-size: var(--text-small); }

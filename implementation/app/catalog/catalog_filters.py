@@ -2,7 +2,7 @@
 
 import re
 from decimal import Decimal
-from typing import TypedDict
+from typing import TypedDict, cast
 from urllib.parse import urlencode
 
 from django import forms
@@ -10,6 +10,11 @@ from django.core.exceptions import ValidationError
 from django.http import QueryDict
 
 from app.catalog.catalog_labels import DEAL_LABELS
+from app.catalog.location_filters import (
+    LOCATION_FIELDS,
+    LOCATION_NAME_LIMIT,
+    published_locations,
+)
 from app.catalog.models import DealType, Region
 
 RANGE_LABELS = (
@@ -18,12 +23,20 @@ RANGE_LABELS = (
     ("rooms", "Комнаты"),
     ("floor", "Этаж"),
 )
+SORT_CHOICES = (
+    ("", "Порядок каталога"),
+    ("price_asc", "Сначала дешевле"),
+    ("price_desc", "Сначала дороже"),
+    ("area_desc", "От большей площади"),
+    ("area_asc", "От меньшей площади"),
+)
 
 BIGINT_MAX = 2**63 - 1
 SMALLINT_MAX = 2**15 - 1
 INTEGER = re.compile(r"[0-9]+")
 SIGNED_INTEGER = re.compile(r"-?[0-9]+")
 DECIMAL = re.compile(r"[0-9]+(?:[.,][0-9]{1,2})?")
+SALE_CATEGORIES = {"resale", "new_build"}
 
 
 class FieldError(TypedDict):
@@ -48,7 +61,17 @@ def _integer(value: str, minimum: int, maximum: int) -> int:
 
 class IntegerFilter(forms.Field):
     def __init__(self, minimum: int, maximum: int) -> None:
-        super().__init__(required=False)
+        super().__init__(
+            required=False,
+            widget=forms.TextInput(
+                attrs={
+                    "inputmode": "text" if minimum < 0 else "numeric",
+                    "data-number-kind": "signed" if minimum < 0 else "integer",
+                    "data-number-min": minimum,
+                    "data-number-max": maximum,
+                }
+            ),
+        )
         self.minimum = minimum
         self.maximum = maximum
 
@@ -63,7 +86,15 @@ class IntegerFilter(forms.Field):
 class DecimalFilter(forms.Field):
     def __init__(self, maximum: str) -> None:
         super().__init__(
-            required=False, widget=forms.TextInput(attrs={"inputmode": "decimal"})
+            required=False,
+            widget=forms.TextInput(
+                attrs={
+                    "inputmode": "decimal",
+                    "data-number-kind": "decimal",
+                    "data-number-min": 0,
+                    "data-number-max": maximum,
+                }
+            ),
         )
         self.maximum = Decimal(maximum)
 
@@ -111,6 +142,29 @@ class RegionFilter(forms.Field):
         return region_id
 
 
+class CategorySelect(forms.Select):
+    rental = False
+
+    def create_option(
+        self,
+        name: str,
+        value: object,
+        label: int | str,
+        selected: bool,
+        index: int,
+        subindex: int | None = None,
+        attrs: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        option = super().create_option(
+            name, value, label, selected, index, subindex, attrs
+        )
+        if value in SALE_CATEGORIES:
+            option["attrs"]["data-sale-only"] = True
+            if self.rental:
+                option["attrs"].update(hidden=True, disabled=True)
+        return option
+
+
 class CatalogFilters(forms.Form):
     deal_type = forms.ChoiceField(
         label="Сделка",
@@ -121,19 +175,32 @@ class CatalogFilters(forms.Form):
         },
     )
     category = forms.ChoiceField(
-        label="Категория",
+        label="Тип жилья",
         required=False,
+        widget=CategorySelect,
         choices=[
-            ("all", "Любая"),
-            ("flat", "Квартиры — любой сегмент"),
+            ("all", "Всё жильё"),
+            ("flat", "Квартиры"),
             ("resale", "Вторичка"),
             ("new_build", "Новостройка"),
-            ("room", "Комната"),
-            ("house", "Дом"),
+            ("room", "Комнаты"),
+            ("house", "Дома"),
         ],
         error_messages={"invalid_choice": "Выберите категорию из списка."},
     )
     region_id = RegionFilter()
+    district = forms.CharField(
+        label="Район",
+        required=False,
+        max_length=LOCATION_NAME_LIMIT,
+        widget=forms.Select,
+    )
+    metro = forms.CharField(
+        label="Метро",
+        required=False,
+        max_length=LOCATION_NAME_LIMIT,
+        widget=forms.Select,
+    )
     price_min = DecimalFilter("99999999999999.99")
     price_max = DecimalFilter("99999999999999.99")
     area_min = DecimalFilter("9999999999.99")
@@ -142,18 +209,54 @@ class CatalogFilters(forms.Form):
     rooms_max = IntegerFilter(0, SMALLINT_MAX)
     floor_min = IntegerFilter(-SMALLINT_MAX - 1, SMALLINT_MAX)
     floor_max = IntegerFilter(-SMALLINT_MAX - 1, SMALLINT_MAX)
+    sort = forms.ChoiceField(
+        choices=SORT_CHOICES,
+        required=False,
+        label="Сортировка",
+        error_messages={"invalid_choice": "Выберите порядок сортировки из списка."},
+    )
     page = PageFilter(required=False)
 
-    def __init__(self, query: QueryDict) -> None:
+    def __init__(self, query: QueryDict, *, rental_categories: bool = False) -> None:
         self.query = query
         values = query.copy()
         if "deal_type" not in values:
             values["deal_type"] = DealType.SALE
+        rental = rental_categories and values["deal_type"] in (
+            DealType.MONTH_RENT,
+            DealType.DAY_RENT,
+        )
+        if rental and values.get("category") in SALE_CATEGORIES:
+            values["category"] = "flat"
         if not values.get("category"):
             values["category"] = "all"
         if "page" not in values:
             values["page"] = "1"
         super().__init__(values)
+        cast(CategorySelect, self.fields["category"].widget).rental = rental
+
+    def set_region_choices(self) -> None:
+        widget = cast(forms.Select, self.fields["region_id"].widget)
+        widget.choices = [
+            ("", "Все регионы"),
+            *Region.objects.order_by("name").values_list("id", "name"),
+        ]
+
+    def set_location_choices(self) -> None:
+        names = published_locations(
+            self.cleaned_data.get("deal_type", DealType.SALE),
+            self.cleaned_data.get("region_id"),
+        )
+        for field, options in names.items():
+            selected = self.cleaned_data.get(field, "")
+            if selected and selected not in options:
+                options.append(selected)
+            widget = cast(forms.Select, self.fields[field].widget)
+            empty_label = "Любой район" if field == "district" else "Любая станция"
+            widget.choices = [
+                ("", empty_label if options else "Нет данных"),
+                *((name, name) for name in options),
+            ]
 
     def clean(self) -> dict[str, object]:
         values = super().clean() or {}
@@ -207,20 +310,27 @@ class CatalogFilters(forms.Form):
             ]
         return errors
 
-    def canonical_query(self, *, page: int | str, from_catalog: bool = False) -> str:
-        values = {"from": "catalog"} if from_catalog else {}
-        values.update(
-            deal_type=self.cleaned_data.get("deal_type", DealType.SALE),
-            category=self.cleaned_data.get("category", "all"),
-        )
+    def parameters(self) -> dict[str, str]:
+        values: dict[str, str] = {
+            "deal_type": self.cleaned_data.get("deal_type", DealType.SALE),
+            "category": self.cleaned_data.get("category", "all"),
+        }
         region = self.cleaned_data.get("region_id")
         if region is not None:
             values["region_id"] = str(region)
+        for field in LOCATION_FIELDS:
+            if value := self.cleaned_data.get(field):
+                values[field] = value
         for quantity, _ in RANGE_LABELS:
             for suffix in ("min", "max"):
                 field = f"{quantity}_{suffix}"
                 value = self.cleaned_data.get(field)
                 if value is not None:
                     values[field] = str(value)
-        values["page"] = str(page)
-        return urlencode(values)
+        if sort := self.cleaned_data.get("sort"):
+            values["sort"] = sort
+        return values
+
+    def canonical_query(self, *, page: int | str, from_catalog: bool = False) -> str:
+        context = {"from": "catalog"} if from_catalog else {}
+        return urlencode({**context, **self.parameters(), "page": str(page)})

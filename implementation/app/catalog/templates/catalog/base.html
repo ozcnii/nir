@@ -3,20 +3,94 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Каталог недвижимости{% endblock title %}</title>
-    <link rel="stylesheet" href="{% static 'catalog/catalog.css' %}">
-    {% block scripts %}
-    {% endblock scripts %}
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Купить или снять — {% block title %}поиск недвижимости{% endblock title %}</title>
+    <script src="{% static 'catalog/theme.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'catalog/design-system.css' %}?v=25">
+    <link rel="stylesheet" href="{% static 'catalog/catalog.css' %}?v=59">
+    {% block styles %}
+    {% endblock styles %}
+    <script type="module" src="{% static 'catalog/app.js' %}?v=36"></script>
   </head>
   <body>
+    <a class="skip-link" href="#main-content">К содержанию</a>
     <header class="site-header">
       <div class="shell header-content">
-        <a class="site-title" href="{% url 'catalog' %}">Каталог недвижимости</a>
-        <a href="{% url 'admin:index' %}">Управление</a>
+        <a class="site-title"
+           href="{% url 'catalog' %}"
+           aria-label="Купить или снять, поиск недвижимости">
+          <span class="site-mark">{% include "catalog/icon.html" with name="map-pin" only %}</span>
+          <span>Купить или снять</span>
+        </a>
+        <nav class="site-nav" aria-label="Основная навигация">
+          <a href="{% url 'catalog' %}"
+             {% if request.resolver_match.url_name == "catalog" or request.resolver_match.url_name == "map_search" %}aria-current="page"{% elif request.resolver_match.url_name == "property_detail" and request.GET.from != "favorites" and request.GET.from != "compare" %}aria-current="true"{% endif %}>
+            <span class="nav-icon">{% include "catalog/icon.html" with name="list" only %}</span>
+            <span>Поиск</span>
+          </a>
+          <a href="{% url 'market' %}"
+             {% if request.resolver_match.url_name == "market" %}aria-current="page"{% endif %}>
+            <span class="nav-icon">{% include "catalog/icon.html" with name="chart-no-axes-column" only %}</span>
+            <span>Обзор цен</span>
+          </a>
+          <a href="{% url 'favorites' %}"
+             {% if request.resolver_match.url_name == "favorites" %}aria-current="page"{% elif request.resolver_match.url_name == "property_detail" and request.GET.from == "favorites" %}aria-current="true"{% endif %}>
+            <span class="nav-icon">{% include "catalog/icon.html" with name="heart" only %}</span>
+            <span>Избранное</span>
+          </a>
+          <a href="{% url 'compare' %}"
+             data-comparison-nav
+             {% if request.resolver_match.url_name == "compare" %}aria-current="page"{% elif request.resolver_match.url_name == "property_detail" and request.GET.from == "compare" %}aria-current="true"{% endif %}>
+            <span class="nav-icon" aria-hidden="true">
+              {% include "catalog/icon.html" with name="scale" only %}
+              {% if comparison_count %}<span class="nav-count">{{ comparison_count }}</span>{% endif %}
+            </span>
+            <span>Сравнение{% if comparison_count %}<span class="sr-only">, объектов {{ comparison_count }}</span>{% endif %}</span>
+          </a>
+        </nav>
+        <details class="theme-menu" data-theme-menu hidden>
+          <summary class="button button-secondary" aria-label="Цветовая тема">
+            {% include "catalog/icon.html" with name="contrast" only %}
+            <span>Тема</span>
+          </summary>
+          <fieldset class="panel theme-options" aria-label="Режим темы">
+            <label>
+              <input type="radio" name="theme" value="system">
+              Как в системе
+            </label>
+            <label>
+              <input type="radio" name="theme" value="light">
+              Светлая
+            </label>
+            <label>
+              <input type="radio" name="theme" value="dark">
+              Тёмная
+            </label>
+          </fieldset>
+        </details>
       </div>
     </header>
-    <main class="shell">
+    <p class="sr-only" role="status" id="app-status"></p>
+    <p class="shell panel message" role="alert" id="app-error" hidden></p>
+    <aside class="app-feedback" id="app-feedback" hidden>
+      <div>
+        <span data-feedback-text></span>
+        <a data-feedback-compare hidden>Открыть сравнение</a>
+      </div>
+      <button type="button"
+              data-feedback-close
+              aria-label="Закрыть уведомление"
+              hidden>{% include "catalog/icon.html" with name="x" only %}</button>
+    </aside>
+    <main id="main-content" class="shell" tabindex="-1">
+      {% if messages %}
+        {% for message in messages %}
+          <p class="panel message"
+             role="status"
+             data-app-message="{{ message.extra_tags }}">{{ message }}</p>
+        {% endfor %}
+      {% endif %}
       {% block content %}
       {% endblock content %}
     </main>

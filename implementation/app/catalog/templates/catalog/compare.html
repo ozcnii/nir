@@ -1,0 +1,60 @@
+{% extends "catalog/base.html" %}
+{% load l10n static %}
+{% block styles %}
+  <link rel="stylesheet"
+        data-page-style
+        href="{% static 'catalog/comparison.css' %}?v=36">
+{% endblock styles %}
+{% block title %}Сравнение{% endblock title %}
+{% block content %}
+  <header class="compare-hero">
+    <h1>Сравнение</h1>
+  </header>
+  {% if invalid_selection %}
+    <section class="panel message">
+      <h2>Проверьте параметры сравнения</h2>
+      {{ options.errors }}
+      <a href="{% url 'compare' %}">Открыть своё сравнение</a>
+    </section>
+  {% else %}
+    {% if not shared %}
+      {% include "catalog/deal_tabs.html" with tabs=deal_tabs label="Подборки по сделкам" identify_compare_tab=True only %}
+    {% endif %}
+    {% if shared %}
+      <form class="shared-selection" action="{% url 'compare' %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="deal" value="{{ deal }}">
+        <input type="hidden" name="return_to" value="{{ workspace_url }}">
+        {% for item in items %}<input type="hidden" name="property_id" value="{{ item.id|unlocalize }}">{% endfor %}
+        <span>Сравнение по ссылке · {{ shared_deal_label }}</span>
+        <button class="button button-secondary"
+                type="submit"
+                name="action"
+                value="import">Добавить в моё сравнение</button>
+      </form>
+    {% endif %}
+    <div class="comparison-workspace">
+      {% include "catalog/compare_controls.html" %}
+      {% if items|length == 1 %}
+        {% include "catalog/compare_single.html" %}
+      {% elif items %}
+        {% include "catalog/compare_table.html" %}
+        {% include "catalog/recommendation.html" %}
+      {% else %}
+        <p class="compare-next hint">Добавьте два объекта для сравнения.</p>
+      {% endif %}
+    </div>
+    {% if not shared and items|length < limit %}
+      {% if candidates or suggestions %}
+        <div id="compare-candidates" tabindex="-1">
+          {% if candidates %}
+            {% include "catalog/compare_picker.html" with picker_title="Из избранного" options=candidates %}
+          {% endif %}
+          {% if suggestions %}
+            {% include "catalog/compare_picker.html" with picker_title="Из каталога" options=suggestions %}
+          {% endif %}
+        </div>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{% endblock content %}

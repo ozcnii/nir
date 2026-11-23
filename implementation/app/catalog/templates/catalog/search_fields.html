@@ -1,0 +1,37 @@
+{{ price_units|json_script:"search-price-units" }}
+{% include "catalog/location_choice.html" %}
+<div class="choice-fields">
+  {% for field in choice_fields %}
+    <div class="field field-{{ field.name }}">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+  {% endfor %}
+  {% include "catalog/range_filter.html" with range=budget price=True only %}
+</div>
+<p class="sr-only"
+   data-room-count-help{% if choice_fields.1.value != 'all' %}
+   hidden{% endif %}>У квартир — число комнат квартиры, у комнат — число предлагаемых комнат.</p>
+<div class="catalog-filter-toolbar" data-catalog-filter-toolbar>
+  {% include "catalog/room_presets.html" only %}
+  {% if show_reset %}<a class="reset-filters" href="{{ reset_url }}">Сбросить</a>{% endif %}
+  <button class="button button-secondary more-filters-toggle"
+          hidden
+          type="button"
+          aria-controls="catalog-advanced"
+          aria-expanded="false">
+    {% include "catalog/icon.html" with name="sliders-horizontal" only %} Ещё фильтры
+  </button>
+</div>
+<details id="catalog-advanced"
+         class="advanced-filters catalog-advanced"{% if advanced_open or advanced_range_open %} open{% endif %}>
+  <summary>Ещё фильтры</summary>
+  <div class="range-fields core-ranges">
+    {% include "catalog/range_filter.html" with range=area only %}
+    {% include "catalog/range_filter.html" with range=ranges.0 only %}
+    {% include "catalog/range_filter.html" with range=ranges.1 only %}
+  </div>
+  {% include "catalog/location_fields.html" %}
+</details>
+<p class="hint location-status" data-location-status role="status"></p>
+{% if selected_sort %}<input type="hidden" name="sort" value="{{ selected_sort }}">{% endif %}
+<div class="search-actions">
+  <button class="button button-primary" type="submit">Показать объявления</button>
+</div>

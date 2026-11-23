@@ -1,0 +1,29 @@
+{% load l10n %}
+<div class="comparison-photo">
+  {% include "catalog/card_media.html" with photo=item.photos.0 only %}
+  {% if item.photos %}
+    <button type="button"
+            class="comparison-gallery-trigger"
+            aria-label="Открыть фото варианта {{ number }}"
+            data-open-gallery="photos-{{ item.id|unlocalize }}"
+            hidden>
+      <span class="comparison-photo-count">{{ item.photos|length }} фото</span>
+    </button>
+  {% endif %}
+</div>
+{% if item.photos %}
+  <dialog class="photo-dialog"
+          id="photos-{{ item.id|unlocalize }}"
+          aria-labelledby="photo-title-{{ item.id|unlocalize }}">
+    <header>
+      <h3 id="photo-title-{{ item.id|unlocalize }}">Фото варианта {{ number }}</h3>
+      <form method="dialog">
+        <button class="button button-secondary gallery-close"
+                aria-label="Закрыть галерею"
+                type="submit">{% include "catalog/icon.html" with name="x" only %}</button>
+      </form>
+    </header>
+    {% include "catalog/gallery.html" with photos=item.photos show_links=True only %}
+    {% if item.offers|length > 1 %}<small class="hint">Фото · {{ item.photo_source }}</small>{% endif %}
+  </dialog>
+{% endif %}

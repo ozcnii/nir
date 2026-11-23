@@ -1,55 +1,38 @@
 <dl class="property-facts">
-  <div>
-    <dt>Вид недвижимости</dt>
-    <dd>
-      {{ item.property_type.name }}
-    </dd>
-  </div>
-  <div>
-    <dt>Площадь</dt>
-    <dd>
-      {% if item.area_m2 is not None %}
-        {{ item.area_m2|floatformat:"-2" }} м²
-      {% else %}
-        Не указана
-      {% endif %}
-    </dd>
-  </div>
-  <div>
-    <dt>
-      {% if item.property_type_id == room_type_id %}
-        Предлагаемых комнат
-      {% else %}
-        Комнаты
-      {% endif %}
-    </dt>
-    <dd>
-      {{ item.rooms|default_if_none:"Не указано" }}
-    </dd>
-  </div>
-  {% if item.property_type_id != house_type_id %}
+  {% if item.area_m2 is not None %}
     <div>
-      <dt>Этаж</dt>
+      <dt class="sr-only">Площадь</dt>
       <dd>
-        {{ item.floor|default_if_none:"Не указан" }}
+        {{ item.area_m2|floatformat:"-2" }} м²
       </dd>
     </div>
   {% endif %}
-  <div>
-    <dt>Этажность</dt>
-    <dd>
-      {{ item.floors_total|default_if_none:"Не указана" }}
-    </dd>
-  </div>
-  {% if item.property_type_id == house_type_id %}
+  {% if item.property_type_id != house_type_id and item.floor is not None %}
     <div>
-      <dt>Площадь участка</dt>
+      <dt class="sr-only">Этаж</dt>
+      <dd>Этаж {{ item.floor }}{% if item.floors_total is not None %} из {{ item.floors_total }}{% endif %}</dd>
+    </div>
+  {% elif item.floors_total is not None %}
+    <div>
+      <dt class="sr-only">Этажность</dt>
       <dd>
-        {% if item.land_area_m2 is not None %}
-          {{ item.land_area_m2|floatformat:"-2" }} м²
-        {% else %}
-          Не указана
-        {% endif %}
+        {{ item.floors_total }} эт.
+      </dd>
+    </div>
+  {% endif %}
+  {% if item.property_type_id == house_type_id and item.land_area_m2 is not None %}
+    <div>
+      <dt class="sr-only">Площадь участка</dt>
+      <dd>
+        Участок {{ item.land_area_m2|floatformat:"-2" }} м²
+      </dd>
+    </div>
+  {% endif %}
+  {% if item.property_type_id == room_type_id and item.rooms is not None %}
+    <div>
+      <dt class="sr-only">Предлагаемых комнат</dt>
+      <dd>
+        Комнат в объявлении: {{ item.rooms }}
       </dd>
     </div>
   {% endif %}

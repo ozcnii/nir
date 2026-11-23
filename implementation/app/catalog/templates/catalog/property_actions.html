@@ -1,0 +1,23 @@
+{% if save_deals|length > 1 %}
+  <details class="property-action-menu">
+    <summary class="button button-secondary">Избранное и сравнение</summary>
+    <div class="panel property-action-options">
+      {% for entry in save_deals %}
+        <div class="property-deal-actions"
+             role="group"
+             aria-label="{{ entry.label }}">
+          <strong>{{ entry.label }}</strong>
+          {% include "catalog/favorite_button.html" with deal=entry.id property_id=details.property.pk saved=entry.saved compact=True %}
+          {% include "catalog/compare_button.html" with deal=entry.id property_id=details.property.pk comparing=entry.comparing compact=True %}
+        </div>
+      {% endfor %}
+    </div>
+  </details>
+{% elif save_deals %}
+  <div class="card-actions property-actions">
+    {% with entry=save_deals.0 %}
+      {% include "catalog/favorite_button.html" with deal=entry.id property_id=details.property.pk saved=entry.saved compact=True %}
+      {% include "catalog/compare_button.html" with deal=entry.id property_id=details.property.pk comparing=entry.comparing compact=True %}
+    {% endwith %}
+  </div>
+{% endif %}

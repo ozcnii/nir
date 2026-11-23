@@ -27,6 +27,8 @@
 | deal_type | sale, month_rent, day_rent | Отсутствует → sale; пустая строка — invalid_choice |
 | category | all, flat, resale, new_build, room, house | Отсутствует или пусто → all |
 | region_id | Целое положительное <=9223372036854775807 и существующий regions.id | Отсутствует или пусто → все регионы |
+| district, metro | Строка до 120 символов. Полное название района или станции из опубликованного адреса | Отсутствует или пусто → соответствующее условие не задано |
+| sort | price_asc, price_desc, area_asc, area_desc; неизвестные значения в конце, при равенстве по ID | Отсутствует или пусто → по ID |
 | price_min, price_max | Точный decimal >=0, максимум99999999999999.99, до2дробных знаков | Отсутствует или пусто → соответствующая граница не задана |
 | area_min, area_max | Точный decimal >=0, максимум9999999999.99, до2дробных знаков | То же; фильтр0 допустим, известная площадь самого объекта по БД >0 |
 | rooms_min, rooms_max | Целое0..32767;0 — явно известная студия | Граница не задана |
@@ -67,7 +69,7 @@ PropertyDetail возвращается непосредственно объе�
 
 ## 4. Ошибки
 
-Для invalid_query: HTTP400, error.code=invalid_query, message=«Исправьте параметры запроса.», fields — все обнаруженные ошибки. Допустимые FieldError.code: invalid_integer, invalid_decimal, invalid_choice, out_of_range, not_found, inverted_range, repeated_parameter, unknown_parameter. Ключ fields — имя входного поля; неизвестный входной ключ также может быть ключом словаря ошибок. Для обратного диапазона запись находится у обоих min/max.
+Для invalid_query: HTTP400, error.code=invalid_query, message=«Исправьте параметры запроса.», fields — все обнаруженные ошибки. Допустимые FieldError.code: invalid_integer, invalid_decimal, invalid_choice, out_of_range, not_found, inverted_range, repeated_parameter, unknown_parameter, max_length, null_characters_not_allowed. Ключ fields — имя входного поля; неизвестный входной ключ также может быть ключом словаря ошибок. Для обратного диапазона запись находится у обоих min/max.
 
 Неизвестный /api/properties/<id>/ или недопустимый по формату/положительности/bigint ID в этом маршруте: HTTP404, error.code=not_found, message=«Объект не найден.», fields={}. Неизвестный путь под /api/ также даёт JSON404 этой формы с сообщением «Ресурс не найден.», не случайный HTML-ответ Django. Неподдержанный метод на известных APIмаршрутах: HTTP405, error.code=method_not_allowed,message=«Метод не поддерживается.»,fields={}. Ошибка нашего сервера: HTTP500, code=internal_error,message=«Не удалось загрузить данные.»,fields={}; внутренние детали выводятся в лог Django, доступный оператору через Docker. Аутентификация административных HTML-страниц не превращается в новый публичный API.
 

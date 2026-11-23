@@ -1,0 +1,48 @@
+<details class="compare-decision"{% if budget_errors %} open{% endif %}>
+  <summary id="compare-budget-trigger"
+           class="button button-secondary"
+           aria-label="Бюджет и критерий"><span>Бюджет<span class="compare-control-long"> и критерий</span></span></summary>
+  <div class="panel decision-body">
+    <div class="comparison-options">
+      <div>
+        <label for="compare-budget">Бюджет, {{ unit }}</label>
+        <input id="compare-budget"
+               name="budget"
+               form="compare-settings"
+               data-number-kind="decimal"
+               inputmode="decimal"
+               value="{{ budget_value }}"
+               {% if budget_errors %}aria-invalid="true" aria-describedby="compare-budget-error"{% endif %}>
+      </div>
+      <div>
+        <label for="compare-priority">Сравнивать по</label>
+        <select id="compare-priority" name="priority" form="compare-settings">
+          {% for key, label in priorities.items %}
+            <option value="{{ key }}"{% if key == priority %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button id="compare-apply"
+              class="button button-primary"
+              type="submit"
+              form="compare-settings">Применить</button>
+    </div>
+    {% if budget_errors %}
+      <p id="compare-budget-error" class="errorlist">{{ budget_errors|join:" " }}</p>
+    {% endif %}
+    <p class="errorlist" role="alert" data-compare-request-error hidden></p>
+  </div>
+</details>
+<dialog id="compare-budget-dialog"
+        class="panel compare-budget-dialog"
+        aria-labelledby="compare-budget-heading">
+  <header>
+    <h2 id="compare-budget-heading">Бюджет и критерий</h2>
+    <form method="dialog">
+      <button class="button button-secondary"
+              type="submit"
+              aria-label="Закрыть бюджет"
+              autofocus>{% include "catalog/icon.html" with name="x" only %}</button>
+    </form>
+  </header>
+</dialog>

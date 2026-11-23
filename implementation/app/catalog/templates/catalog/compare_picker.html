@@ -1,0 +1,36 @@
+<section class="comparison-candidates" aria-label="{{ picker_title }}">
+  <h2>{{ picker_title }}</h2>
+  <div class="comparison-picker">
+    {% for item in options %}
+      <article class="panel result picker-card">
+        {% with url=item.url|add:"?"|add:detail_query %}
+          <div class="feed-media">
+            {% if item.photos %}
+              {% include "catalog/gallery.html" with photos=item.photos feed=True detail_url=url only %}
+            {% else %}
+              <a class="feed-no-photo"
+                 href="{{ url }}"
+                 aria-label="Открыть объект: {{ item.title }}">
+                <span class="placeholder-mark" aria-hidden="true"></span>Фото не указано
+              </a>
+            {% endif %}
+          </div>
+          <div class="result-identity">
+            {% if item.lead_price %}
+              <strong class="price">
+                {% include "catalog/price_value.html" with price=item.lead_price unit=unit only %}
+              </strong>
+            {% endif %}
+            <h3><a class="object-link" href="{{ url }}">{{ item.title }}</a></h3>
+          </div>
+        {% endwith %}
+        <div class="result-location">
+          <p class="address result-address">{{ item.short_address|default:item.address }}</p>
+        </div>
+        <div class="card-actions result-actions">
+          {% include "catalog/compare_button.html" with property_id=item.id return_url=workspace_url %}
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+</section>

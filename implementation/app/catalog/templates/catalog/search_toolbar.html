@@ -1,0 +1,33 @@
+{% if filter_chips or show_search_tools %}
+  <div class="search-toolbar">
+    {% if filter_chips %}
+      <ul class="filter-chips" aria-label="Применённые фильтры">
+        {% for label, url in filter_chips %}
+          <li>
+            <a class="pill" href="{{ url }}" aria-label="Снять фильтр «{{ label }}»">
+              {{ label }}
+              {% include "catalog/icon.html" with name="x" only %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if show_search_tools %}
+      <div class="search-tools">
+        <details class="sort-menu">
+          <summary id="catalog-sort"
+                   class="button button-secondary"
+                   aria-label="Сортировка: {{ sort_label }}">
+            <span class="control-label">{{ sort_label }}</span>
+          </summary>
+          <ul class="panel sort-options" aria-label="Сортировка">
+            {% for label, url, active in sort_links %}
+              <li><a href="{{ url }}"
+                     data-preserve-view="catalog-sort"{% if active %} aria-current="true"{% endif %}>{{ label }}</a></li>
+            {% endfor %}
+          </ul>
+        </details>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}

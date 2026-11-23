@@ -27,7 +27,6 @@ PUBLISHED_PIXEL = b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42m"
     "Nk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 )
-SALE_TITLE = "Циан · № listing-sale"
 
 
 def seed_property_card() -> tuple[int, int]:
@@ -128,74 +127,73 @@ def check_property_card(page: Page, live_server_url: str, ids: tuple[int, int]) 
 
     # Act: open the only result on the second catalog page.
     page.goto(search)
-    page.get_by_role("link", name="Открыть объект").click()
+    page.locator("article.result a.object-link").click()
 
-    # Assert: source and external ID order, matching marker and isolated prices.
+    # Assert: the matching offer is first and histories keep their separate prices.
     expect(page.get_by_role("heading", name="2-комнатная квартира")).to_be_visible()
-    expect(page.get_by_role("link", name="Назад к результатам")).to_have_attribute(
-        "href", search.removeprefix(live_server_url)
-    )
-    expect(page.get_by_role("link", name="JSON")).to_have_attribute(
-        "href", f"/api/properties/{property_id}/"
-    )
+    expect(page.get_by_role("link", name="Назад к результатам")).to_have_count(0)
+    expect(page.get_by_role("link", name="JSON")).to_have_count(0)
     active = page.get_by_role("region", name="Активные объявления")
-    expect(active.get_by_role("heading", level=3)).to_have_text(
-        ["Авито · № listing-day", "Циан · № listing-month", SALE_TITLE]
+    expect(active.locator(".publication-header strong")).to_have_text(
+        ["Циан", "Авито", "Циан"]
     )
-    sale = active.get_by_role("article").filter(has_text=SALE_TITLE)
-    expect(page.get_by_text("Подходит под ваш поиск")).to_have_count(1)
-    expect(sale.get_by_text("Подходит под ваш поиск")).to_be_visible()
-    expect(sale.get_by_role("table").get_by_role("row")).to_have_count(3)
-    prices = sale.get_by_role("table").locator("tbody tr")
-    expect(prices.nth(0)).to_contain_text("17.11.2026")
-    expect(prices.nth(0)).to_contain_text("от 10 000 000 руб.")
-    expect(prices.nth(1)).to_contain_text("18.11.2026")
-    expect(prices.nth(1).get_by_role("cell").nth(1)).to_have_text("10 000 000 руб.")
-    expect(sale.get_by_text("Цена зафиксирована")).to_contain_text("18.11.2026")
-    expect(sale.get_by_text("Данные объявления получены")).to_contain_text("19.11.2026")
-    assert sale.locator(".seller-description").text_content() == (
+    sale = active.get_by_role("article").filter(has_text="Вторичка")
+    expect(active.get_by_role("article").first).to_contain_text("Продажа")
+    content = page.get_by_role("region", name="Описания объявлений")
+    sale_content = content.get_by_role("article").filter(has_text="Вторичка")
+    history = page.get_by_role("region", name="История цен")
+    expect(history.locator(".price-chart-estimate")).to_have_count(1)
+    points = history.locator("[data-price-marker]")
+    expect(points).to_have_count(2)
+    expect(history.get_by_text("Все записи")).to_have_count(0)
+    points.first.press("Enter")
+    expect(history.locator("[data-price-value]")).to_contain_text("17.11.2026")
+    expect(history.locator("[data-price-value]")).to_contain_text("от 10 000 000 руб.")
+    points.last.press("Enter")
+    expect(history.locator("[data-price-value]")).to_contain_text("18.11.2026")
+    expect(history.locator("[data-price-value]")).to_contain_text("10 000 000 руб.")
+    expect(sale.get_by_text("Данные объявления получены")).to_have_count(0)
+    assert sale_content.locator(".seller-description").text_content() == (
         "Первый абзац владельца.\n\nВторой абзац владельца."
     )
-    monthly = active.get_by_role("article").filter(has_text="Циан · № listing-month")
+    monthly = active.get_by_role("article").filter(has_text="Месячная аренда")
     expect(monthly.get_by_text("Месячная аренда")).to_be_visible()
-    expect(monthly.get_by_text("Описание не указано")).to_be_visible()
     expect(monthly.get_by_text("Цена не получена")).to_be_visible()
-    expect(monthly.get_by_text("История цен пуста")).to_be_visible()
-    expect(monthly.get_by_text("Фото не опубликованы")).to_be_visible()
-    daily = active.get_by_role("article").filter(has_text="Авито · № listing-day")
-    expect(daily.get_by_text("Фото не получены")).to_be_visible()
+    daily = active.get_by_role("article").filter(has_text="Суточная аренда")
     expect(daily.locator(".price")).to_have_text("от 4 000 руб./сут.")
+    history.get_by_role("combobox").select_option(label="Суточная аренда")
+    expect(history.get_by_text("Дата фиксации", exact=False)).to_be_visible()
 
     # Act: a failed first photo, a working second photo, and a removed publication.
-    current_slide = sale.locator("[data-slide]:not([hidden])")
+    gallery = page.get_by_role("region", name="Фото объявления", exact=True)
+    expect(gallery.get_by_role("link", name="Циан")).to_have_count(0)
+    current_slide = gallery.locator("[data-slide]:not([hidden])")
     current_slide.scroll_into_view_if_needed()
     expect(current_slide.get_by_text("Фото недоступно")).to_be_visible()
-    sale.get_by_role("button", name="Следующее").click()
+    gallery.get_by_role("button", name="Следующее").click()
     page.get_by_text("Снятые объявления (1)", exact=True).click()
 
     # Assert: gallery navigation retains source URLs; removed data stays separate.
-    expect(current_slide.get_by_role("img", name="Фото 2")).to_have_js_property(
+    expect(current_slide.get_by_role("img", name="Фото 2, Циан")).to_have_js_property(
         "naturalWidth", 1
     )
-    expect(
-        sale.get_by_role("link", name="Открыть опубликованное фото")
-    ).to_have_attribute("href", PUBLISHED_PHOTO)
-    sale.get_by_role("button", name="Предыдущее").click()
+    expect(current_slide.get_by_role("link", name="Открыть фото 2")).to_have_attribute(
+        "href", PUBLISHED_PHOTO
+    )
+    gallery.get_by_role("button", name="Предыдущее").click()
     expect(current_slide.get_by_text("Фото недоступно")).to_be_visible()
-    removed = page.get_by_role("article").filter(has_text="Домклик · № listing-removed")
+    removed = page.get_by_role("article").filter(has_text="Домклик")
     expect(removed.get_by_text("Снято с публикации")).to_be_visible()
-    expect(removed.get_by_text("Сохранённое снятое предложение.")).to_be_visible()
     expect(removed.get_by_role("table")).to_contain_text("80 000 руб./мес.")
-    expect(
-        removed.get_by_role("link", name="Открыть опубликованное фото")
-    ).to_have_attribute("href", REMOVED_PHOTO)
+    expect(removed.get_by_role("link", name="Открыть фото 1")).to_have_attribute(
+        "href", REMOVED_PHOTO
+    )
 
     # Act: go back, open without search context, and open a fully removed object.
-    page.get_by_role("link", name="Назад к результатам").click()
+    page.go_back()
     expect(page).to_have_url(search)
     page.goto(direct)
-    expect(page.get_by_role("link", name="В каталог")).to_be_visible()
-    expect(page.get_by_text("Подходит под ваш поиск")).to_have_count(0)
+    expect(page.get_by_role("link", name="Поиск", exact=True)).to_be_visible()
     removed_page = page.goto(f"{live_server_url}/properties/{removed_id}/")
 
     # Assert: fully removed property is still readable directly.
@@ -252,7 +250,7 @@ class PropertyBrowserTests(StaticLiveServerTestCase):
         )
         self.assertContains(missing, "Объект не найден", status_code=404)
         self.assertContains(too_large, "Объект не найден", status_code=404)
-        self.assertContains(previous_page, "Назад к результатам")
+        self.assertNotContains(previous_page, "Назад к результатам")
         self.assertContains(failed, "Не удалось загрузить данные", status_code=500)
         self.assertNotContains(failed, "private connection details", status_code=500)
 

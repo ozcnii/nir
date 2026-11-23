@@ -1,0 +1,14 @@
+{% load l10n %}
+<form class="favorite-action" action="{% url 'favorites' %}" method="post">
+  {% csrf_token %}
+  <input type="hidden" name="property_id" value="{{ property_id|unlocalize }}">
+  <input type="hidden" name="deal" value="{{ deal }}">
+  <input type="hidden"
+         name="return_to"
+         value="{{ request.get_full_path }}#favorite-{{ deal }}-{{ property_id|unlocalize }}">
+  <button class="button button-secondary{% if compact %} compact-action{% endif %}{% if saved %} is-selected{% endif %}" id="favorite-{{ deal }}-{{ property_id|unlocalize }}" data-selection-button {% if compact %}aria-pressed="{% if saved %}true{% else %}false{% endif %}" title="{% if saved %}Убрать из избранного{% else %}В избранное{% endif %}"{% endif %}{% if compact_remove %} aria-label="{% if saved %}Убрать из избранного{% else %}В избранное{% endif %}"{% endif %} type="submit" name="action" value="{% if saved %}remove{% else %}save{% endif %}">
+    {% include "catalog/icon.html" with name="heart" only %}
+    {% if compact_remove %}Убрать{% elif compact and saved %}Сохранено{% elif saved %}Убрать из избранного{% else %}В избранное{% endif %}
+    {% if deal_label %}<span class="favorite-deal"> · {{ deal_label }}</span>{% endif %}
+  </button>
+</form>

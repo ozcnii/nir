@@ -1,0 +1,70 @@
+<div class="gallery{% if feed %} feed-gallery{% endif %}" data-gallery{% if attributed %} data-attributed-gallery{% endif %}{% if feed %} data-feed-gallery {% if property_id %}data-gallery-key="{{ deal }}-{{ property_id|stringformat:'d' }}"{% endif %} role="group" aria-label="Фото объекта"{% endif %}>
+  <div class="gallery-stage">
+    <div class="gallery-photos">
+      {% for photo in photos %}
+        {% with url=photo.url|default:photo %}
+          <figure data-slide{% if feed or attributed %}{% if not forloop.first %} hidden{% endif %}{% endif %}>
+            {% if show_links or detail_url %}
+              <a class="preview gallery-image"
+                 {% if show_links %}href="{{ url }}" aria-label="Открыть фото {{ forloop.counter }}" target="_blank" rel="noopener"{% else %}href="{{ detail_url }}" aria-label="Открыть объект по фото {{ forloop.counter }}"{% endif %}>
+            {% else %}
+              <div class="preview gallery-image">
+            {% endif %}
+              <img {% if forloop.first %}src{% elif feed or attributed %}data-gallery-src{% else %}src{% endif %}="{{ url }}"
+                   alt="Фото {{ forloop.counter }}{% if attributed %}, {{ photo.source }}{% endif %}"
+                   loading="lazy"
+                   data-preview>
+              <span class="photo-placeholder" hidden>Фото недоступно</span>
+              {% if show_links or detail_url %}
+                </a>
+              {% else %}
+                </div>
+              {% endif %}
+            </figure>
+        {% endwith %}
+      {% endfor %}
+    </div>
+    {% if photos|length > 1 %}
+      <div class="gallery-controls" data-controls hidden>
+        <button class="button gallery-arrow"
+                type="button"
+                data-previous
+                aria-label="Предыдущее фото">{% include "catalog/icon.html" with name="chevron-left" only %}</button>
+        <span aria-live="polite" data-position></span>
+        <button class="button gallery-arrow"
+                type="button"
+                data-next
+                aria-label="Следующее фото">{% include "catalog/icon.html" with name="chevron-right" only %}</button>
+      </div>
+    {% endif %}
+  </div>
+  {% if photos|length > 1 and thumbnails %}
+    <div class="gallery-thumbnails"
+         data-gallery-thumbnails
+         hidden
+         role="toolbar"
+         aria-label="Миниатюры">
+      {% for photo in photos %}
+        <button type="button"
+                data-gallery-thumbnail
+                tabindex="-1"
+                aria-label="Показать фото {{ forloop.counter }}">
+          <img src="{{ photo.url|default:photo }}"
+               loading="lazy"
+               alt=""
+               data-preview>
+          <span class="photo-placeholder" hidden>Нет фото</span>
+        </button>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% if attributed and photos|length > 1 %}
+    <noscript>
+      <ul class="gallery-fallback" aria-label="Все фото">
+        {% for photo in photos %}
+          {% if not forloop.first %}<li><a href="{{ photo.url }}">Фото {{ forloop.counter }} · {{ photo.source }}</a></li>{% endif %}
+        {% endfor %}
+      </ul>
+    </noscript>
+  {% endif %}
+</div>

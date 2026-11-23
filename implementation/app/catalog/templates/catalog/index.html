@@ -1,81 +1,80 @@
 {% extends "catalog/base.html" %}
-{% load static %}
-{% block scripts %}
-  <script defer src="{% static 'catalog/catalog.js' %}"></script>
-{% endblock scripts %}
 {% block content %}
-  <h1>Поиск недвижимости</h1>
-  <form id="catalog-filters" action="{% url 'catalog' %}" method="get">
-    <div class="choice-fields">
-      {% for field in choice_fields %}
-        <div class="field">
-          {{ field.label_tag }}
-          {{ field }}
-          {{ field.errors }}
-        </div>
-      {% endfor %}
-    </div>
-    <div class="range-fields">
-      {% for label, minimum, maximum in ranges %}
-        <fieldset>
-          <legend>{{ label }}</legend>
-          <div class="range-pair">
-            <div class="field">
-              <label for="{{ minimum.id_for_label }}">От</label>
-              {{ minimum }}
-              {{ minimum.errors }}
-            </div>
-            <div class="field">
-              <label for="{{ maximum.id_for_label }}">До</label>
-              {{ maximum }}
-              {{ maximum.errors }}
-            </div>
-          </div>
-        </fieldset>
-      {% endfor %}
-    </div>
-    <p class="hint">Фильтр учитывает известную опубликованную сумму. Для цены «от» итог может быть выше.</p>
-    {% if form.category.value == "all" %}
-      <p class="hint">Для комнат фильтр учитывает число предлагаемых комнат, для квартир — число комнат квартиры.</p>
+  <header class="workspace-heading catalog-heading">
+    <h1>Поиск недвижимости</h1>
+    {% if map_url %}
+      <nav class="segmented-nav view-switch"
+           aria-label="Представление результатов">
+        <span aria-current="page">{% include "catalog/icon.html" with name="list" only %} Список</span>
+        <a href="{{ map_url }}" data-filter-navigation>{% include "catalog/icon.html" with name="map" only %} Карта</a>
+      </nav>
     {% endif %}
-    <div class="toolbar">
-      <button type="submit">Найти</button>
-      <a href="{{ reset_url }}">Сбросить</a>
-      {% if json_url %}<a href="{{ json_url }}">JSON</a>{% endif %}
-    </div>
-  </form>
-  {% if errors %}
-    <section class="message" aria-labelledby="error-heading">
-      <h2 id="error-heading">Исправьте параметры запроса.</h2>
-      <ul>
-        {% for name, entries in errors %}
-          {% for entry in entries %}<li>{{ name }} — {{ entry.message }}</li>{% endfor %}
-        {% endfor %}
-      </ul>
-      <a href="{{ first_page_url }}">На первую страницу</a>
+  </header>
+  <div class="catalog-workspace">
+    <details class="panel filter-panel"
+             data-filter-panel{% if errors %}
+             data-filter-errors{% endif %}
+             open>
+      <summary id="catalog-filter-summary">Фильтры <span class="filter-summary-deal">· {{ applied_deal }}</span></summary>
+      <form id="catalog-filters"
+            class="search-form filter-form"
+            action="{% url 'catalog' %}"
+            data-location-options="{% url 'location_options' %}"
+            method="get">
+        {% include "catalog/search_fields.html" %}
+      </form>
+    </details>
+    <section class="catalog-results" aria-label="Результаты поиска">
+      {% if page %}
+        <div class="results-header">
+          <h2 id="results-heading">Объекты <span class="results-count">{{ count }}</span></h2>
+          {% include "catalog/search_toolbar.html" with show_search_tools=True %}
+        </div>
+      {% elif filter_chips %}
+        {% include "catalog/search_toolbar.html" %}
+      {% endif %}
+      {% if errors %}
+        <section class="panel message" aria-labelledby="error-heading">
+          <h2 id="error-heading">Исправьте параметры запроса.</h2>
+          {% if summary_errors %}
+            <ul>{% for entry in summary_errors %}<li>{{ entry.message }}</li>{% endfor %}</ul>
+          {% endif %}
+          <div class="empty-actions">
+            <a class="button button-primary"
+               href="#catalog-filter-summary"
+               data-edit-filters>Изменить фильтры</a>
+            {% if first_page_url %}<a class="button button-secondary"
+                                      href="{{ first_page_url }}">На первую страницу</a>{% endif %}
+          </div>
+        </section>
+      {% elif cards %}
+        <div class="result-grid">
+          {% for card in cards %}
+            {% include "catalog/result.html" %}
+          {% endfor %}
+        </div>
+      {% elif has_properties %}
+        <section class="panel message">
+          <h2>По выбранным фильтрам ничего не найдено</h2>
+          <div class="empty-actions">
+            <a class="button button-primary"
+               href="#catalog-filter-summary"
+               data-edit-filters>Изменить фильтры</a>
+            <a class="button button-secondary" href="{{ reset_url }}">Сбросить фильтры</a>
+          </div>
+        </section>
+      {% else %}
+        <section class="panel message">
+          <h2>Данных пока нет</h2>
+        </section>
+      {% endif %}
+      {% if page and page.paginator.num_pages > 1 %}
+        <nav class="pagination" aria-label="Страницы результатов">
+          {% if previous_url %}<a class="button button-secondary" href="{{ previous_url }}">Назад</a>{% endif %}
+          <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
+          {% if next_url %}<a class="button button-secondary" href="{{ next_url }}">Вперёд</a>{% endif %}
+        </nav>
+      {% endif %}
     </section>
-  {% elif cards %}
-    <section aria-labelledby="results-heading">
-      <h2 id="results-heading">Найдено объектов: {{ count }}</h2>
-      {% for card in cards %}
-        {% include "catalog/result.html" %}
-      {% endfor %}
-    </section>
-  {% elif has_properties %}
-    <section class="message">
-      <h2>По выбранным фильтрам ничего не найдено</h2>
-      <a href="{{ reset_url }}">Сбросить фильтры</a>
-    </section>
-  {% else %}
-    <section class="message">
-      <h2>Данных пока нет</h2>
-    </section>
-  {% endif %}
-  {% if page and page.paginator.num_pages > 1 %}
-    <nav class="pagination" aria-label="Страницы результатов">
-      {% if previous_url %}<a href="{{ previous_url }}">Назад</a>{% endif %}
-      <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
-      {% if next_url %}<a href="{{ next_url }}">Вперёд</a>{% endif %}
-    </nav>
-  {% endif %}
+  </div>
 {% endblock content %}

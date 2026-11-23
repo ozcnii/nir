@@ -1,0 +1,10 @@
+{% load static %}
+{% if code == "cian" or code == "domclick" or code == "avito" %}
+  {% with path="catalog/sources/"|add:code|add:".png" %}
+    <img class="source-mark"
+         src="{% static path %}"
+         width="16"
+         height="16"
+         alt="">
+  {% endwith %}
+{% endif %}
