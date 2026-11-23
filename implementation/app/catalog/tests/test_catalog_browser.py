@@ -279,7 +279,8 @@ class CatalogBrowserTests(StaticLiveServerTestCase):
         self.assertNotContains(sales, f'id="compare-month_rent-{first.pk}"')
         self.assertContains(monthly, f'id="compare-month_rent-{first.pk}"')
         self.assertNotContains(monthly, f'id="compare-sale-{second.pk}"')
-        self.assertContains(monthly, "Тестовая улица, 01", count=1)
+        self.assertContains(monthly, 'class="panel result"', count=1)
+        self.assertContains(monthly, "Тестовая улица, 01")
         self.assertContains(Client().get("/favorites/"), "Избранное пока пусто")
 
     def test_comparison_session_keeps_budget_and_separates_shared_links(self) -> None:
