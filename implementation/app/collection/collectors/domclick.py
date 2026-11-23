@@ -361,9 +361,12 @@ def parse_card(
         )
     shell = as_object(state.get("shell"))
     flat = as_object(as_object(shell.get("flatDetails")).get("data"))
-    if shell.get("isDeletedFlat") is not False or not _number_matches(
-        flat.get("id"), identity
-    ):
+    if not _number_matches(flat.get("id"), identity):
+        return {**key, "state": "unavailable"}
+    deleted = shell.get("isDeletedFlat")
+    if deleted is True:
+        return {**key, "state": "removed", "url": loaded_url, "deal_type": "sale"}
+    if deleted is not False:
         return {**key, "state": "unavailable"}
     return normalize_new_flat_card(
         key, loaded_url, flat, as_object(state.get("regions")), page_title
