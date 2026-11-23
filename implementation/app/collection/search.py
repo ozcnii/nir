@@ -44,6 +44,10 @@ _SOURCE_BLOCKS = {
 }
 
 
+class _CardLimitReached(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class Direction:
     source: str
@@ -139,6 +143,7 @@ def collect_search(
     stopped: Callable[[], bool],
     *,
     segment: Market | None = None,
+    max_cards: int | None = None,
 ) -> dict[str, object]:
     if not sources:
         raise CollectionError("collection_scope_required")
@@ -191,6 +196,7 @@ def collect_search(
                     stopped,
                     store,
                     in_scope,
+                    max_cards=max_cards,
                 )
 
     scope = {
@@ -222,6 +228,8 @@ def _collect_source(
     stopped: Callable[[], bool],
     store: Callable[[Snapshot], SnapshotResult],
     in_scope: Callable[[Snapshot], bool],
+    *,
+    max_cards: int | None,
 ) -> dict[str, object]:
     results: Counter[str] = Counter()
     issues_by_stage: dict[str, Counter[str]] = defaultdict(Counter)
@@ -231,6 +239,10 @@ def _collect_source(
     source = routes[0].source
     card_key = routes[0].card_key
     stage = "listing"
+
+    def check_limit() -> None:
+        if max_cards is not None and len(seen_keys) >= max_cards:
+            raise _CardLimitReached
 
     def skip(key: str, reason: str) -> None:
         issues_by_stage[stage][reason] += 1
@@ -246,6 +258,7 @@ def _collect_source(
         check_stop(stopped)
         if key in seen_keys:
             return
+        check_limit()
         seen_keys.add(key)
         if card_key(url) != key:
             skip(key, "unknown_card_identity")
@@ -311,6 +324,7 @@ def _collect_source(
                 for group_url in page.group_urls:
                     if group_url in seen_groups:
                         continue
+                    check_limit()
                     seen_groups.add(group_url)
                     parent = card_key(group_url)
                     if parent in seen_keys or parent not in page.urls:
@@ -346,15 +360,19 @@ def _collect_source(
                 stage = "card"
                 for key, url in page.urls.items():
                     visit(key, url, page.quotes.get(key))
+                check_limit()
                 stage = "listing"
 
-        if listing_complete:
+        if listing_complete and max_cards is None:
             stage = "known_card"
             for key, url in known.items():
                 visit(key, url)
     except CollectionError as error:
         listing_complete = False
         issues_by_stage[stage][str(error)] += 1
+    except _CardLimitReached:
+        listing_complete = False
+        issues_by_stage[stage]["card_limit_reached"] += 1
 
     issues = sum(issues_by_stage.values(), Counter[str]())
     return {

@@ -1036,6 +1036,34 @@ class DomclickTests(TestCase):
                     # Assert
                     self.assertEqual(result["state"], expected)
 
+    def test_new_flat_removal_requires_matching_id_and_explicit_flag(self) -> None:
+        # Arrange
+        url = "https://samara.domclick.ru/card/sale__new_flat__2072470551"
+        cases = (
+            (2072470551, True, "removed"),
+            (2072470552, True, "unavailable"),
+            (2072470551, None, "unavailable"),
+            (2072470551, 1, "unavailable"),
+        )
+
+        for card_id, deleted, expected in cases:
+            with self.subTest(card_id=card_id, deleted=deleted):
+                shell = {
+                    "isDeletedFlat": deleted,
+                    "flatDetails": {"data": {"id": card_id}},
+                }
+
+                # Act
+                result = parse_card(
+                    url, OBSERVED, [ssr({"shell": shell})], [], loaded_url=url
+                )
+
+                # Assert
+                self.assertEqual(result["state"], expected)
+                if result["state"] == "removed":
+                    self.assertEqual(result["url"], url)
+                    self.assertEqual(result["deal_type"], "sale")
+
     def test_native_new_flat_reads_only_published_unit_fields(self) -> None:
         # Arrange: numeric fields from the card observation and published JS
         # selectors. The address-region binding is controlled, not a live copy.

@@ -1,0 +1,7 @@
+<nav class="segmented-nav deal-tabs" aria-label="{{ label }}">
+  {% for caption, url, active, count in tabs %}
+    <a href="{{ url }}"{% if identify_compare_tab %} id="compare-deal-{{ forloop.counter }}" data-preserve-view="compare-deal-{{ forloop.counter }}"{% endif %}{% if active %} aria-current="page"{% endif %}>
+      {{ caption }}{% if count %} <span class="tab-count">{{ count }}</span>{% endif %}
+    </a>
+  {% endfor %}
+</nav>

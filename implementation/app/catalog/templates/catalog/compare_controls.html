@@ -1,0 +1,97 @@
+{% load l10n %}
+{% if visible_items|length > 1 %}
+  <form id="compare-settings"
+        hidden
+        method="{% if shared %}get{% else %}post{% endif %}"
+        action="{% url 'compare' %}">
+    {% if not shared %}
+      {% csrf_token %}
+      <input type="hidden" name="action" value="configure">
+    {% endif %}
+    <input type="hidden" name="deal" value="{{ deal }}">
+    {% if shared %}
+      {% for item in items %}<input type="hidden" name="property_id" value="{{ item.id|unlocalize }}">{% endfor %}
+    {% endif %}
+    {% if pair %}<input type="hidden" name="pair" value="{{ pair }}">{% endif %}
+    {% if show_differences %}<input type="hidden" name="differences" value="1">{% endif %}
+  </form>
+  {% if not shared %}
+    <form id="compare-view" hidden method="post" action="{% url 'compare' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="configure">
+      {% for key, value in view_query %}
+        <input type="hidden" name="{{ key }}" value="{{ value|unlocalize }}">
+      {% endfor %}
+    </form>
+  {% endif %}
+{% endif %}
+<div class="table-options{% if pair_links %} table-options-with-pairs{% endif %}">
+  {% if items|length == 1 %}
+    <a class="button button-primary compare-pick-second"
+       href="{% if candidates or suggestions %}#compare-candidates{% else %}{{ search_url }}{% endif %}">Выбрать второй</a>
+  {% elif not items and not shared %}
+    <a class="button button-primary" href="{{ search_url }}">
+      {% include "catalog/icon.html" with name="search" only %}
+      Найти жильё
+    </a>
+  {% elif visible_items|length > 1 %}
+    {% if shared %}
+      <a id="compare-differences"
+         class="button button-secondary{% if show_differences %} is-selected{% endif %}"
+         href="{{ differences_url }}"
+         data-preserve-view="compare-differences"
+         aria-label="{% if show_differences %}Убрать выделение различий{% else %}Подсветить различия{% endif %}">
+        <span class="difference-switch" aria-hidden="true"></span>
+        <span class="compare-control-full">Подсветить различия</span>
+        <span class="compare-control-short">Различия</span>
+      </a>
+    {% else %}
+      <button id="compare-differences"
+              type="submit"
+              form="compare-view"
+              name="set_differences"
+              value="{% if show_differences %}0{% else %}1{% endif %}"
+              class="button button-secondary"
+              data-preserve-view="compare-differences"
+              aria-label="Подсветить различия"
+              aria-pressed="{{ show_differences|yesno:'true,false' }}">
+        <span class="difference-switch" aria-hidden="true"></span>
+        <span class="compare-control-full">Подсветить различия</span>
+        <span class="compare-control-short">Различия</span>
+      </button>
+    {% endif %}
+    {% include "catalog/compare_budget.html" %}
+    {% if pair_links %}
+      <details class="sort-menu compare-pair-menu">
+        <summary id="compare-pair"
+                 class="button button-secondary"
+                 aria-label="Выбрать пару{% if pair %} · {{ pair_label }}{% endif %}">
+          <span class="control-label">
+            {% if pair %}
+              {{ pair_label }}
+            {% else %}
+              <span class="compare-pair-full">Выбрать пару</span><span class="compare-pair-short">Все {{ items|length }}</span>
+            {% endif %}
+          </span>
+        </summary>
+        <ul class="panel sort-options" aria-label="Варианты в таблице">
+          {% for label, key, url, active in pair_links %}
+            <li>
+              {% if shared %}
+                <a href="{{ url }}"
+                   data-preserve-view="compare-pair"{% if active %} aria-current="true"{% endif %}>{{ label }}</a>
+              {% else %}
+                <button type="submit"
+                        form="compare-view"
+                        name="set_pair"
+                        value="{{ key }}"
+                        aria-label="{{ label }}"
+                        data-preserve-view="compare-pair"{% if active %} aria-current="true"{% endif %}>{{ label }}</button>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+  {% endif %}
+</div>

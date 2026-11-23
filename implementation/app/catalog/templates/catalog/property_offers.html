@@ -1,0 +1,90 @@
+{% load l10n %}
+<div class="property-offers {% if gallery_frames %}property-offers-with-media{% else %}panel{% endif %}">
+  <div class="property-offer-list{% if gallery_frames %} panel{% endif %}">
+    {% include "catalog/property_identity.html" %}
+    <section aria-label="Активные объявления">
+      {% if active_offers|length == 1 %}
+        {% with item=active_offers.0 %}
+          {% include "catalog/publication_price.html" with item=item primary=True only %}
+          {% if not gallery_frames %}
+            {% include "catalog/publication_photos.html" with ad=item.offer.ad only %}
+          {% endif %}
+        {% endwith %}
+      {% else %}
+        <h2>Объявления <span class="muted-count">{{ active_offers|length }}</span></h2>
+        {% for item in active_offers %}
+          {% with ad=item.offer.ad price=item.offer.latest_price %}
+            <article class="offer-row" id="offer-{{ ad.pk|unlocalize }}">
+              <div class="offer-row-summary">
+                <div class="publication-header">
+                  <a class="source-brand"
+                     href="{{ ad.url }}"
+                     aria-label="{{ item.source }} — открыть объявление, {{ item.deal }}{% if item.listing_id %}, номер {{ item.listing_id }}{% endif %}">
+                    {% include "catalog/source_icon.html" with code=item.source_code only %}
+                    <strong>{{ item.source }}</strong><span aria-hidden="true">↗</span>
+                  </a>
+                  {% if mixed_deals or item.segment or item.listing_id %}
+                    <p class="publication-meta">
+                      {% if mixed_deals %}<span>{{ item.deal }}</span>{% endif %}
+                      {% if item.segment %}<span>{{ item.segment }}</span>{% endif %}
+                      {% if item.listing_id %}<span>№ {{ item.listing_id }}</span>{% endif %}
+                    </p>
+                  {% endif %}
+                  {% if not ad.photos %}
+                    {% include "catalog/publication_photos.html" with ad=ad only %}
+                  {% endif %}
+                </div>
+                {% if price %}
+                  <strong class="price">
+                    {% include "catalog/price_value.html" with price=price unit=item.unit only %}
+                  </strong>
+                {% else %}
+                  <span class="hint offer-price-empty">Цена не получена</span>
+                {% endif %}
+              </div>
+            </article>
+          {% endwith %}
+        {% endfor %}
+      {% endif %}
+    </section>
+    {% include "catalog/property_actions.html" %}
+  </div>
+  {% if gallery_frames %}
+    <section id="property-offer-gallery"
+             class="property-offer-gallery publication-photos"
+             aria-label="Фото объявления">
+      {% include "catalog/gallery.html" with photos=gallery_frames attributed=True show_links=True thumbnails=True only %}
+    </section>
+  {% endif %}
+</div>
+{% if price_charts %}
+  {% include "catalog/price_chart.html" %}
+{% endif %}
+{% if has_descriptions %}
+  <section class="property-publications" aria-labelledby="property-descriptions">
+    <h2 id="property-descriptions">{% if multiple_offers %}Описания объявлений{% else %}Описание{% endif %}</h2>
+    <div class="panel publication-content-list">
+      {% for item in active_offers %}
+        {% if item.description %}
+          <article class="publication-content">
+            {% if multiple_offers %}
+              <h3>
+                <a class="source-brand" href="{{ item.offer.ad.url }}">
+                  {% include "catalog/source_icon.html" with code=item.source_code only %}
+                  {{ item.source }}{% if item.listing_id %} № {{ item.listing_id }}{% endif %}
+                </a>
+              </h3>
+              {% if mixed_deals or item.segment %}
+                <p class="hint publication-meta">
+                  {% if mixed_deals %}<span>{{ item.deal }}</span>{% endif %}
+                  {% if item.segment %}<span>{{ item.segment }}</span>{% endif %}
+                </p>
+              {% endif %}
+            {% endif %}
+            <div class="seller-description">{{ item.description }}</div>
+          </article>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}

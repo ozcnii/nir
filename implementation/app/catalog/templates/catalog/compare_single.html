@@ -1,0 +1,33 @@
+{% with item=visible_items.0 %}
+  <article class="panel comparison-single"
+           aria-labelledby="compare-single-title">
+    <div class="comparison-single-media">
+      {% include "catalog/compare_photo.html" with item=item number="1" only %}
+      <div class="comparison-single-remove comparison-object-actions">
+        {% include "catalog/compare_button.html" with property_id=item.id comparing=True return_url=workspace_url remove_label="1" %}
+      </div>
+    </div>
+    <div class="comparison-single-content">
+      {% with price=item.lead_price %}
+        {% if price %}
+          <strong class="comparison-single-price">
+            {% include "catalog/price_value.html" with price=price unit=unit only %}
+          </strong>
+        {% else %}
+          <span class="hint">Цена неизвестна</span>
+        {% endif %}
+      {% endwith %}
+      <h2 id="compare-single-title">
+        {% if item.url %}
+          <a class="comparison-object-title"
+             href="{{ item.url }}?{{ detail_query }}">{{ item.title }}</a>
+        {% else %}
+          {{ item.title }}
+        {% endif %}
+      </h2>
+      {% if item.asset %}
+        {% include "catalog/property_facts.html" with item=item.asset house_type_id=house_type_id room_type_id=room_type_id only %}
+      {% endif %}
+    </div>
+  </article>
+{% endwith %}

@@ -1,0 +1,40 @@
+{% if recommendation %}
+  <details class="compare-result">
+    <summary>Результат сравнения</summary>
+    <div class="decision-result">
+      {% if budget is not None %}
+        <p class="hint">
+          В бюджете {{ counts.within }} из {{ visible_items|length }}{% if counts.over %} · Дороже {{ counts.over }}{% endif %}{% if counts.unknown %} · Уточнить цену {{ counts.unknown }}{% endif %}
+        </p>
+      {% endif %}
+      {% if recommendation.message %}
+        <p>{{ recommendation.message }}</p>
+      {% else %}
+        <p>
+          {% if recommendation.best %}
+            <a href="{{ recommendation.best.url }}?{{ detail_query }}">Вариант {{ recommended_number }}</a>
+          {% else %}
+            <strong>{% if priority == "area" %}Одинаковая площадь{% elif priority == "per_meter" %}Одинаковая цена за м²{% else %}Одинаковая цена{% endif %}</strong>
+          {% endif %}
+          <strong>· {{ recommendation.value|floatformat:"-2g" }} {{ metric_unit }}</strong>
+          {% if recommendation.gap %}<span class="hint"> · Разница {{ recommendation.gap|floatformat:"-2g" }} {{ metric_unit }}</span>{% endif %}
+        </p>
+        {% if recommendation.tied %}
+          <ul class="decision-ties">
+            {% for item in recommendation.tied %}
+              <li><a href="{{ item.url }}?{{ detail_query }}">{{ item.short_address|default:item.title }}</a></li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        <p class="hint">
+          {% if recommendation.only_in_budget %}
+            Один вариант с подтверждённой ценой в пределах бюджета.
+          {% else %}
+            {{ recommendation.reason }}
+          {% endif %}
+          {% if recommendation.included < visible_items|length %}Учтено {{ recommendation.included }} из {{ visible_items|length }}.{% endif %}
+        </p>
+      {% endif %}
+    </div>
+  </details>
+{% endif %}

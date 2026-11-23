@@ -1,0 +1,13 @@
+<figure class="preview result-photo">
+  {% if photo %}
+    <img src="{{ photo }}"
+         alt="Изображение из объявления"
+         loading="lazy"
+         data-preview>
+    <span class="photo-placeholder"
+          hidden><span class="placeholder-mark"
+                       aria-hidden="true"></span>Фото недоступно</span>
+  {% else %}
+    <span class="photo-placeholder"><span class="placeholder-mark" aria-hidden="true"></span>Фото не указано</span>
+  {% endif %}
+</figure>

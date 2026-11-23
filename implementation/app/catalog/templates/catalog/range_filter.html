@@ -1,0 +1,18 @@
+<fieldset{% if price %} class="price-range"{% endif %}>
+  <legend id="{{ range.1.auto_id }}-legend"{% if price %} data-price-label{% elif range.1.name == "rooms_min" %} data-rooms-label{% elif range.1.name == "area_min" %} data-area-label{% endif %}>{{ range.0 }}</legend>
+  <div class="range-pair">
+    <div class="field">
+      <label id="{{ range.1.auto_id }}-label" for="{{ range.1.id_for_label }}">От</label>
+      {{ range.1 }}
+      {% if not range.3 %}{{ range.1.errors }}{% endif %}
+    </div>
+    <div class="field">
+      <label id="{{ range.2.auto_id }}-label" for="{{ range.2.id_for_label }}">До</label>
+      {{ range.2 }}
+      {% if not range.3 %}{{ range.2.errors }}{% endif %}
+    </div>
+  </div>
+  {% if range.3 %}{{ range.1.errors }}{% endif %}
+  <span class="range-problem" data-range-problem role="status" hidden></span>
+  {% if price %}<p class="sr-only">Для цены «от» учитывается указанный минимум.</p>{% endif %}
+</fieldset>

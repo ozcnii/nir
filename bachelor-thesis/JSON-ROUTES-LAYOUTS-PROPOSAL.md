@@ -21,6 +21,12 @@
 
 ## 2. Фильтры и JSON
 
+Параметры `district` и `metro` — необязательные строки до 120 символов.
+Они ищут полное название соответствующей части опубликованного адреса. Фильтры можно
+совмещать. Параметр `sort` задаёт порядок по цене или площади в обе
+стороны. Ошибка поля при превышении длины имеет код `max_length`, при
+нулевом символе — `null_characters_not_allowed`.
+
 Общие входные параметры каталога/егоJSON: deal_type(sale/month_rent/day_rent),category(all/flat/resale/new_build/room/house),region_id;price_min/max,area_min/max,rooms_min/max,floor_min/max,page. Это наши значения интерфейса, не коды источников. «Любая» передаётся all или отсутствующимcategory; flat — квартиры любого сегмента. По умолчанию sale,page1,page_size20,порядок properties.id по возрастанию. Размер страницы20фиксирован принятым каталогом, произвольный page_size клиента не добавляется. Все значения валидируются общим разбором фильтров, а не двумя разными правилами HTML/API.
 
 JSON каталога: объект с count(число уникальных подходящих объектов),page,page_size,next,previous,results. next/previous — ссылка того же API с теми же фильтрами и нужной страницей либо null. results — текущая страница объектов, каждый содержит id,region,property_type,address,latitude,longitude,area_m2,rooms,floor,floors_total,land_area_m2 и массив ads. В каждомads списка: id,source_code,external_id,url,deal_type,market_segment,is_active,observed_at,photos,photos_observed_at,latest_price. description и полная price_history остаются в детальномJSON, а не обязательны в кратком списке. region/property_type — id/name уже существующих справочников, без новых колонок. latest_price — null либо price_rub/price_kind/observed_at, вычисленные из последней строки истории, не новая колонкаads.

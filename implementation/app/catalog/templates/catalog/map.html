@@ -1,0 +1,126 @@
+{% extends "catalog/base.html" %}
+{% load static %}
+{% block title %}Поиск по карте{% endblock title %}
+{% block styles %}
+  <link rel="stylesheet"
+        data-page-style
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="anonymous">
+  <link rel="stylesheet"
+        data-page-style
+        href="{% static 'catalog/map.css' %}?v=15">
+{% endblock styles %}
+{% block content %}
+  <header class="workspace-heading">
+    <h1>Поиск по карте</h1>
+    {% if catalog_url %}
+      <nav class="segmented-nav view-switch"
+           aria-label="Представление результатов">
+        <a href="{{ catalog_url }}" data-filter-navigation>{% include "catalog/icon.html" with name="list" only %} {% if bbox %}Весь список{% else %}Список{% endif %}</a>
+        <span aria-current="page">{% include "catalog/icon.html" with name="map" only %} Карта</span>
+      </nav>
+    {% endif %}
+  </header>
+  <details class="panel filter-panel map-filter-panel"{% if errors %} data-filter-errors open{% endif %}>
+    <summary id="map-filter-summary">Фильтры <span class="filter-summary-deal">· {{ applied_deal }}</span></summary>
+    <form id="map-search-form"
+          class="search-form filter-form"
+          action="{% url 'map_search' %}"
+          data-location-options="{% url 'location_options' %}"
+          method="get">
+      <input type="hidden" name="bbox" value="{{ bbox }}">
+      {% include "catalog/search_fields.html" %}
+    </form>
+  </details>
+  {% if errors %}
+    <section class="panel message">
+      <h2>Проверьте параметры карты</h2>
+      {% for entry in summary_errors %}<p>{{ entry.message }}</p>{% endfor %}
+      {% if reset_area %}<a href="{{ reset_area }}">Сбросить область</a>{% endif %}
+    </section>
+  {% else %}
+    {% include "catalog/search_toolbar.html" %}
+    {% if total or bbox %}
+      {{ state|json_script:"map-state" }}
+      <div class="map-layout">
+        <div class="map-viewport">
+          <div id="property-map"
+               class="property-map"
+               role="region"
+               aria-label="Интерактивная карта объектов"></div>
+          <div class="map-inline-actions">
+            <a class="button map-overlay-button"
+               id="map-reset-area"
+               href="{{ reset_area_url }}"{% if not reset_area %} hidden{% endif %}>Вся область</a>
+            <a class="button map-overlay-button map-result-jump"
+               href="#map-results-title">К списку</a>
+          </div>
+          <span id="map-status" class="hint" role="status"></span>
+          <span id="map-error" class="hint" role="status"></span>
+        </div>
+        <section class="panel map-results" aria-labelledby="map-results-title">
+          <div class="map-results-heading">
+            <h2 id="map-results-title"
+                tabindex="-1">{% if total %}Объекты на карте{% else %}В этой области ничего нет{% endif %}</h2>
+            {% if total %}<span class="map-results-count"
+                                aria-label="Количество объектов: {{ total }}">{{ total }}</span>{% endif %}
+            {% if missing and not bbox %}<p class="hint">{{ missing }} без координат</p>{% endif %}
+            {% if capped %}<p class="hint">Приблизьте карту, чтобы увидеть остальные точки.</p>{% endif %}
+          </div>
+          {% if results %}
+            <ul class="map-results-list">
+              {% for item in results %}
+                <li class="panel map-result">
+                  <a class="map-result-link" href="{{ item.url }}">
+                    <div class="map-result-media" aria-hidden="true">
+                      {% include "catalog/card_media.html" with photo=item.photo only %}
+                    </div>
+                    <span class="map-result-info">
+                      {% if item.amount is not None %}
+                        <strong class="map-result-price">{% if item.lower_bound %}от {% endif %}{{ item.amount|floatformat:"-2g" }} {{ unit }}</strong>
+                      {% else %}
+                        <span class="hint">Цена неизвестна</span>
+                      {% endif %}
+                      <span class="map-result-title">{{ item.title }}{% if item.area is not None %} · {{ item.area|floatformat:"-2" }} м²{% endif %}</span>
+                      <span class="map-result-address hint">{{ item.address }}</span>
+                      {% if item.sources|length > 1 %}
+                        <span class="map-result-sources hint">
+                          {% for code, source in item.sources.items %}
+                            <span class="source-brand">{% include "catalog/source_icon.html" with code=code only %} {{ source }}</span>
+                          {% endfor %}
+                        </span>
+                      {% endif %}
+                    </span>
+                  </a>
+                </li>
+              {% endfor %}
+              {% if shown_points > visible_list %}
+                <li class="map-list-more hint">Другие объекты открываются по меткам на карте.</li>
+              {% endif %}
+            </ul>
+          {% endif %}
+        </section>
+      </div>
+      <noscript>
+        <p>Для интерактивной карты нужен JavaScript. Рядом показано {{ visible_list }} объектов. <a href="{{ catalog_url }}">Весь список</a></p>
+      </noscript>
+    {% elif missing %}
+      <section class="panel message">
+        <h2>Объекты доступны списком</h2>
+        <p>Найдено {{ missing }} объектов без координат.</p>
+        <a class="button button-primary" href="{{ catalog_url }}">Посмотреть объекты</a>
+      </section>
+    {% else %}
+      <section class="panel message">
+        <h2>По выбранным фильтрам ничего не найдено</h2>
+        <div class="empty-actions">
+          <a class="button button-primary"
+             href="#map-filter-summary"
+             data-edit-filters>Изменить фильтры</a>
+          <a class="button button-secondary" href="{{ reset_url }}">Сбросить фильтры</a>
+        </div>
+      </section>
+    {% endif %}
+  {% endif %}
+{% endblock content %}

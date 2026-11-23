@@ -1,43 +1,25 @@
 {% extends "catalog/base.html" %}
-{% load static %}
-{% block title %}
-  {{ title }} — Каталог недвижимости
-{% endblock title %}
-{% block scripts %}
-  <script src="{% static 'catalog/catalog.js' %}" defer></script>
-{% endblock scripts %}
+{% load l10n static %}
+{% block styles %}
+  <link rel="stylesheet"
+        data-page-style
+        href="{% static 'catalog/property.css' %}?v=2">
+{% endblock styles %}
+{% block title %}{{ title }}{% endblock title %}
 {% block content %}
-  <nav class="property-nav" aria-label="Действия с объектом">
-    <a href="{{ catalog_url }}">
-      {% if from_catalog %}
-        Назад к результатам
-      {% else %}
-        В каталог
-      {% endif %}
-    </a>
-    <a href="{{ json_url }}">JSON</a>
-  </nav>
-  <h1>{{ title }}</h1>
-  <p class="address">
-    {% if details.property.address %}
-      {{ details.property.address }} ·
-    {% else %}
-      Адрес не указан ·
-    {% endif %}
-    {{ details.property.region.name }}
-  </p>
-  {% include "catalog/property_facts.html" with item=details.property %}
+  {% if back_url %}
+    <nav class="property-nav" aria-label="Возврат">
+      <a href="{{ back_url }}" data-restore-view>{{ back_label }}</a>
+    </nav>
+  {% endif %}
   {% if active_offers %}
-    <section class="publication-section" aria-labelledby="active-offers">
-      <h2 id="active-offers">Активные объявления</h2>
-      {% for item in active_offers %}
-        {% include "catalog/publication.html" with item=item %}
-      {% endfor %}
-    </section>
+    {% include "catalog/property_offers.html" %}
   {% elif removed_offers %}
-    <p class="message">Все сохранённые объявления сняты</p>
+    {% include "catalog/property_identity.html" %}
+    <p class="panel message">Все сохранённые объявления сняты</p>
   {% else %}
-    <p class="message">Сохранённых объявлений пока нет</p>
+    {% include "catalog/property_identity.html" %}
+    <p class="panel message">Сохранённых объявлений пока нет</p>
   {% endif %}
   {% if removed_offers %}
     <details class="publication-section">

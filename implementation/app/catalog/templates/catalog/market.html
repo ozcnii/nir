@@ -1,0 +1,93 @@
+{% extends "catalog/base.html" %}
+{% load l10n static %}
+{% block title %}Обзор цен{% endblock title %}
+{% block styles %}
+  <link rel="stylesheet"
+        data-page-style
+        href="{% static 'catalog/market.css' %}?v=4">
+{% endblock styles %}
+{% block content %}
+  <header class="page-intro">
+    <h1>Обзор цен</h1>
+  </header>
+  <form class="panel search-form market-form"
+        action="{% url 'market' %}"
+        method="get">
+    {% include "catalog/location_choice.html" %}
+    {% for field in fields %}
+      <div class="market-{{ field.name }}">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+    {% endfor %}
+    <button class="button button-primary" type="submit">Обновить обзор</button>
+  </form>
+  {% if errors %}
+    <section class="panel message">
+      <h2>Исправьте параметры обзора</h2>
+      {% for entry in errors.scope %}<p>{{ entry.message }}</p>{% endfor %}
+    </section>
+  {% elif summary.total %}
+    <div class="market-grid">
+      <section class="panel panel-tinted market-prices"
+               aria-labelledby="market-median">
+        <h2 id="market-median">Медианная цена</h2>
+        {% if summary.median_price is not None %}
+          <strong class="market-amount">{{ summary.median_price|floatformat:"-2g" }} {{ unit }}</strong>
+          {% if summary.exact_count != summary.total %}<p class="hint">Точных цен в расчёте: {{ summary.exact_count }} из {{ summary.total }}</p>{% endif %}
+          {% if summary.middle %}
+            <div class="market-range">
+              <span>Средние 50% цен в выборке</span>
+              <strong>{{ summary.middle.0|floatformat:"-2g" }} – {{ summary.middle.1|floatformat:"-2g" }} {{ unit }}</strong>
+            </div>
+          {% endif %}
+        {% else %}
+          <p>В этом срезе пока нет точных цен для расчёта.</p>
+        {% endif %}
+        <dl class="market-data">
+          {% if summary.objects != summary.total %}
+            <div>
+              <dt>Объекты</dt>
+              <dd>
+                {{ summary.objects }}
+              </dd>
+            </div>
+          {% endif %}
+          <div>
+            <dt>Объявления</dt>
+            <dd>
+              {{ summary.total }}
+            </dd>
+          </div>
+        </dl>
+        {% if summary.lower_bounds or summary.unknown_count %}
+          <p class="hint">С ценой «от» — {{ summary.lower_bounds }}. Без цены — {{ summary.unknown_count }}.</p>
+        {% endif %}
+        <a class="button button-secondary" href="{{ catalog_url }}">Открыть этот срез в каталоге</a>
+      </section>
+      <section class="panel market-sources" aria-labelledby="market-sources">
+        <h2 id="market-sources">Площадки</h2>
+        <ul>
+          {% for source in summary.sources %}
+            <li>
+              <div class="market-source-title">
+                <strong class="source-brand">{% include "catalog/source_icon.html" with code=source.code only %} {{ source.name }}</strong>
+                <span>{{ source.total }} из {{ summary.total }}</span>
+              </div>
+              <meter min="0"
+                     max="{{ summary.total|unlocalize }}"
+                     value="{{ source.total|unlocalize }}"
+                     aria-label="Объявления площадки {{ source.name }}"></meter>
+              {% if source.exact_count != source.total %}<p class="hint">{{ source.exact_count }} с точной ценой</p>{% endif %}
+              {% if source.median_price is not None %}
+                <p>Медиана {{ source.median_price|floatformat:"-2g" }} {{ unit }}</p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
+  {% else %}
+    <section class="panel message">
+      <h2>Объявлений в этом срезе пока нет</h2>
+      <p>Попробуйте изменить категорию или регион.</p>
+    </section>
+  {% endif %}
+{% endblock content %}

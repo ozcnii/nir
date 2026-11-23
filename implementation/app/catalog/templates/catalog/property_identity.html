@@ -1,0 +1,7 @@
+<header class="property-hero">
+  <div>
+    <h1>{{ title }}</h1>
+    <p class="address">{{ address }}</p>
+    {% include "catalog/property_facts.html" with item=details.property %}
+  </div>
+</header>

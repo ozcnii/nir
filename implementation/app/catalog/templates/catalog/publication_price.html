@@ -1,0 +1,18 @@
+{% with ad=item.offer.ad price=item.offer.latest_price %}
+  <div class="publication-price">
+    {% if price %}
+      <strong class="price">{% include "catalog/price_value.html" with price=price unit=item.unit only %}</strong>
+    {% else %}
+      <p class="hint">Цена не получена</p>
+    {% endif %}
+    <div class="publication-header">
+      <p class="publication-meta">
+        <strong class="source-brand">{% include "catalog/source_icon.html" with code=item.source_code only %} {{ item.source }}</strong>
+        <span>· {{ item.deal }}{% if item.segment %} · {{ item.segment }}{% endif %}</span>
+      </p>
+    </div>
+    <a class="button {% if primary %}button-primary{% else %}button-secondary{% endif %}"
+       href="{{ ad.url }}"
+       aria-label="Смотреть на {{ item.source }}">К объявлению</a>
+  </div>
+{% endwith %}

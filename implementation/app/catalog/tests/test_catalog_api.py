@@ -4,13 +4,13 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import urlsplit
 
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.db import DatabaseError, connection, models
 from django.http import QueryDict
 from django.test import Client, TransactionTestCase, override_settings
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import Page, expect, sync_playwright
 
 from app.catalog.catalog_filters import BIGINT_MAX, CatalogFilters
 from app.catalog.catalog_queries import read_catalog
@@ -42,12 +42,10 @@ def check_api_catalog(page: Page, origin: str, ids: tuple[int, int]) -> None:
     # Arrange: keep public photos within the controlled browser fixture.
     page.route("https://media.example.test/**", lambda route: route.abort())
 
-    # Act: follow the JSON link on each HTML catalog page.
+    # Act: request the same search through HTML and the public API.
     for number, size in ((1, 20), (2, 1)):
         page.goto(f"{origin}/catalog/?{SEARCH}&page={number}")
-        json_link = page.get_by_role("link", name="JSON").get_attribute("href")
-        assert json_link == f"{API_LIST}?{SEARCH}&page={number}"
-        response = page.request.get(f"{origin}{json_link}")
+        response = page.request.get(f"{origin}{API_LIST}?{SEARCH}&page={number}")
         payload = response.json()
 
         # Assert: every ordered property and offer matches the actual HTML cards.
@@ -70,10 +68,10 @@ def check_api_catalog(page: Page, origin: str, ids: tuple[int, int]) -> None:
             f"{API_LIST}?{SEARCH}&page=1" if number == 2 else None
         )
         for card, item in zip(cards, payload["results"], strict=True):
-            link = card.get_by_role("link", name="Открыть объект").get_attribute("href")
+            link = card.locator("a.object-link").get_attribute("href")
             assert link is not None
             assert urlsplit(link).path == f"/properties/{item['id']}/"
-            links = card.get_by_role("link", name="На площадку").all()
+            links = card.locator(".offers a").all()
             assert [option.get_attribute("href") for option in links] == [
                 offer["url"] for offer in item["ads"]
             ]
@@ -83,12 +81,12 @@ def check_api_catalog(page: Page, origin: str, ids: tuple[int, int]) -> None:
                 for offer in item["ads"]
             )
 
-    # Act: follow the full card's JSON link without forwarding HTML search context.
-    page.get_by_role("link", name="Открыть объект").click()
-    assert parse_qs(urlsplit(page.url).query)["from"] == ["catalog"]
-    detail_link = page.get_by_role("link", name="JSON").get_attribute("href")
-    assert detail_link == f"{API_LIST}{property_id}/"
-    detail_response = page.request.get(f"{origin}{detail_link}")
+    # Act: read the same object via the detail API without its HTML search context.
+    page.locator("article.result a.object-link").click()
+    expect(page).to_have_url(
+        f"{origin}/properties/{property_id}/?from=catalog&{SEARCH}&page=2"
+    )
+    detail_response = page.request.get(f"{origin}{API_LIST}{property_id}/")
     detail = detail_response.json()
     removed_response = page.request.get(f"{origin}{API_LIST}{removed_id}/")
 

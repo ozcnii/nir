@@ -111,7 +111,7 @@ def listing(page_number: int, *, mode: str) -> str:
     )
 
 
-def collect_region(stdout: StringIO) -> None:
+def collect_region(stdout: StringIO, *options: str) -> None:
     call_command(
         "collect",
         "--source",
@@ -122,6 +122,7 @@ def collect_region(stdout: StringIO) -> None:
         "apartment",
         "--deal",
         "sale",
+        *options,
         stdout=stdout,
     )
 
@@ -232,6 +233,22 @@ def verify_cian_search() -> None:
     assert first.pk == original_id and first.photos
     assert first.photos_observed_at == original_photo_time
     assert PriceHistory.objects.filter(ad=first).count() == 1
+
+    # Arrange
+    requests.clear()
+    limited = StringIO()
+
+    # Act
+    with patch("app.collection.search.browser_page", routed_browser):
+        collect_region(limited, "--max-cards", "1")
+
+    # Assert
+    limited_summary = json.loads(limited.getvalue())
+    assert limited_summary["unique_cards"] == 1
+    assert limited_summary["pages"] == 1
+    assert limited_summary["listing_complete"] is False
+    assert limited_summary["issues"] == {"card_limit_reached": 1}
+    assert requests == [REGIONAL_URL, card(FIRST)[0], card(FIRST)[0]], requests
 
     for case in ("cycle", "drift", "stop"):
         # Arrange

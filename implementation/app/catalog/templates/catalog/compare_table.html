@@ -1,0 +1,189 @@
+{% load l10n %}
+<section class="comparison-table-section"
+         aria-labelledby="comparison-table-heading">
+  <h2 id="comparison-table-heading" class="sr-only">Характеристики и объявления</h2>
+  <div class="comparison-scroll"
+       data-comparison-scroll
+       tabindex="0"
+       role="region"
+       aria-label="Таблица сравнения объектов">
+    <table class="comparison"
+           role="table"
+           data-group-size="{{ items|length|unlocalize }}"
+           data-columns="{{ visible_items|length|unlocalize }}"{% if show_differences %} data-mark-differences{% endif %}>
+      <thead role="rowgroup">
+        <tr role="row">
+          <th scope="col" role="columnheader" class="comparison-key"><span>Объект</span></th>
+          {% for row in visible_rows %}
+            {% with item=row.item number=row.number|stringformat:"d" %}
+              <th scope="col"
+                  role="columnheader"{% if row.number == recommended_number %} class="comparison-recommended"{% endif %}>
+                <div class="comparison-object">
+                  <div class="comparison-object-actions">
+                    <span class="deck-number">№ {{ number }}</span>
+                    {% if row.status %}
+                      {% with label=row.status %}
+                        <span class="selection-budget budget-{{ label }}"
+                              title="{% if label == 'within' %}В бюджете{% elif label == 'over' %}Дороже бюджета{% else %}Уточнить цену{% endif %}">
+                          <span class="selection-budget-label">
+                            {% if label == "within" %}В бюджете{% elif label == "over" %}Дороже бюджета{% else %}Уточнить цену{% endif %}
+                          </span>
+                          <span class="selection-budget-icon" aria-hidden="true">
+                            {% if label == "within" %}✓{% elif label == "over" %}↑{% else %}?{% endif %}
+                          </span>
+                        </span>
+                      {% endwith %}
+                    {% endif %}
+                    {% if not shared %}
+                      {% include "catalog/compare_button.html" with property_id=item.id comparing=True return_url=workspace_url remove_label=number %}
+                    {% endif %}
+                  </div>
+                  <div class="comparison-object-info">
+                    {% include "catalog/compare_photo.html" with item=item number=number only %}
+                    <div class="comparison-object-identity">
+                      {% if item.url %}
+                        <a class="comparison-object-title"
+                           href="{{ item.url }}?{{ detail_query }}">{{ item.title }}</a>
+                      {% else %}
+                        <span class="comparison-object-title">{{ item.title }}</span>
+                      {% endif %}
+                      {% if item.asset %}
+                        {% include "catalog/property_facts.html" with item=item.asset house_type_id=house_type_id room_type_id=room_type_id only %}
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </th>
+            {% endwith %}
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody role="rowgroup">
+        <tr role="row"
+            class="comparison-prices{% if rows.price.different %} is-different{% endif %}">
+          <th scope="row" role="rowheader"><span class="comparison-row-label">Цена</span></th>
+          {% for row in visible_rows %}
+            <td role="cell">
+              {% with price=row.item.lead_price %}
+                {% if price %}
+                  <strong class="comparison-price-value">
+                    {% include "catalog/price_value.html" with price=price unit=unit only %}
+                  </strong>
+                {% else %}
+                  <span class="hint">Цена неизвестна</span>
+                {% endif %}
+              {% endwith %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% if rows.area.visible %}
+          <tr role="row"{% if rows.area.different %} class="is-different"{% endif %}>
+            <th scope="row" role="rowheader"><span class="comparison-row-label">Площадь</span></th>
+            {% for item in visible_items %}
+              <td role="cell">
+                {% if item.asset and item.asset.area_m2 is not None %}{{ item.asset.area_m2|floatformat:"-2" }} м²{% else %}Не указана{% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endif %}
+        {% if rows.per_meter.visible %}
+          <tr role="row"{% if rows.per_meter.different %} class="is-different"{% endif %}>
+            <th scope="row" role="rowheader"><span class="comparison-row-label">Цена за м²</span></th>
+            {% for item in visible_items %}
+              <td role="cell">
+                {% with price=item.lead_price_per_meter %}
+                  {% if price is not None %}
+                    <span class="comparison-price-value">{{ price|floatformat:"0g" }} ₽</span>
+                  {% else %}
+                    <span class="hint">Не рассчитана</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endif %}
+        {% if rows.address.visible %}
+          <tr role="row"{% if rows.address.different %} class="is-different"{% endif %}>
+            <th scope="row" role="rowheader">
+              <span class="comparison-row-label">
+                Адрес
+                {% if common_region %}<small class="comparison-region hint">{{ common_region }}</small>{% endif %}
+              </span>
+            </th>
+            {% for row in visible_rows %}
+              <td role="cell"
+                  class="compare-address"{% if row.item.address %} title="{{ row.item.address }}"{% endif %}>
+                {% if row.item.url %}
+                  <a class="compare-address-value"
+                     href="{{ row.item.url }}?{{ detail_query }}">
+                    {{ row.address }}{% if row.region and row.region != row.address %} · {{ row.region }}{% endif %}
+                  </a>
+                {% else %}
+                  <span class="compare-address-value">{{ row.address }}</span>
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endif %}
+        {% if rows.rooms.visible %}
+          <tr role="row"{% if rows.rooms.different %} class="is-different"{% endif %}>
+            <th scope="row" role="rowheader"><span class="comparison-row-label">Комнаты</span></th>
+            {% for item in visible_items %}
+              <td role="cell">
+                {% if item.asset and item.asset.rooms is not None %}
+                  {% if item.asset.property_type_id == room_type_id %}<span title="Комнат в объявлении">{{ item.asset.rooms }}</span>{% else %}{{ item.asset.rooms }}{% endif %}
+                {% else %}
+                  Не указано
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endif %}
+        {% if rows.floor.visible %}
+          <tr role="row"{% if rows.floor.different %} class="is-different"{% endif %}>
+            <th scope="row" role="rowheader"><span class="comparison-row-label">Этаж</span></th>
+            {% for item in visible_items %}
+              <td role="cell">
+                {% if item.asset and item.asset.floor is not None %}
+                  {{ item.asset.floor }}{% if item.asset.floors_total is not None %} из {{ item.asset.floors_total }}{% endif %}
+                {% else %}
+                  Не указан
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endif %}
+        {% if rows.land.visible %}
+          <tr role="row"{% if rows.land.different %} class="is-different"{% endif %}>
+            <th scope="row" role="rowheader"><span class="comparison-row-label">Участок</span></th>
+            {% for item in visible_items %}
+              <td role="cell">
+                {% if item.asset and item.asset.land_area_m2 is not None %}{{ item.asset.land_area_m2|floatformat:"-2" }} м²{% else %}Не указан{% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endif %}
+        <tr role="row">
+          <th scope="row" role="rowheader"><span class="comparison-row-label">Объявления</span></th>
+          {% for item in visible_items %}
+            <td role="cell">
+              <div class="comparison-sources">
+                {% for offer in item.offers %}
+                  <a href="{{ offer.url }}"
+                     title="{{ offer.source }}"
+                     aria-label="Открыть объявление · {{ offer.source }}">
+                    {% include "catalog/source_icon.html" with code=offer.source_code only %}
+                    <span>{{ offer.source }}</span>
+                  </a>
+                {% empty %}
+                  <span class="hint">Нет объявлений</span>
+                {% endfor %}
+              </div>
+            </td>
+          {% endfor %}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="comparison-swipe hint" data-comparison-hint hidden>Прокрутите таблицу вправо.</p>
+</section>

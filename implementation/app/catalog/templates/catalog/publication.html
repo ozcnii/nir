@@ -1,68 +1,27 @@
+{% load l10n %}
 {% with ad=item.offer.ad %}
-  <article class="publication">
-    <header class="publication-header">
-      <div>
-        <h3>{{ item.source }} · № {{ ad.external_id }}</h3>
-        <p>
-          {{ item.deal }}
-          {% if item.segment %}· {{ item.segment }}{% endif %}
-        </p>
-      </div>
-      <a href="{{ ad.url }}">На площадку</a>
-    </header>
-    {% if item.offer.matches_search %}<p class="match-note">Подходит под ваш поиск</p>{% endif %}
-    {% if not ad.is_active %}<p class="match-note">Снято с публикации</p>{% endif %}
-    <section class="publication-price">
-      {% with price=item.offer.latest_price %}
-        <h4>Последняя известная цена</h4>
-        {% if price %}
-          <span class="price">{% include "catalog/price_value.html" with price=price unit=item.unit only %}</span>
-          <p class="hint">
-            Цена зафиксирована
-            <time datetime="{{ price.observed_at|date:'c' }}">{{ price.observed_at|date:"d.m.Y H:i" }}</time>
-          </p>
-        {% else %}
-          <p>Цена не получена</p>
+  <article class="panel publication" id="offer-{{ ad.pk|unlocalize }}">
+    <div class="publication-layout{% if ad.photos %} publication-layout-media{% endif %}">
+      {% if ad.photos %}
+        <div class="publication-media">{% include "catalog/publication_photos.html" with ad=ad only %}</div>
+      {% endif %}
+      <div class="publication-aside">
+        {% if not ad.is_active %}<p class="match-note">Снято с публикации</p>{% endif %}
+        {% include "catalog/publication_price.html" with item=item only %}
+        {% if not ad.photos %}
+          {% include "catalog/publication_photos.html" with ad=ad only %}
         {% endif %}
-      {% endwith %}
-      <p class="hint">
-        Данные объявления получены
-        <time datetime="{{ ad.observed_at|date:'c' }}">{{ ad.observed_at|date:"d.m.Y H:i" }}</time>
-      </p>
-    </section>
-    {% include "catalog/publication_photos.html" with ad=ad only %}
-    <section>
-      <h4>Описание</h4>
-      {% if ad.description %}
-        <div class="seller-description">{{ ad.description }}</div>
-      {% else %}
-        <p>Описание не указано</p>
+      </div>
+      <section class="publication-history">
+        <h4>История цен</h4>
+        {% include "catalog/publication_history.html" with item=item only %}
+      </section>
+      {% if item.description %}
+        <section class="publication-description">
+          <h4>Описание</h4>
+          <div class="seller-description">{{ item.description }}</div>
+        </section>
       {% endif %}
-    </section>
-    <section>
-      <h4>История цен</h4>
-      {% if item.offer.price_history %}
-        <table class="price-history">
-          <thead>
-            <tr>
-              <th scope="col">Дата фиксации</th>
-              <th scope="col">Цена</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for price in item.offer.price_history %}
-              <tr>
-                <td>
-                  <time datetime="{{ price.observed_at|date:'c' }}">{{ price.observed_at|date:"d.m.Y H:i" }}</time>
-                </td>
-                <td>{% include "catalog/price_value.html" with price=price unit=item.unit only %}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <p>История цен пуста</p>
-      {% endif %}
-    </section>
+    </div>
   </article>
 {% endwith %}
